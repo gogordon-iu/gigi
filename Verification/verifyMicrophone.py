@@ -8,8 +8,12 @@ def list_microphones():
     return mic_list
 
 def get_usb_microphone(mic_list):
-    usb_device = [(i, m) for i, m in enumerate(mic_list) if "USB" in m][1]
-    return usb_device
+    try:
+        usb_device = [(i, m) for i, m in enumerate(mic_list) if "USB" in m][0]
+        return usb_device
+    except IndexError:
+        print("No USB microphone found.")
+        return None
 
 def recognize_speech_from_microphone(mic_index):
     """
