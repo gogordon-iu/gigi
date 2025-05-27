@@ -26,7 +26,7 @@ sudo add-apt-repository ppa:mc3man/mpv-tests
 sudo apt update
 sudo apt install mpv
 # Open this file:
-#/home/orangepi/Code/ValeraGordon/venv/lib/python3.10/site-packages/mpv.py
+#/home/orangepi/Code/gigi/venv/lib/python3.10/site-packages/mpv.py
 #Go to line ~1339, and replace:
 #if self.mpv_version_tuple >= (0, 38, 0):
 #with:
@@ -34,6 +34,7 @@ sudo apt install mpv
 
 # screen
 sudo rm -rf LCD-show
+cd
 git clone https://github.com/goodtft/LCD-show.git
 chmod -R 755 LCD-show
 cd LCD-show/
