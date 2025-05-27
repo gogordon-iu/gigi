@@ -1,3 +1,7 @@
+# set git
+git config --global user.name "gigi"
+git config --global user.email "gigi@iu.edu"
+
 # Connect to the appropriate wifi
 # nmcli dev wifi connect "MIGO" password "your_password"
 
