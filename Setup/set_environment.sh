@@ -27,3 +27,10 @@ sudo apt install mpv
 #if self.mpv_version_tuple >= (0, 38, 0):
 #with:
 #if False:
+
+# screen
+sudo rm -rf LCD-show
+git clone https://github.com/goodtft/LCD-show.git
+chmod -R 755 LCD-show
+cd LCD-show/
+sudo ./LCD7C-show
