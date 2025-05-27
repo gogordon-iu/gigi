@@ -1,8 +1,8 @@
 # virtual environment
 cd ../..
 # change ownership, so does not need sudo
-sudo chown -R orangepi:orangepi ValeraGordon/
-cd ValeraGordon
+sudo chown -R orangepi:orangepi gigi/
+cd gigi
 python3 -m venv venv
 source venv/bin/activate
 
