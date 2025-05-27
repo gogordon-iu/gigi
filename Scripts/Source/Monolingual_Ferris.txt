@@ -1,0 +1,122 @@
+﻿Monolingual Ferris Wheel Activity Script 
+[name] Monolingual Ferris
+[Character] female
+[Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
+[Speak] I love building with LEGO and playing with my friends.
+[Speak] Would you like to play with me? [face: look_up, move: hands_up]
+[Speak] If you want to play, raise your hands! [move] arms_up [pause] after: 2
+[Speak] High… higher… This is great! I’m so happy you want to play with me.
+[Speak] Oh, but wait! Lets say hello first! [move] look_from_side_to_side
+[Speak] Can you see? You have a bin with LEGO blocks and figures on the table. [show] image: lego [move] arms_down
+[Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it.
+[Speak] When you are done, raise the smiley card you have in front of you.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] I see you are having fun. Let me know when you are done by raising the smiley card. [goto] -1
+[edge] yes [speak] Did you pick a boy or a girl? What kind of hair do they have? Curly? Straight? Short? Long? What color is their shirt?
+[Speak] Show your friends your figure and tell them what you picked. [move] look_from_side_to_side [pause] 10
+[Speak] Now, we’re ready to start!
+[Speak] Today we’re going to build a Ferris wheel. Do you know what a Ferris wheel is?
+[edge] yes [speak] Ferris wheels are so much fun! I love going on them and spinning round and round.
+[edge] no [speak] A Ferris wheel is a big wheel that spins round and round. You can find Ferris wheels in carnivals! I love them! [audio] laugh
+[Speak] Have you ever been on a Ferris wheel? Tell your friends. [pause]: 10
+[Speak] Today we’ll build a big Ferris wheel together for our LEGO friends!
+[Speak] Look at the bin at the center of your table! It has all the pieces we need to build a Ferris wheel. So Lets get started! [face] look_down [move] arms_down
+[Speak] Are you ready?
+[hear] words: yes
+Step 1: Identify the Motor and Pins
+[Speak] Can you find the yellow motor block and four green pins?
+[Speak] When you are done, raise your card.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still searching? Take your time. [goto] -1
+[edge] yes [speak] Great! That’s our motor!
+________________
+
+
+Step 2: Add Motor to Base
+[Speak] Now connect the motor to the gray LEGO plate. the base.
+[Speak] One person holds the base while the other clicks the motor in.
+[Speak] Raise your card when you are ready.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Not quite done? I will wait. [goto] -1
+[edge] yes [speak] Excellent teamwork!
+________________
+
+
+Step 3: Build One Tower
+[Speak] This tower is key! Stack three bricks, one on top of the other, to build your first tower. You can take turns: one stacks, the other one counts. Then switch!
+[Speak] When it’s done, raise your card.
+________________
+
+
+Step 4: Attach the First Tower
+[Speak] Place the tower on the baseplate close to the motor. One friend can hold the baseplate while the other presses the tower down.
+[Speak] When it’s steady, raise your card.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still building? I will wait for your signal. [goto] -1
+[edge] yes [speak] One tower is ready! Great job.
+________________
+
+
+Step 5: Build and Add the Second Tower
+[Speak] Now we build another tower! We use the same number of bricks.. Try switching roles: the one who counted can now be the builder! When your tower is ready, hold up your cards.. 
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Take your time. I will wait here until your towers match. [goto] -1
+[edge] yes [speak] Awesome! Both towers are done!
+________________
+
+
+Step 6: Add the Axle
+[Speak] Find the long black axle and slide it through the holes in both towers. One friend can hold the towers while the other pushes the axle through. Lets test it!
+[Speak] When it turns smoothly, raise your card.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Let me know when it’s turning well. I will wait! [goto] -1
+[edge] yes [speak] The axle is in and spinning. That was great teamwork!
+________________
+
+
+Step 7: Build the Wheel Arms
+[Speak] Connect the green angled pieces to the round wheel center to form an X. Take turns holding the wheel while your partner adds the arms. Then switch.
+[Speak] When they’re all connected, raise your card.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still snapping them in? I will wait until you are done. [goto] -1
+[edge] yes [speak] You made an X! What a super team!
+________________
+
+
+Step 8: Attach the Wheel to the Axle
+[Speak] Now gently slide the wheel onto the axle. Be very careful!. One of you can hold the axle, while the other pushes the wheel. Now, Lets test it! 
+[Speak] If it spins nicely, raise your card.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Try again and raise your card when the wheel is spinning well. [goto] -1
+[edge] yes [speak] Look at that spin! Good job, guys! You did such a great job working together!
+________________
+
+
+Step 9: Build the Seats
+[Speak] Use red or yellow bricks to build four small seats. One of you can build red, and the other can build yellow. then switch!
+[Speak] When all four are ready, raise your card.
+________________
+
+
+Step 10: Attach the Seats
+[Speak] Now, Lets connect the seats onto the ends of the green arms. Take turns–one at a time. When they’re all on, raise your card.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still working? I will wait! [goto] -1
+[edge] yes [speak] That looks amazing. you are almost finished and you are working together so nicely!.
+________________
+
+
+Step 11: Get Ready to Spin
+[Speak] Lets double-check: Are your towers strong? Is the wheel connected? One friend checks while the other spins. When it looks ready, raise your card.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still checking? That’s smart. I will wait here. [goto] -1
+[edge] yes [speak] Ready to test! You’ve helped each other every step of the way.
+________________
+
+
+Step 12: Check the Ferris Wheel!
+[Speak] Spin your Ferris Wheel gently with your finger. What happens?
+[Speak] Raise your card if it spins smoothly!
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Try spinning again. I will wait for your signal. [goto] -1
+[edge] yes [speak] You did it! Our Ferris Wheel is standing tall and spinning around! You built it together. high five your friend and give a big smile! [move] Clap your hands!

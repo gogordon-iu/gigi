@@ -1,0 +1,59 @@
+router:
+1) make the router work
+Try manually assigning an IP:
+Go to Control Panel > Network and Sharing Center > Change adapter settings.
+Right-click your Ethernet adapter → Properties.
+Click Internet Protocol Version 4 (TCP/IPv4) → Properties.
+Choose Use the following IP address:
+IP address: 192.168.0.10
+Subnet mask: 255.255.255.0
+Default gateway: 192.168.0.1
+
+
+Orangepi:
+nmcli device wifi list
+nmcli device wifi connect "YourRouterSSID" password "YourPassword"
+nmcli connection modify "YourRouterSSID" ipv4.addresses 192.168.0.50/24
+nmcli connection modify "YourRouterSSID" ipv4.gateway 192.168.0.1
+nmcli connection modify "YourRouterSSID" ipv4.dns 8.8.8.8
+nmcli connection modify "YourRouterSSID" ipv4.method manual
+
+
+Remote Git:
+Steps to create a bare repo on Orange Pi:
+SSH into Orange Pi:
+
+ssh orangepi@192.168.0.50
+
+Create a bare repo somewhere (e.g., /home/orangepi/repos/ValeraGordon.git):
+mkdir -p ~/repos
+cd ~/repos
+git init --bare ValeraGordon.git
+git symbolic-ref HEAD refs/heads/main
+
+Push from your laptop to this bare repo:
+git remote add orangepi ssh://orangepi@192.168.0.50/home/orangepi/repos/ValeraGordon.git
+git remote add orangepiMIGO ssh://orangepi@10.0.0.26/home/orangepi/repos/ValeraGordon.git
+git push orangepi main
+
+On the Orange Pi, keep your working copy separate from the bare repo:
+Your working copy can be cloned from the bare repo:
+cd ~/Code
+git clone ~/repos/ValeraGordon.git
+
+Then you can work on ~/Code/ValeraGordon with VSCode SSH.
+When you push to the bare repo, update your working copy manually or automate it with a hook:
+
+To update working copy after a push, set up a post-receive hook in the bare repo:
+cd ~/repos/ValeraGordon.git/hooks
+nano post-receive
+Paste:
+#!/bin/bash
+GIT_WORK_TREE=/home/orangepi/Code/ValeraGordon git checkout -f
+
+Make it executable:
+chmod +x post-receive
+
+Now every time you push to the bare repo, the working copy in /home/orangepi/Code/ValeraGordon will automatically update.
+
+git push orangepiBare main

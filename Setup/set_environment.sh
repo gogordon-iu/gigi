@@ -1,0 +1,29 @@
+# Connect to the appropriate wifi
+# nmcli dev wifi connect "MIGO" password "your_password"
+
+
+# general python
+sudo apt update
+sudo apt install python3 python3-venv python3-pip -y
+
+# audio
+sudo apt install pocketsphinx python3-pocketsphinx -y
+sudo apt install portaudio19-dev -y
+
+# motors
+sudo apt-get install -y i2c-tools gpiod libgpiod-dev
+sudo groupadd gpio
+sudo chown root:gpio /dev/gpiochip0
+sudo chmod 660 /dev/gpiochip0
+sudo usermod -aG gpio orangepi
+
+# video
+sudo add-apt-repository ppa:mc3man/mpv-tests
+sudo apt update
+sudo apt install mpv
+# Open this file:
+#/home/orangepi/Code/ValeraGordon/venv/lib/python3.10/site-packages/mpv.py
+#Go to line ~1339, and replace:
+#if self.mpv_version_tuple >= (0, 38, 0):
+#with:
+#if False:

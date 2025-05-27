@@ -1,0 +1,187 @@
+﻿Bilingual Ferris Wheel Activity Script 
+[name] Bilingual Lego
+[Character] female
+[Speak] Hello friends! I’m Gigi the robot! [move] wave_hello 
+[audio] laugh  
+[Speak] I love building with LEGO and playing with my friends.  
+[Speak] Would you like to play with me? #¿Quieren jugar conmigo? #[face] look_up  
+[hear] words: yes, si  
+[edge] yes [speak] Great!  
+[edge] si [speak] #¡Excelente!#  
+
+
+[Speak] How do you say "hello" in Spanish? [pause] after: 3  
+[hear] words: hola  
+[edge] hola [speak] That’s right. # ¡hola! # Let’s all say it together: #¡hola!#
+[pause] after: 3  
+
+
+[Speak] If you want to play, raise your hands! # ¡Levanten las manos! #[move] arms_up [pause] after: 2  
+[Speak] High. Higher. This is great!  
+[Speak] I’m so happy you want to play with me. [move] arms_down  
+[Speak] But before we start, let’s say hello to each other in English and Spanish. [move] look_from_side_to_side [pause] after: 5  
+
+
+[Speak] Can you see? You have a bin with LEGO blocks and figures on the table. [show] image: lego [move] arms_down  
+[Speak] Can you find a LEGO figure that you like?  
+[Speak] Everyone can choose one LEGO figure and decorate it. # Elijan una figura LEGO y decórenla. # 
+[Speak] When you are done, raise the black and white card in front of you. # Cuando terminen, levanten la tarjeta en blanco y negro. # 
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60  
+[edge] no [speak] I see you are having fun. Let me know when you are done by raising the card. [goto] -1  
+[edge] yes [speak] Did you pick a boy or a girl? What kind of hair do they have? Curly? Straight? What color is their shirt?  
+[Speak] Show your friends your figure and tell them what you picked. [move] look_from_side_to_side [pause] after: 10  
+[Speak] Now we’re ready to start!# ¡Vamos a empezar!#
+
+
+
+
+[Speak] Today we’re going to build a Ferris wheel. Or in Spanish, we say #la noria.# Do you know what a Ferris wheel is? Tell your friends. # Hoy vamos a construir la noria. ¿Saben qué es? Cuéntenle a sus amigos.# [pause] after: 10 
+[Speak] Yes! A Ferris wheel is a big wheel that spins. Or in Spanish, #gira#, round and round. You can find Ferris wheels in carnivals! I love them! # ¡Sí! Es una rueda grande que gira y gira. ¡Las puedes encontrar en ferias! ¡Me encantan!# [Audio] laugh 
+[Speak] Have you ever been on a Ferris wheel? Tell your friends. # ¿Alguna vez han subido a una noria? Cuéntenle a sus amigos.# [pause] after: 10 
+[Speak] Today we will build a big Ferris wheel for our LEGO friends together! # ¡Hoy construiremos una gran noria para nuestros amigos LEGO juntos! #
+[Speak] Look at the bin at the center of your table! It has all the pieces. Or in Spanish, #las piezas.# We need to build a Ferris wheel. So let’s get started! # Miren la caja en el centro de la mesa. ¡Tiene todas las piezas que necesitamos! #[face] look_down [move] arms_down 
+[Speak] Are you ready? # ¿Están listos? #
+[hear] words: yes, si 
+[edge] yes [speak] Great! # ¡Muy bien! 
+[edge] si [speak] #¡Excelente!#
+Step 1: Identify the Motor and Pins
+[Speak] Today we’re going to build a Ferris wheel. or as we say in Spanish, *la noria*.  
+[Speak] Do you know what a Ferris wheel is? Tell your friends. [pause] after: 10  
+[Speak] Yes! A Ferris wheel is a big wheel that spins. *gira*, round and round. You can find Ferris wheels in carnivals! I love them!  
+[audio] laugh  
+[Speak] Have you ever been on a Ferris wheel? Tell your friends. [pause] after: 10  
+[Speak] Today we will build a big Ferris wheel for our LEGO friends together! # Hoy construiremos una gran noria para nuestros amigos de LEGO.  #
+[Speak] Look at the bin at the center of your table! It has all the pieces. *las piezas*. we need to build our Ferris wheel.  
+[Speak] So let’s get started! # ¡Vamos a empezar! #[face] look_down [move] arms_down  
+[Speak] Are you ready? # ¿Están listos?  #
+[hear] words: yes, si  
+[edge] yes [speak] Great!  
+[edge] si [speak] #¡Excelente!#
+
+
+
+
+Step 2: Add Motor to Base 
+[Speak] Now connect the motor to the gray LEGO plate. the base. 
+[Speak] How do we say to connect in Spanish? Can anyone tell me? # ¿Cómo se dice# to connect #en español? ¿Alguien lo sabe?# 
+[hear] words: conectar 
+[edge] conectar [speak] That’s right! #¡conectar! Conecten el motor a la placa gris de LEGO la base. 
+[Speak] One person holds the base while the other clicks the motor in. #Uno sostiene la base mientras el otro coloca el motor. 
+[Speak] Raise your card when you are ready. # Levanten la tarjeta cuando terminen. #
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60 
+[edge] no [speak] Not quite done? I will wait. # ¿Todavía no? Aquí espero.# [goto] -1 
+[edge] yes [speak] Excellent teamwork! # ¡Buen trabajo en equipo!#
+
+
+Step 3: Build One Tower
+[Speak] now let’s build a tower! In Spanish we say: #un torre#.
+[Speak] this tower is 3 blocks high! 
+[Speak] Who can remind me how we count to three in Spanish?  [pause] 5
+[speak] Thank you for teaching us. #uno, dos, tres.# 
+[Speak] Let’s show what a tower looks like with our hands! Reach up tall like a tower, #a torre.!# [move] arms_up  
+[Speak] Now, stack three bricks to build a tower.
+[Speak] How do you say “tower” in your language? # ¿Cómo se dice “tower” en tu idioma?  #
+[Speak] Can you teach your friends? # ¿Quieres enseñarle a tus amigos?# [pause] 5
+
+
+[Speak] One child can stack the blocks while another counts. Then switch!  
+[Speak] When your tower is done, raise your card. # Cuando terminen su torre, levanten su tarjeta. # 
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60  
+[edge] no [speak] Still building? Take your time. [goto] -1  
+[edge] yes [speak] Great tower! You worked together so well! # ¡Gran torre! ¡Trabajaron muy bien juntos!#
+
+
+________________
+
+
+
+
+Step 4: Attach the First Tower 
+[Speak] Now, Put the tower next to the motor. [image] motor
+[Speak] One friend holds the base, one friend  pushes. 
+[Speak] Raise your card when you are done. [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60 
+[edge] no [speak] I will wait while you finish. [goto] -1 
+[edge] yes [speak] First tower. ready to roll!
+________________
+
+
+
+
+Step 5: Build and Add the Second Tower 
+[Speak] Build another tower, just like the first.
+[Speak] Remember to switch roles! #¡Recuerden cambiar de rol!#
+[Speak] When the second tower is standing next to the first one,, raise your card. 
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60 
+[edge] no [speak] Not quite done? That’s okay. [goto] -1 
+[edge] yes [speak] Now we have two towers! # ¡dos torres!#
+
+
+Step 6: Add the Axle 
+[Speak] Who remembers how we say spin in Spanish? 
+[pause] after: 3  
+[hear] words: girar  
+[edge] girar [speak] That’s right. #girar!#
+[Speak] Can you show me with your hands how something spins? # ¿Pueden mostrar con las manos cómo gira algo?  # [move] circle_with_hands
+[Speak] Find the long black axle. # Busquen el eje negro.  #
+[Speak] Push it through both towers. One friend can hold, another one can push. #Uno sostiene, otro empuja.  #
+[Speak] Ready to spin? Try it,  then raise your card! # ¿Listos para girar? #
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60  
+[edge] no [speak] Keep going! # ¡Sigan así!# [goto] -1  
+[edge] yes [speak] Great axle work! #eje completo!#
+
+
+Step 7: Build the Wheel Arms 
+[Speak] Find the green pieces to make an X. #forma de X# 
+[Speak] One holds the wheel, the other clips them in. 
+[Speak] When it’s ready, raise your card. 
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60 
+[edge] no [speak] Still snapping pieces? That’s okay. [goto] -1 
+[edge] yes [speak] Awesome! Wheel arms are ready!
+
+
+Step 8: Attach the Wheel 
+[Speak] Slide the wheel. #rueda.# onto the axle. #eje# 
+[Speak] Take turns.  One holds, one slides. [pause] 3
+[Speak] If it spins, raise your card! 
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60 
+[edge] no [speak] Try again! I will wait. [goto] -1 
+[edge] yes [speak] Woohoo! The wheel is spinning! #¡Está girando!#
+Step 9: Build the Seats 
+[Speak] How do we say seat in Spanish? # ¿Cómo se dice “seat”?  # [pause] after: 3  
+[hear] words: asiento  
+[edge] asiento [speak] That’s right. #asiento!#
+[Speak] Do you know another way to say it?  
+[Speak] How do you say seat in your language?  
+[Speak] Can you tell your friends? [pause] 5
+[Speak] Use red and yellow bricks to build four small seats. 
+[Speak] When they’re ready, raise your card.  
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60  
+[edge] no [speak] Almost done? I will wait. # ¿Casi listos? Aquí espero. #[goto] -1  
+[edge] yes [speak] Look at those seats, #asientos.# Amazing work!
+
+
+Step 10: Attach the Seats 
+[Speak] Now, let’s connect the seats, #asientos.# Onto the ends of the green arms.  
+[Speak] Take turns. One at a time. # Uno por uno. #
+[Speak] When they’re all on, raise your card.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60  
+[edge] no [speak] Still working? I will wait! # ¿Todavía trabajando? Los espero.# [goto] -1  
+[edge] yes [speak] That looks amazing! You are almost finished and you are working together so nicely! 
+
+
+Step 11: Get Ready to Spin**
+[Speak] Let’s double-check: Are your towers strong? #fuertes?# Is the wheel. #rueda.# connected?  
+[Speak] One friend checks while the other spins. # Uno revisa mientras el otro gira.  #
+[Speak] When it looks ready, raise your card. # Si todo se ve bien, levanten su tarjeta.  #
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60  
+[edge] no [speak] Still checking? That’s smart. I will wait here. [goto] -1
+[edge] yes [speak] Ready to test! You’ve helped each other every step of the way. # ¡Listos para probar! Se han ayudado durante todo el camino.# 
+
+
+Step 12: Final Spin 
+[Speak] Spin your Ferris Wheel. #noria# Gently with your finger. What happens?  [pause] 5
+[Speak] Raise your card if it spins smoothly! #Si gira bien, levanten su tarjeta.  #
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60  
+[edge] no [speak] Try spinning again. I will wait for your signal. # Intenten girarla otra vez. Yo los espero. #[goto] -1  
+[edge] yes [speak] You did it! Our Ferris Wheel is standing tall and spinning around! You built it together.  High five your friend and give a big smile!  
+[move] clap  [speak] Lets hear a big cheer!
