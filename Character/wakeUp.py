@@ -189,12 +189,7 @@ class WakeUp(ScriptGraph) :
         edges = self.graph.out_edges(current_node, data=True)
         next_node = list(edges)[0][1]
 
-        print("DEBUG: ", current_data["found"])
-        print("DEBUG: ", current_data["found"].keys())
-        print("DEBUG: ", list(current_data["found"].keys()))
-        print("DEBUG: ", list(current_data["found"].keys())[0])
-        print("DEBUG: ", list(current_data["found"].keys())[0].split(" "))
-        wifi_info = current_data["found"].keys()[0].split(" ")
+        wifi_info = list(current_data["found"].keys())[0].split(" ")
         if len(wifi_info) < 2:
             print("No valid WiFi information found in Q R code.")
             return next_node
