@@ -198,23 +198,43 @@ class WakeUp(ScriptGraph) :
         self.data["wifi network"] = wifi_info[0]
         self.data["wifi password"] = wifi_info[1]
 
-        cmds = [
-            f"sudo nmcli dev wifi rescan",
-            f"sudo nmcli dev wifi connect {self.data['wifi network']} password {self.data['wifi password']}"
-        ]
-        for cmd in cmds:
-            print(f"Executing command: {cmd}")
-            result = subprocess.run(
-                cmd.split(' '),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            print("Command output:", result.stdout)
-            print("Command error:", result.stderr)
-            if result.returncode != 0:
-                print("Failed to connect to WiFi.")
-                return next_node
+        result = subprocess.run(
+            ['nmcli', 'dev', 'wifi', 'rescan'],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        print("Output:", result.stdout)
+        print("Error:", result.stderr)
+
+        # Add a new connection profile
+        subprocess.run([
+            'nmcli', 'connection', 'add',
+            'type', 'wifi',
+            'ifname', '*',  # or 'wlan0'
+            'con-name', self.data["wifi network"],
+            'ssid', self.data["wifi network"]
+        ], check=True)
+        print("Output:", result.stdout)
+        print("Error:", result.stderr)
+
+        # Set Wi-Fi security and password
+        subprocess.run([
+            'nmcli', 'connection', 'modify', self.data["wifi network"],
+            'wifi-sec.key-mgmt', 'wpa-psk',
+            'wifi-sec.psk', self.data["wifi password"]
+        ], check=True)
+        print("Output:", result.stdout)
+        print("Error:", result.stderr)
+
+        # Bring up the connection
+        result = subprocess.run(['nmcli', 'connection', 'up', self.data["wifi network"]],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                text=True)
+        print("Output:", result.stdout)
+        print("Error:", result.stderr)
 
         print(f"Connected to {self.data['wifi network']} with password {self.data['wifi password']}")
         return next_node
@@ -251,7 +271,7 @@ class WakeUp(ScriptGraph) :
                     return next_node
 
         print(f"Permanent IP address set to {permanent_ip}")
-        next_node["text"] = f"Permanent IP address set to {permanent_ip}"
+        self.graph.nodes[next_node]["text"] = f"Permanent IP address set to {permanent_ip}"
         return next_node
 
 if __name__ == "__main__":
