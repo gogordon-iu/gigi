@@ -198,19 +198,23 @@ class WakeUp(ScriptGraph) :
         self.data["wifi network"] = wifi_info[0]
         self.data["wifi password"] = wifi_info[1]
 
-        cmd = f"sudo nmcli dev wifi connect {self.data['wifi network']} password {self.data['wifi password']}"
-        print(f"Executing command: {cmd}")
-        result = subprocess.run(
-            cmd.split(' '),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        print("Command output:", result.stdout)
-        print("Command error:", result.stderr)
-        if result.returncode != 0:
-            print("Failed to connect to WiFi.")
-            return next_node
+        cmds = [
+            f"sudo nmcli dev wifi rescan",
+            f"sudo nmcli dev wifi connect {self.data['wifi network']} password {self.data['wifi password']}"
+        ]
+        for cmd in cmds:
+            print(f"Executing command: {cmd}")
+            result = subprocess.run(
+                cmd.split(' '),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            print("Command output:", result.stdout)
+            print("Command error:", result.stderr)
+            if result.returncode != 0:
+                print("Failed to connect to WiFi.")
+                return next_node
 
         print(f"Connected to {self.data['wifi network']} with password {self.data['wifi password']}")
         return next_node
