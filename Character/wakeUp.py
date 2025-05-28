@@ -198,6 +198,8 @@ class WakeUp(ScriptGraph) :
         self.data["wifi network"] = wifi_info[0]
         self.data["wifi password"] = wifi_info[1]
 
+        subprocess.run(['nmcli', 'connection', 'delete', self.data["wifi network"]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
         result = subprocess.run(
             ['nmcli', 'dev', 'wifi', 'rescan'],
             check=True,
@@ -205,7 +207,7 @@ class WakeUp(ScriptGraph) :
             stderr=subprocess.PIPE,
             text=True
         )
-        print("Output:", result.stdout)
+        print("Rescan Output:", result.stdout)
         print("Error:", result.stderr)
 
         # Add a new connection profile
@@ -216,7 +218,7 @@ class WakeUp(ScriptGraph) :
             'con-name', self.data["wifi network"],
             'ssid', self.data["wifi network"]
         ], check=True)
-        print("Output:", result.stdout)
+        print("Add Output:", result.stdout)
         print("Error:", result.stderr)
 
         # Set Wi-Fi security and password
@@ -225,7 +227,7 @@ class WakeUp(ScriptGraph) :
             'wifi-sec.key-mgmt', 'wpa-psk',
             'wifi-sec.psk', self.data["wifi password"]
         ], check=True)
-        print("Output:", result.stdout)
+        print("Modify Output:", result.stdout)
         print("Error:", result.stderr)
 
         # Bring up the connection
@@ -233,7 +235,7 @@ class WakeUp(ScriptGraph) :
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
                                 text=True)
-        print("Output:", result.stdout)
+        print("Up Output:", result.stdout)
         print("Error:", result.stderr)
 
         print(f"Connected to {self.data['wifi network']} with password {self.data['wifi password']}")
