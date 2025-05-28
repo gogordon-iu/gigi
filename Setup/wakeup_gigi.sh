@@ -1,4 +1,4 @@
-cd /home/orangepi/Code/ValeraGordon
+cd /home/orangepi/Code/gigi
 ./activate_environment.sh
 source venv/bin/activate
 cd Character
