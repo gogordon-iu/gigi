@@ -237,7 +237,8 @@ class WakeUp(ScriptGraph) :
         return next_node
 
 if __name__ == "__main__":
-    set_speaker_volume(volume_percent=80)
+    if IS_ROBOT:
+        set_speaker_volume(volume_percent=80)
 
     tasg = WakeUp()
     tasg.init_graph()
