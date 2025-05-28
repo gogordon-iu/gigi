@@ -231,6 +231,14 @@ class WakeUp(ScriptGraph) :
         print("Modify Output:", result.stdout)
         print("Error:", result.stderr)
 
+        # Set priority
+        subprocess.run([
+            'nmcli', 'connection', 'modify', self.data["wifi network"],
+            'connection.autoconnect-priority', '100'
+        ], check=True)
+        print("Modify Output:", result.stdout)
+        print("Error:", result.stderr)
+
         # Bring up the connection
         result = subprocess.run(['nmcli', 'connection', 'up', self.data["wifi network"]],
                                 stdout=subprocess.PIPE,
