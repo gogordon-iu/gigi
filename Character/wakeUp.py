@@ -243,6 +243,8 @@ if __name__ == "__main__":
     tasg = WakeUp()
     tasg.init_graph()
     tasg.add_function("get_ip", tasg.get_ip)
+    tasg.add_function("update_wifi", tasg.update_wifi)
+    tasg.add_function("setup_ip", tasg.setup_ip)
 
     fuzzy = Character(wakeup=True, activity="wakeup")
     script = Script(graph=tasg, character=fuzzy)
