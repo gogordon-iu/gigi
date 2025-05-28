@@ -252,10 +252,10 @@ class WakeUp(ScriptGraph) :
             ip_parts[-1] = "1"
             gateway = ".".join(ip_parts)
             cmds = [
-                f"sudo nmcli connection modify {self.data['wifi network']} ipv4.addresses {permanent_ip}/24",
-                f"sudo nmcli connection modify {self.data['wifi network']} ipv4.gateway {gateway}",
-                f"sudo nmcli connection modify {self.data['wifi network']} ipv4.dns 8.8.8.8",
-                f"sudo nmcli connection modify {self.data['wifi network']} ipv4.method manual"
+                f"nmcli connection modify {self.data['wifi network']} ipv4.addresses {permanent_ip}/24",
+                f"nmcli connection modify {self.data['wifi network']} ipv4.gateway {gateway}",
+                f"nmcli connection modify {self.data['wifi network']} ipv4.dns 8.8.8.8",
+                f"nmcli connection modify {self.data['wifi network']} ipv4.method manual"
             ]
             for cmd in cmds:
                 print(f"Executing command: {cmd}")
