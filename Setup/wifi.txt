@@ -57,3 +57,5 @@ chmod +x post-receive
 Now every time you push to the bare repo, the working copy in /home/orangepi/Code/ValeraGordon will automatically update.
 
 git push orangepiBare main
+
+TPLINK password: 6B6D96FB6F
