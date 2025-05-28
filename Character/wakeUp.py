@@ -70,12 +70,12 @@ class WakeUp(ScriptGraph) :
 
         # connect to wifi---
         self.graph.add_node("wakeup_100", type="speak",
-                            text="Show me the QR code of your wifi, please.")
+                            text="Show me the Q R code of your wifi, please.")
         self.graph.add_edge("wakeup_02", 
                             "wakeup_100", 
                             label="connect")
         self.graph.add_node("wakeup_101", type="find",
-                            what="qr")
+                            what="qr", timeout=5)
         self.graph.add_edge("wakeup_100", 
                             "wakeup_101", 
                             label="show qr")
@@ -133,7 +133,7 @@ class WakeUp(ScriptGraph) :
         # self.graph.add_node("wakeup_04", type="hear", 
         #                     words=script_options)
         self.graph.add_node("wakeup_04", type="find", 
-                            what="qr")
+                            what="qr", timeout=5)
         self.graph.add_edge("wakeup_03", 
                             "wakeup_04", 
                             label="run script")
@@ -191,7 +191,7 @@ class WakeUp(ScriptGraph) :
 
         wifi_info = current_node["found"].keys()[0].split(" ")
         if len(wifi_info) < 2:
-            print("No valid WiFi information found in QR code.")
+            print("No valid WiFi information found in Q R code.")
             return next_node
 
         self.data["wifi network"] = wifi_info[0]
