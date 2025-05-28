@@ -66,7 +66,7 @@ class Character():
             self.conv = None
 
         self.lookat_calibration = None
-        if HAS_FACE and HAS_MOVEMENT and HAS_VISION:
+        if self.face and self.movement and self.vision:
             if exists(CHARACTER_FOLDER + "lookat_calibrated.json"):
                 self.lookat_calibration = json.load(open(CHARACTER_FOLDER + "lookat_calibrated.json"))
                 # keys = head position (-1.0, 1.0)
@@ -93,35 +93,35 @@ class Character():
                       image_data=None, video_data=None):
         speech_thread = None
         movement_thread = None
-        if viseme_data and HAS_SPEECH:
+        if viseme_data and self.speech:
             speech_thread = self.speech.audio_thread(file=viseme_data['file'], text=viseme_data['text'])
             speech_thread.start()
-        elif audio_data and HAS_SPEECH:
+        elif audio_data and self.speech:
             speech_thread = self.speech.audio_thread(file=audio_data['file'], text=audio_data['text'])
             speech_thread.start()
-        if movement_data and HAS_MOVEMENT:
+        if movement_data and self.movement:
             movement_thread = self.movement.movement_thread(motor_data=movement_data)
             movement_thread.start()
 
         # Priority in displaying on screen: video, image, text, face, viseme
-        if (image_data or video_data or caption_data) and HAS_FACE:
+        if (image_data or video_data or caption_data) and self.face:
             if video_data:
                 self.face.display_video_file(filename=video_data['filename'])
             elif image_data:
                 self.face.display_image_file(filename=image_data['filename'])
             elif caption_data:
                 self.face.display_text(text=caption_data['caption'])
-        elif HAS_FACE:
+        elif self.face:
             self.face.display_image_file(filename=None)
             face_parts = []
-            if face_data and HAS_FACE:
+            if face_data and self.face:
                 if 'parts' in face_data:
                     face_parts.append([0.5, face_data['parts']])
                     # self.face.generate_face(parts_selected=face_data['parts'])
                 elif 'sequence' in face_data:
                     face_parts.append([0.5, basic_sequences[face_data['sequence']]])
                     # self.face.run_sequence(face_sequence_name=face_data['sequence'])
-            if viseme_data and HAS_VISEME:
+            if viseme_data and self.viseme:
                 face_parts.append([self.speech.sample_rate,
                                    self.viseme.generate_viseme_sequence(file=viseme_data['file'], text=viseme_data['text'])])
                 # self.viseme.generate_viseme(file=viseme_data['file'], text=viseme_data['text'])
