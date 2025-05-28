@@ -53,8 +53,8 @@ class Character():
         if HAS_MOVEMENT:
             try:
                 self.movement = Movement()
-            if wakeup:
-                self.movement.home_position()
+                if wakeup:
+                    self.movement.home_position()
             except:
                 HAS_MOVEMENT = False
                 self.movement = None
