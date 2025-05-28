@@ -56,7 +56,6 @@ class Character():
                 if wakeup:
                     self.movement.home_position()
             except:
-                HAS_MOVEMENT = False
                 self.movement = None
         else:
             self.movement = None
