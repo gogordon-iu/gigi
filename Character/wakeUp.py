@@ -7,6 +7,8 @@ from characterDefinitions import CHARACTER_FOLDER
 from scriptAssets import get_scripts
 import socket, psutil
 from microphone import set_speaker_volume
+import os
+# -*- coding: utf-8 -*-
 
 # initialize Character
 # Ask what to do
@@ -28,6 +30,8 @@ class WakeUp(ScriptGraph) :
         super().__init__()
 
         self.data["ip"] = None
+        self.data["wifi network"] = None
+        self.data["wifi password"] = None
 
     def init_graph(self):
         # Add text chunk
@@ -43,7 +47,7 @@ class WakeUp(ScriptGraph) :
                             label="start speak")
 
         self.graph.add_node("wakeup_02", type="hear", 
-                            words='["run script", "bye", "show wifi"]')
+                            words='["run script", "bye", "show wifi", "connect"]')
         self.graph.add_edge("wakeup_01", 
                             "wakeup_02", 
                             label="ask what to do")
@@ -63,6 +67,52 @@ class WakeUp(ScriptGraph) :
         self.graph.add_edge("wakeup_06", 
                             "wakeup_01", 
                             label="back to ask")
+
+        # connect to wifi---
+        self.graph.add_node("wakeup_100", type="speak",
+                            text="Show me the QR code of your wifi, please.")
+        self.graph.add_edge("wakeup_02", 
+                            "wakeup_100", 
+                            label="connect")
+        self.graph.add_node("wakeup_101", type="find",
+                            what="qr")
+        self.graph.add_edge("wakeup_100", 
+                            "wakeup_101", 
+                            label="show qr")
+        self.graph.add_node("wakeup_102", type="update_wifi")
+        self.graph.add_edge("wakeup_101", 
+                            "wakeup_102", 
+                            label="yes")
+        self.graph.add_node("wakeup_103", type="speak",
+                            text="Do you want me to set up a permanent ip address?")
+        self.graph.add_edge("wakeup_102", 
+                            "wakeup_103", 
+                            label="wifi updated")
+        self.graph.add_node("wakeup_104", type="hear",
+                            words='["yes", "no"]')
+        self.graph.add_edge("wakeup_103", 
+                            "wakeup_104", 
+                            label="ask")    
+        self.graph.add_node("wakeup_105", type="setup_ip")
+        self.graph.add_edge("wakeup_104", 
+                            "wakeup_105", 
+                            label="yes")
+        self.graph.add_node("wakeup_106", type="show",
+                            text="I will not set up a permanent ip address.")
+        self.graph.add_edge("wakeup_105", 
+                            "wakeup_106", 
+                            label="ip setup done")
+        self.graph.add_edge("wakeup_106",
+                            "wakeup_01", 
+                            label="ip setup done")
+        self.graph.add_edge("wakeup_104",
+                            "wakeup_107", 
+                            label="no") 
+        self.graph.add_node("wakeup_107", type="speak",
+                            text="I will not set up a permanent ip address.")
+        self.graph.add_edge("wakeup_107",
+                            "wakeup_01", 
+                            label="ip setup done")
 
         # bye bye---
         self.graph.add_node("wakeup_end", type="speak",
@@ -112,10 +162,10 @@ class WakeUp(ScriptGraph) :
                                 "wakeup_04", label="finished")
         self.graph.add_node("The End", type="end")
         
-    def get_ip(self, current_node, current_data, data_):
-        edges = self.graph.out_edges(current_node, data=True)
-        next_node = list(edges)[0][1]
-
+    def find_ip_address(self):
+        """
+        Find the IP address of the wlan0 interface.
+        """
         ip_address = None
         for addr in psutil.net_if_addrs().get("wlan0", []):
             if addr.family == socket.AF_INET:
@@ -124,9 +174,68 @@ class WakeUp(ScriptGraph) :
         if ip_address:
             print(f"IP Address: {ip_address}")
             self.data["ip"] = ip_address
+        return ip_address
+    
+    def get_ip(self, current_node, current_data, data_):
+        edges = self.graph.out_edges(current_node, data=True)
+        next_node = list(edges)[0][1]
+
+        ip_address = self.find_ip_address()
+        if ip_address:
             self.graph.nodes[next_node]['caption'] = f"IP Address: {ip_address}"
         return next_node
+    
+    def update_wifi(self, current_node, current_data, data_):
+        edges = self.graph.out_edges(current_node, data=True)
+        next_node = list(edges)[0][1]
+
+        wifi_info = current_node["found"].keys()[0].split(" ")
+        if len(wifi_info) < 2:
+            print("No valid WiFi information found in QR code.")
+            return next_node
+
+        self.data["wifi network"] = wifi_info[0]
+        self.data["wifi password"] = wifi_info[1]
+
+        cmd = f"nmcli dev wifi connect '{self.data['wifi network']}' password '{self.data['wifi password']}'"
+        print(f"Executing command: {cmd}")
+        result = os.system(cmd)
+        if result != 0:
+            print("Failed to connect to WiFi.")
+            return next_node
+
+        print(f"Connected to {self.data['wifi network']} with password {self.data['wifi password']}")
+        return next_node
         
+    def setup_ip(self, current_node, current_data, data_):
+        edges = self.graph.out_edges(current_node, data=True)
+        next_node = list(edges)[0][1]
+
+        permanent_ip = "0.0.0.0"
+        ip_address = self.find_ip_address()
+        if ip_address:
+            ip_parts = ip_address.split(".")
+            ip_parts[-1] = "50"
+            permanent_ip = ".".join(ip_parts)
+            ip_parts[-1] = "1"
+            gateway = ".".join(ip_parts)
+            cmds = [
+                f"nmcli connection modify {self.data['wifi network']} ipv4.addresses {permanent_ip}/24",
+                f"nmcli connection modify {self.data['wifi network']} ipv4.gateway {gateway}",
+                f"nmcli connection modify {self.data['wifi network']} ipv4.dns 8.8.8.8",
+                f"nmcli connection modify {self.data['wifi network']} ipv4.method manual"
+            ]
+            for cmd in cmds:
+                print(f"Executing command: {cmd}")
+                result = os.system(cmd)
+                if result != 0:
+                    print("Failed to set up permanent IP address.")
+                    return next_node
+
+        print(f"Permanent IP address set to {permanent_ip}")
+        next_node["text"] = f"Permanent IP address set to {permanent_ip}"
+        return next_node
+
 if __name__ == "__main__":
     set_speaker_volume(volume_percent=80)
 
