@@ -51,9 +51,13 @@ class Character():
             self.vision = None
 
         if HAS_MOVEMENT:
-            self.movement = Movement()
+            try:
+                self.movement = Movement()
             if wakeup:
-                    self.movement.home_position()
+                self.movement.home_position()
+            except:
+                HAS_MOVEMENT = False
+                self.movement = None
         else:
             self.movement = None
 
