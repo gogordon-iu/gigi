@@ -8,6 +8,7 @@ from scriptAssets import get_scripts
 import socket, psutil
 from microphone import set_speaker_volume
 import os
+import subprocess
 # -*- coding: utf-8 -*-
 
 # initialize Character
@@ -199,8 +200,13 @@ class WakeUp(ScriptGraph) :
 
         cmd = f"nmcli dev wifi connect '{self.data['wifi network']}' password '{self.data['wifi password']}'"
         print(f"Executing command: {cmd}")
-        result = os.system(cmd)
-        if result != 0:
+        result = subprocess.run(
+            cmd.split(' '),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        if result.returncode != 0:
             print("Failed to connect to WiFi.")
             return next_node
 
@@ -227,8 +233,14 @@ class WakeUp(ScriptGraph) :
             ]
             for cmd in cmds:
                 print(f"Executing command: {cmd}")
-                result = os.system(cmd)
-                if result != 0:
+                result = subprocess.run(
+                    cmd.split(' '),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+
+                if result.returncode != 0:
                     print("Failed to set up permanent IP address.")
                     return next_node
 
