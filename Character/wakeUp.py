@@ -9,6 +9,7 @@ import socket, psutil
 from microphone import set_speaker_volume
 import os
 import subprocess
+import tempfile
 # -*- coding: utf-8 -*-
 
 # initialize Character
@@ -195,10 +196,10 @@ class WakeUp(ScriptGraph) :
             print("No valid WiFi information found in Q R code.")
             return next_node
 
-        self.data["wifi network"] = wifi_info[0]
-        self.data["wifi password"] = wifi_info[1]
-
-        subprocess.run(['nmcli', 'connection', 'delete', self.data["wifi network"]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ssid = self.data["wifi network"] = wifi_info[0]
+        password = self.data["wifi password"] = wifi_info[1]
+        interface = "wlan0"
+        subprocess.run(['nmcli', 'connection', 'delete', ssid], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         result = subprocess.run(
             ['nmcli', 'dev', 'wifi', 'rescan'],
@@ -210,33 +211,51 @@ class WakeUp(ScriptGraph) :
         print("Rescan Output:", result.stdout)
         print("Error:", result.stderr)
 
-        # Add a new connection profile
-        subprocess.run([
-            'nmcli', 'connection', 'add',
-            'type', 'wifi',
-            'ifname', '*',  # or 'wlan0'
-            'con-name', self.data["wifi network"],
-            'ssid', self.data["wifi network"]
-        ], check=True)
-        print("Add Output:", result.stdout)
-        print("Error:", result.stderr)
+        # Create a temporary file with the password
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as pw_file:
+            pw_file.write(password)
+            pw_file_path = pw_file.name
 
-        # Set Wi-Fi security and password
-        subprocess.run([
-            'nmcli', 'connection', 'modify', self.data["wifi network"],
-            'wifi-sec.key-mgmt', 'wpa-psk',
-            'wifi-sec.psk', self.data["wifi password"]
-        ], check=True)
-        print("Modify Output:", result.stdout)
-        print("Error:", result.stderr)
+        # Delete old connection with same name if needed
+        subprocess.run(['nmcli', 'connection', 'delete', ssid],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        # Bring up the connection
-        result = subprocess.run(['nmcli', 'connection', 'up', self.data["wifi network"]],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                text=True)
-        print("Up Output:", result.stdout)
-        print("Error:", result.stderr)
+        # Add a new connection
+        subprocess.run([
+            'nmcli', 'device', 'wifi', 'connect', ssid,
+            'ifname', interface,
+            '--passwd-file', pw_file_path
+        ], check=True)
+
+        os.remove(pw_file_path)
+
+        # # Add a new connection profile
+        # subprocess.run([
+        #     'nmcli', 'connection', 'add',
+        #     'type', 'wifi',
+        #     'ifname', '*',  # or 'wlan0'
+        #     'con-name', self.data["wifi network"],
+        #     'ssid', self.data["wifi network"]
+        # ], check=True)
+        # print("Add Output:", result.stdout)
+        # print("Error:", result.stderr)
+
+        # # Set Wi-Fi security and password
+        # subprocess.run([
+        #     'nmcli', 'connection', 'modify', self.data["wifi network"],
+        #     'wifi-sec.key-mgmt', 'wpa-psk',
+        #     'wifi-sec.psk', self.data["wifi password"]
+        # ], check=True)
+        # print("Modify Output:", result.stdout)
+        # print("Error:", result.stderr)
+
+        # # Bring up the connection
+        # result = subprocess.run(['nmcli', 'connection', 'up', self.data["wifi network"]],
+        #                         stdout=subprocess.PIPE,
+        #                         stderr=subprocess.PIPE,
+        #                         text=True)
+        # print("Up Output:", result.stdout)
+        # print("Error:", result.stderr)
 
         print(f"Connected to {self.data['wifi network']} with password {self.data['wifi password']}")
         return next_node
