@@ -72,7 +72,7 @@ class WakeUp(ScriptGraph) :
 
         # connect to wifi---
         self.graph.add_node("wakeup_100", type="speak",
-                            text="Show me the Q. R.  code of your wifi, please.")
+                            text="Show me the Q. R. code of your wifi, please.")
         self.graph.add_edge("wakeup_02", 
                             "wakeup_100", 
                             label="connect")
