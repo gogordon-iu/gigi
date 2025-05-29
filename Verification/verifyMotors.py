@@ -12,7 +12,7 @@ print("Setting motors ...")
 chip0 = gpiod.Chip("/dev/gpiochip0")
 pwd.getpwuid(os.getuid())[0]
 
-SMBUS_INTERFACE = 2
+SMBUS_INTERFACE = 6
 FREQUENCY = 50
 
 # Registers/etc:
