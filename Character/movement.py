@@ -12,7 +12,10 @@ class Movement:
         print("Initializing motors ...")
         self.verbose = verbose
         self.motors = Motors()
-        if exists(CHARACTER_FOLDER + "motorData.json"):
+        if exists(CHARACTER_FOLDER + "motorData_calibrated.json"):
+            self.motor_map = json.load(open(CHARACTER_FOLDER + "motorData_calibrated.json"))
+            self.current_positions = {m: self.motor_map[m]['center'] for m in self.motor_map.keys() if self.motor_map[m]['calibrated']}
+        elif exists(CHARACTER_FOLDER + "motorData.json"):
             self.motor_map = json.load(open(CHARACTER_FOLDER + "motorData.json"))
             self.current_positions = {m: self.motor_map[m]['center'] for m in self.motor_map.keys() if self.motor_map[m]['calibrated']}
         else:

@@ -28,7 +28,7 @@ else:
 # Paths
 from pathlib import Path
 current_directory = (str)(Path.cwd())
-CHARACTER_FOLDER = current_directory.split("ValeraGordon")[0] + "ValeraGordon/Character/"
+CHARACTER_FOLDER = current_directory.split("gigi")[0] + "gigi/Character/"
 
 # Follow face thresholds:
 FOLLOW_TORSO_OFFSET = 0.5

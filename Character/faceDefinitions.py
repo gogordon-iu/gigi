@@ -4,8 +4,8 @@ image_folder_path = '../Assets/face/'
 global_parts = ["Eyes", "Nose", "Mouth"]
 
 characters = {
-        'valera': {
-            "name": "valera",
+        'gigi': {
+            "name": "gigi",
             "base_image_name": "robot face.00",
             "part_slices": {"Eyes": [0, 0.41], "Nose": [0.41, 0.65], "Mouth": [0.65, 1]},
             "part_sequence": {

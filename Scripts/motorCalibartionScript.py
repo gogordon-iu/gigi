@@ -1,10 +1,12 @@
-import json
 import sys
+sys.path.append('../Character')
+import json
 from script import *
 from scriptGraph import ScriptGraph
 from characterDefinitions import CHARACTER_FOLDER
+import os
 
-calibration_path = "../Assets/calibration/"
+activity_name = "Motor Calibration"
 
 class MotorCalibration(ScriptGraph) : 
     def __init__(self, movement=None):
@@ -99,7 +101,7 @@ class MotorCalibration(ScriptGraph) :
                                     label=w.replace("_", " "))
                 # start with the "max" calibration
                 self.graph.add_node("show_max_%s_%d" % (w, channel_idx), type="show", 
-                                    image="%s_max.jpg" % (calibration_path + w))
+                                    image="%s_max.jpg" % w)
                 self.graph.add_edge("start_calibrate_%s_%d" % (w, channel_idx),
                                     "show_max_%s_%d" % (w, channel_idx),
                                     label="show max %s" % w)
@@ -147,7 +149,7 @@ class MotorCalibration(ScriptGraph) :
 
                 # continue with the "min" calibration
                 self.graph.add_node("show_min_%s_%d" % (w, channel_idx), type="show", 
-                                    image="%s_min.jpg" % (calibration_path + w))
+                                    image="%s_min.jpg" % w)
                 self.graph.add_edge("update_max_%s_%d" % (w, channel_idx),
                                     "show_min_%s_%d" % (w, channel_idx),
                                     label="yes")
@@ -229,31 +231,6 @@ class MotorCalibration(ScriptGraph) :
             self.graph.nodes[next_node]["motors"][current_channel] = current_angle + current_data["by"]
         return next_node
 
-    def hear(self, current_node, current_data, data_):
-        print(current_node)
-        print(current_data)
-        print("Hear, listening for one of the following: ", current_data["words"])
-        current_channel = int(current_node.split("_")[-1])
-
-        if "yes" in current_data["words"]:      # yes/no
-            if current_channel in [0, 1, 2, 3, 14, 15]:
-                output = "yes"
-            else:
-                output = "no"
-        elif "neck" in current_data["words"]:   #joints
-            joints = ['neck', 'torso', 'left_shoulder', 'right_shoulder', None, None,
-                      None, None, None, None, None, None, None, None, 'left_elbow', 'right_elbow']
-            output = joints[current_channel]
-
-        print("hear output: ", output)
-        edges = self.graph.out_edges(current_node, data=True)
-        print(edges)
-        for u, v, current_data in edges:
-            if current_data['label'] == output:
-                next_node = v
-                break
-        return next_node
-
     def update(self, current_node, current_data, data_):
         self.data['motors'][current_data['motor']]['channel'] = current_data['channel']
         
@@ -271,8 +248,10 @@ class MotorCalibration(ScriptGraph) :
 
     def done(self):
         print(self.data["motors"])
-        with open("motorData_calibrated.json", "w") as json_file:
-            json.dump(self.data["motors"], json_file, indent=4)
+        with open(CHARACTER_FOLDER + "motorData_calibrated.json", "w") as json_file:
+            # Save the folder where movement.py was found
+            json.dump(self.data['motors'], json_file, indent=4)
+
 
 
 if __name__ == "__main__":
@@ -284,12 +263,8 @@ if __name__ == "__main__":
     mcsg.add_function("update", mcsg.update)
     mcsg.add_done()
 
-    
-    fuzzy = Character()
+    fuzzy = Character(activity=activity_name, gender='female')
     script = Script(graph=mcsg, character=fuzzy)
-    # script.generateAllSpeech()
-
-    # mcsg.add_function("hear", mcsg.hear)
-    # script = Script(graph=mcsg)
-    
-    script.run()
+    script.generateAllSpeech()
+    script.check_assets()    
+    # script.run()
