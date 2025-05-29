@@ -25,36 +25,36 @@ SSH into Orange Pi:
 
 ssh orangepi@192.168.0.50
 
-Create a bare repo somewhere (e.g., /home/orangepi/repos/ValeraGordon.git):
+Create a bare repo somewhere (e.g., /home/orangepi/repos/gigi.git):
 mkdir -p ~/repos
 cd ~/repos
-git init --bare ValeraGordon.git
+git init --bare gigi.git
 git symbolic-ref HEAD refs/heads/main
 
 Push from your laptop to this bare repo:
-git remote add orangepi ssh://orangepi@192.168.0.50/home/orangepi/repos/ValeraGordon.git
-git remote add orangepiMIGO ssh://orangepi@10.0.0.26/home/orangepi/repos/ValeraGordon.git
+git remote add orangepi ssh://orangepi@192.168.0.50/home/orangepi/repos/gigi.git
+git remote add orangepiMIGO ssh://orangepi@10.0.0.26/home/orangepi/repos/gigi.git
 git push orangepi main
 
 On the Orange Pi, keep your working copy separate from the bare repo:
 Your working copy can be cloned from the bare repo:
 cd ~/Code
-git clone ~/repos/ValeraGordon.git
+git clone ~/repos/gigi.git
 
-Then you can work on ~/Code/ValeraGordon with VSCode SSH.
+Then you can work on ~/Code/gigi with VSCode SSH.
 When you push to the bare repo, update your working copy manually or automate it with a hook:
 
 To update working copy after a push, set up a post-receive hook in the bare repo:
-cd ~/repos/ValeraGordon.git/hooks
+cd ~/repos/gigi.git/hooks
 nano post-receive
 Paste:
 #!/bin/bash
-GIT_WORK_TREE=/home/orangepi/Code/ValeraGordon git checkout -f
+GIT_WORK_TREE=/home/orangepi/Code/gigi git checkout -f
 
 Make it executable:
 chmod +x post-receive
 
-Now every time you push to the bare repo, the working copy in /home/orangepi/Code/ValeraGordon will automatically update.
+Now every time you push to the bare repo, the working copy in /home/orangepi/Code/gigi will automatically update.
 
 git push orangepiBare main
 
