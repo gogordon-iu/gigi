@@ -62,7 +62,7 @@ class WakeUp(ScriptGraph) :
         
         self.graph.add_node("wakeup_06", type=["show", "pause"],
                             pause={"after": 5.0},
-                            caption="Can't find my IP address.")
+                            caption="Can't find my I. P. address.")
         self.graph.add_edge("wakeup_05", 
                             "wakeup_06", 
                             label="show wifi")
@@ -72,7 +72,7 @@ class WakeUp(ScriptGraph) :
 
         # connect to wifi---
         self.graph.add_node("wakeup_100", type="speak",
-                            text="Show me the Q R code of your wifi, please.")
+                            text="Show me the Q. R.  code of your wifi, please.")
         self.graph.add_edge("wakeup_02", 
                             "wakeup_100", 
                             label="connect")
@@ -86,7 +86,7 @@ class WakeUp(ScriptGraph) :
                             "wakeup_102", 
                             label="yes")
         self.graph.add_node("wakeup_103", type="speak",
-                            text="Do you want me to set up a permanent ip address?")
+                            text="Do you want me to set up a permanent I. P. address?")
         self.graph.add_edge("wakeup_102", 
                             "wakeup_103", 
                             label="wifi updated")
@@ -100,7 +100,7 @@ class WakeUp(ScriptGraph) :
                             "wakeup_105", 
                             label="yes")
         self.graph.add_node("wakeup_106", type="show",
-                            text="I will not set up a permanent ip address.")
+                            text="I will not set up a permanent I. P. address.")
         self.graph.add_edge("wakeup_105", 
                             "wakeup_106", 
                             label="ip setup done")
@@ -111,7 +111,7 @@ class WakeUp(ScriptGraph) :
                             "wakeup_107", 
                             label="no") 
         self.graph.add_node("wakeup_107", type="speak",
-                            text="I will not set up a permanent ip address.")
+                            text="I will not set up a permanentI. P. address.")
         self.graph.add_edge("wakeup_107",
                             "wakeup_01", 
                             label="ip setup done")
@@ -193,7 +193,7 @@ class WakeUp(ScriptGraph) :
 
         wifi_info = list(current_data["found"].keys())[0].split(" ")
         if len(wifi_info) < 2:
-            print("No valid WiFi information found in Q R code.")
+            print("No valid WiFi information found in Q. R.  code.")
             return next_node
 
         ssid = self.data["wifi network"] = wifi_info[0]
