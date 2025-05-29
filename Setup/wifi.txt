@@ -29,6 +29,7 @@ Create a bare repo somewhere (e.g., /home/orangepi/repos/gigi.git):
 mkdir -p ~/repos
 cd ~/repos
 git init --bare gigi.git
+cd gigi.git
 git symbolic-ref HEAD refs/heads/main
 
 Push from your laptop to this bare repo:
@@ -59,3 +60,7 @@ Now every time you push to the bare repo, the working copy in /home/orangepi/Cod
 git push orangepiBare main
 
 TPLINK password: 6B6D96FB6F
+
+Since orangepi (with 192.168...) does not have connection to the internet, it is not possible to do pip install
+Hence, copy the virtual environment directly (this takes several minutes):
+scp -r ./venv/ orangepi@192.168.0.5:~/Code/gigi
