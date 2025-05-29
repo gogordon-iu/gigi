@@ -8,6 +8,7 @@ import os
 
 activity_name = "Motor Calibration"
 
+
 class MotorCalibration(ScriptGraph) : 
     def __init__(self, movement=None):
         super().__init__()
