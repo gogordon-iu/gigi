@@ -20,6 +20,8 @@ sudo groupadd gpio
 sudo chown root:gpio /dev/gpiochip0
 sudo chmod 660 /dev/gpiochip0
 sudo usermod -aG gpio orangepi
+sudo usermod -aG i2c orangepi
+
 
 # video
 sudo add-apt-repository ppa:mc3man/mpv-tests
