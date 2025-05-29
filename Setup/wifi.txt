@@ -41,6 +41,8 @@ On the Orange Pi, keep your working copy separate from the bare repo:
 Your working copy can be cloned from the bare repo:
 cd ~/Code
 git clone ~/repos/gigi.git
+cd gigi
+chmod +x activate_environment.sh
 
 Then you can work on ~/Code/gigi with VSCode SSH.
 When you push to the bare repo, update your working copy manually or automate it with a hook:
