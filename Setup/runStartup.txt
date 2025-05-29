@@ -1,7 +1,7 @@
 crontab -e               # edit the current user’s crontab
 
 SHELL=/bin/bash
-PATH=/home/orangepi/Code/ValeraGordon/venv/bin:/usr/local/bin:/usr/bin:/bin
+PATH=/home/orangepi/Code/gigi/venv/bin:/usr/local/bin:/usr/bin:/bin
 DISPLAY=:0
 XAUTHORITY=/home/orangepi/.Xauthority
 
