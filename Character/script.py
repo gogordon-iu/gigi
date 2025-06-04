@@ -183,12 +183,12 @@ class Script:
         
         script_texts = [attr.get('text') for node, attr in self.graph.nodes(data=True) if attr.get('text')]
         for text in script_texts:
-            print("Generating ", text)
+            print("Generating text: ", text)
             self.character.speech.update_audio_objects(text=text)
 
         script_audio = [attr.get('audio') for node, attr in self.graph.nodes(data=True) if attr.get('audio')]
         for audio in script_audio:
-            print("Generating ", audio)
+            print("Generating audio: ", audio)
             self.character.speech.update_audio_objects(file=audio)
 
     def check_assets(self):

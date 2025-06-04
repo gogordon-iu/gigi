@@ -62,7 +62,7 @@ class Monolingual_Ferris(ScriptGraph) :
         self.graph.add_node('Node_21', type=['speak'], text='A Ferris wheel is a big wheel that spins round and round. You can find Ferris wheels in carnivals! I love them!')
         self.graph.add_edge('Node_19', 'Node_21', label='no')
         self.graph.add_edge('Node_21', 'Node_22', label='Node_21_22')
-        self.graph.add_node('Node_22', type=['audio'], audio='../Assets/audio/laugh.wav')
+        self.graph.add_node('Node_22', type=['audio'], audio='laugh.wav')
         self.graph.add_edge('Node_22', 'Node_23', label='Node_22_23')
         self.graph.add_node('Node_23', type=['speak'], text='Have you ever been on a Ferris wheel? Tell your friends.', pause={'after': 10})
         self.graph.add_edge('Node_23', 'Node_24', label='Node_23_24')

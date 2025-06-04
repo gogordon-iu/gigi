@@ -145,7 +145,7 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                             pause_str = value.split(":")
                             node_string += f"pause={{'{pause_str[0].strip()}': {int(pause_str[1].strip())}}}, "
                     elif key == "audio":
-                        node_string += f"audio='../Assets/audio/{value.strip()}.wav', "
+                        node_string += f"audio='{value.strip()}.wav', "
                     elif key == "face":
                         node_string += f"face=basic_sequences['{value.strip()}'], "
                     elif key == "hear":

@@ -296,7 +296,6 @@ class Speech():
                     print("Found record: ", file)
                     found = True
         elif file is not None:
-            original_file = file
             # check if speech is already recorded
             pre_audio_file = [key for key, value in self.recorded_audio[self.activity].items() if value == file]
             for file in pre_audio_file:
