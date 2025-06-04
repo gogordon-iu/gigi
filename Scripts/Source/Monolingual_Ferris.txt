@@ -3,26 +3,32 @@
 [Character] female Child
 [Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
 [Speak] I love building with LEGO and playing with my friends.
-[Speak] Would you like to play with me? [face: look_up, move: hands_up]
-[Speak] If you want to play, raise your hands! [move] arms_up [pause] after: 2
-[Speak] High… higher… This is great! I’m so happy you want to play with me.
-[Speak] Oh, but wait! Lets say hello first! [move] look_from_side_to_side
-[Speak] Can you see? You have a bin with LEGO blocks and figures on the table. [move] arms_down
+[Speak] Would you like to play with me? 
+[Speak] If you want to play, raise your hands! [face] look_up [move] arms_up [pause] after: 2
+[Speak] High. [pause] after: 1 
+[Speak] Higher. [pause] after: 1
+[Speak] This is great! I’m so happy you want to play with me.
+[Speak] Oh, but wait! Lets say hello first! [move] look_from_side_to_side [pause] after: 5
+
+[Speak] Can you see? You have a bin with LEGO blocks and figures on the table. [move] arms_down [pause] after: 3
 [Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it.
-[Speak] When you are done, raise the smiley card you have in front of you.
+[Speak] When you are done, raise the black and white card you have in front of you.
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
 [edge] no [speak] I see you are having fun. Let me know when you are done by raising the smiley card. [goto] -1
 [edge] yes [speak] Did you pick a boy or a girl? What kind of hair do they have? Curly? Straight? Short? Long? What color is their shirt?
-[Speak] Show your friends your figure and tell them what you picked. [move] look_from_side_to_side [pause] 10
+[Speak] Show your friends your figure and tell them what you picked. [move] look_from_side_to_side [pause] after: 10
+
 [Speak] Now, we’re ready to start!
 [Speak] Today we’re going to build a Ferris wheel. Do you know what a Ferris wheel is?
+[hear] words: yes, no
 [edge] yes [speak] Ferris wheels are so much fun! I love going on them and spinning round and round.
-[edge] no [speak] A Ferris wheel is a big wheel that spins round and round. You can find Ferris wheels in carnivals! I love them! [audio] laugh
-[Speak] Have you ever been on a Ferris wheel? Tell your friends. [pause]: 10
-[Speak] Today we’ll build a big Ferris wheel together for our LEGO friends!
+[edge] no [speak] A Ferris wheel is a big wheel that spins round and round. You can find Ferris wheels in carnivals! I love them!
+[audio] laugh
+[Speak] Have you ever been on a Ferris wheel? Tell your friends. [pause] after: 10
+[Speak] Today we will build a big Ferris wheel together for our LEGO friends!
 [Speak] Look at the bin at the center of your table! It has all the pieces we need to build a Ferris wheel. So Lets get started! [face] look_down [move] arms_down
-[Speak] Are you ready?
-[hear] words: yes
+[Speak] Are you ready? [pause] after: 5
+
 
 Step 1: Identify the Controller and Pins
 [Speak] Can you find the yellow contoller block and four green pins? [show] image: ferris_step_01
