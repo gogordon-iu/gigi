@@ -66,3 +66,6 @@ TPLINK password: 6B6D96FB6F
 Since orangepi (with 192.168...) does not have connection to the internet, it is not possible to do pip install
 Hence, copy the virtual environment directly (this takes several minutes):
 scp -r ./venv/ orangepi@192.168.0.5:~/Code/gigi
+
+When connecting from the same laptop to a new gigi:
+ssh-keygen -R 192.168.0.50
