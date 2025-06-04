@@ -4,11 +4,12 @@
 [Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
 [Speak] I love building with LEGO and playing with my friends.
 [Speak] Would you like to play with me? 
-[Speak] If you want to play, raise your hands! [face] look_up [move] arms_up [pause] after: 2
-[Speak] High. [pause] after: 1 
-[Speak] Higher. [pause] after: 1
+[Speak] If you want to play, raise your hands! [face] look_up [move] arms_up [pause] after: 1
+[Speak] High! [pause] after: 1 
+[Speak] Higher! [pause] after: 1
 [Speak] This is great! I’m so happy you want to play with me.
-[Speak] Oh, but wait! Lets say hello first! [move] look_from_side_to_side [pause] after: 5
+[Speak] Oh, but wait! Lets say hello first! [move] look_from_side_to_side 
+[Speak] Hello! [pause] after: 5
 
 [Speak] Can you see? You have a bin with LEGO blocks and figures on the table. [move] arms_down [pause] after: 3
 [Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it.
@@ -44,7 +45,7 @@ Step 2: Add controller to Base
 [Speak] One person holds the base while the other clicks the controller in.
 [Speak] Raise your card when you are ready. [show] image: ferris_step_02
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
-[edge] no [speak] Not quite done? I will wait. [goto] -1
+[edge] no [speak] Not quite done? I will wait. [show] image: ferris_step_02 [goto] -1
 [edge] yes [speak] Excellent teamwork!
 ________________
 
@@ -55,7 +56,7 @@ Step 3-5: Build One Tower
 [Speka] You can take turns: one stacks, the other one counts. Then switch! 
 [Speak] When it’s done, raise your card. [show] image: ferris_step_05
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
-[edge] no [speak] Not quite done? I will wait. [goto] -1
+[edge] no [speak] Not quite done? I will wait. [show] image: ferris_step_05 [goto] -1
 [edge] yes [speak] Excellent teamwork!
 ________________
 
@@ -64,17 +65,17 @@ Step 6-8: Attach the Second Tower
 [Speak] Now put the second yellow tower, the yellow plate on top of it and two small orage pieces on top of that. One friend can hold the baseplate while the other presses the tower down. [show] image: ferris_step_08
 [Speak] When it’s steady, raise your card. [show] image: ferris_step_08
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
-[edge] no [speak] Still building? I will wait for your signal. [goto] -1
+[edge] no [speak] Still building? I will wait for your signal. [show] image: ferris_step_08 [goto] -1
 [edge] yes [speak] One tower is ready! Great job.
 ________________
 
 
 Step 9-10: Attach the light
-[Speak] Find the light piece and connect green pieces to it, similar to the motor. [show] image: ferris_step_09 [pause] after: 5
+[Speak] Find the light piece and connect green pieces to it, similar to the controller. [show] image: ferris_step_09 [pause] after: 5
 [Speak] Then attach it to the base. Try switching roles, the one who counted can now be the builder!
 [Speak] When the light is attached to the base, hold up your cards. [show] image: ferris_step_10
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
-[edge] no [speak] Take your time. I will wait here until the light piece is attached. [goto] -1
+[edge] no [speak] Take your time. I will wait here until the light piece is attached. [show] image: ferris_step_10 [goto] -1
 [edge] yes [speak] Awesome! 
 ________________
 
@@ -84,7 +85,7 @@ Step 11-12: Add the Motor
 [Speak] Then attach the motor to the tower. 
 [Speak] When it is attached, raise your card. [show] image: ferris_step_12
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
-[edge] no [speak] Let me know when it is attached. I will wait! [goto] -1
+[edge] no [speak] Let me know when it is attached. I will wait! [show] image: ferris_step_12 [goto] -1
 [edge] yes [speak] That was great teamwork!
 ________________
 
@@ -95,7 +96,7 @@ Step 13-14: Build the stairs
 [Speak] Then connect two more blue tiles.
 [Speak] When they’re all connected, raise your card. [show] image: ferris_step_14
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
-[edge] no [speak] Still snapping them in? I will wait until you are done. [goto] -1
+[edge] no [speak] Still snapping them in? I will wait until you are done. [show] image: ferris_step_14 [goto] -1
 [edge] yes [speak] You built stairs! What a super team!
 
 Step 15:
@@ -104,7 +105,7 @@ Step 15:
 [Speak] Then connect the green pieces to the round wheel center to form an X. Take turns holding the wheel while your partner adds the arms. Then switch. [show] image: ferris_step_17
 [Speak] When they’re all connected, raise your card. [show] image: ferris_step_17
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
-[edge] no [speak] Still snapping them in? I will wait until you are done. [goto] -1
+[edge] no [speak] Still snapping them in? I will wait until you are done. [show] image: ferris_step_17 [goto] -1
 [edge] yes [speak] You made an X! What a super team!
 
 [Speak] Now for the final pieces of the wheel. 
@@ -116,7 +117,7 @@ Step 15:
 [Speak] The seats are next. You need to build four seat, one on each arm of the wheel. work together. 
 [Speak] Let me know when you are done. [show] image: ferris_step_22
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
-[edge] no [speak] Still finalizing those seats? I will wait until you are done. [goto] -1
+[edge] no [speak] Still finalizing those seats? I will wait until you are done. [show] image: ferris_step_22 [goto] -1
 [edge] yes [speak] You have the wheel! What a great team!
 
 Step 8: Attach the Wheel to the Axle
@@ -124,4 +125,4 @@ Step 8: Attach the Wheel to the Axle
 [Speak] Now, Lets test it!  If it spins nicely, raise your card.
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
 [edge] no [speak] Try again and raise your card when the wheel is spinning well. [goto] -1
-[edge] yes [speak] You did it! Our Ferris Wheel is standing tall and spinning around! You built it together. high five your friend and give a big smile! [move] Clap your hands!
+[edge] yes [speak] You did it! Our Ferris Wheel is standing tall and spinning around! You built it together. high five your friend and give a big smile! [move] clap
