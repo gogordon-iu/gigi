@@ -123,6 +123,8 @@ class Speech():
             self.activity_speech_path = recorded_speech_path
         if not os.path.exists(self.activity_speech_path):
             os.makedirs(self.activity_speech_path)
+        if self.activity not in self.recorded_audio:
+            self.recorded_audio[self.activity] = {}
 
     def save_recorded_audio(self):
         if not IS_ROBOT:
@@ -212,8 +214,8 @@ class Speech():
         if self.keep_record:
             audio_file = self.activity_speech_path + generate_random_filename(extension="wav")
             # remove previous record if exists
-            self.recorded_audio = {key: value for key, value in self.recorded_audio.items() if value != text}
-            self.recorded_audio[audio_file] = text
+            self.recorded_audio[self.activity] = {key: value for key, value in self.recorded_audio[self.activity].items() if value != text}
+            self.recorded_audio[self.activity][audio_file] = text
             self.save_recorded_audio()
         else:
             audio_file = "../temp/output.wav"
@@ -274,8 +276,8 @@ class Speech():
             env_file = audio_file.replace(".wav", ".npy")
             np.save(env_file, envelope)
             # remove previous record if exists
-            self.recorded_audio = {key: value for key, value in self.recorded_audio.items() if value != file.split('/')[-1]}
-            self.recorded_audio[audio_file] = file.split('/')[-1]
+            self.recorded_audio[self.activity] = {key: value for key, value in self.recorded_audio[self.activity].items() if value != file.split('/')[-1]}
+            self.recorded_audio[self.activity][audio_file] = file.split('/')[-1]
             self.save_recorded_audio()
         else:
             audio_file = file
@@ -286,7 +288,7 @@ class Speech():
         found = False
         if text is not None:
             # check if speech is already recorded
-            pre_audio_file = [key for key, value in self.recorded_audio.items() if value == text]
+            pre_audio_file = [key for key, value in self.recorded_audio[self.activity].items() if value == text]
             if len(pre_audio_file) > 0:
                 file = pre_audio_file[0]
                 if os.path.exists(file):
@@ -296,7 +298,7 @@ class Speech():
         elif file is not None:
             original_file = file
             # check if speech is already recorded
-            pre_audio_file = [key for key, value in self.recorded_audio.items() if value == file]
+            pre_audio_file = [key for key, value in self.recorded_audio[self.activity].items() if value == file]
             for file in pre_audio_file:
                 if os.path.exists(file):
                     env_file = file.replace(".wav", ".npy")

@@ -43,7 +43,7 @@ class Monolingual_Ferris(ScriptGraph) :
         self.graph.add_node('Node_12', type=['speak'], text='When you are done, raise the black and white card you have in front of you.')
         self.graph.add_edge('Node_12', 'Node_13', label='Node_12_13')
         self.graph.add_node('Node_13', type=['find'], what='qr', timeout=60, data=['child number 1', 'child number 2', 'child number 3', 'child number 4'])
-        self.graph.add_node('Node_14', type=['speak'], text='I see you are having fun. Let me know when you are done by raising the smiley card.')
+        self.graph.add_node('Node_14', type=['speak'], text='I see you are having fun. Let me know when you are done by raising the card.')
         self.graph.add_edge('Node_13', 'Node_14', label='no')
         self.graph.add_edge('Node_14', 'Node_13', label='Node_14_13')
         self.graph.add_node('Node_15', type=['speak'], text='Did you pick a boy or a girl? What kind of hair do they have? Curly? Straight? Short? Long? What color is their shirt?')
@@ -220,4 +220,5 @@ if __name__ == "__main__":
     script = Script(graph=sg, character=fuzzy)
     script.generateAllSpeech()
     script.check_assets()
+    script.run()
 

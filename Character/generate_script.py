@@ -81,7 +81,8 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
     fuzzy = Character(child={child}, gender='{the_gender}', activity='{the_name}', languages={languages})
     script = Script(graph=sg, character=fuzzy)
     script.generateAllSpeech()
-    script.check_assets()"""
+    script.check_assets()
+    script.run()"""
 
             file.write(class_header + "\n\n")  # Write the script header
 

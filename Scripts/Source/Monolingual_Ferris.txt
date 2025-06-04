@@ -14,7 +14,7 @@
 [Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it.
 [Speak] When you are done, raise the black and white card you have in front of you.
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
-[edge] no [speak] I see you are having fun. Let me know when you are done by raising the smiley card. [goto] -1
+[edge] no [speak] I see you are having fun. Let me know when you are done by raising the card. [goto] -1
 [edge] yes [speak] Did you pick a boy or a girl? What kind of hair do they have? Curly? Straight? Short? Long? What color is their shirt?
 [Speak] Show your friends your figure and tell them what you picked. [move] look_from_side_to_side [pause] after: 10
 
