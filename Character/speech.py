@@ -250,10 +250,10 @@ class Speech():
     def generate_speech_file(self, file=None):
         if not os.path.exists(file):
             # check in base audio folder
-            file = audio_path + file.split('/')[-1]
+            file = self.activity_speech_path + file.split('/')[-1]
         if not os.path.exists(file):
             # check in base audio folder
-            file = self.activity_speech_path + file.split('/')[-1]
+            file = audio_path + file.split('/')[-1]
         if not os.path.exists(file):
             print(f"ERROR: audio file {file.split('/')[-1]} not found!")
             return None, None, None, None
