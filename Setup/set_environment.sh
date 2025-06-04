@@ -42,3 +42,7 @@ git clone https://github.com/goodtft/LCD-show.git
 chmod -R 755 LCD-show
 cd LCD-show/
 sudo ./LCD7C-show
+
+# Setup wake up and associated files
+cd ~/Code/gigi/
+chmod +x activate_environment.sh
