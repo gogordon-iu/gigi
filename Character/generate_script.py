@@ -39,9 +39,10 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
     the_name = None
     for parsed_line in parsed_lines:
         if "name" in parsed_line:
-            file_name = f"{parsed_line['name']}.py"
+            activity_name = parsed_line['name'].replace(" ", "_").replace("-", "_")
+            file_name = f"{activity_name}.py"
             file_path = os.path.join(output_dir, file_name)
-            the_name = parsed_line['name']
+            the_name = activity_name
             break
     for parsed_line in parsed_lines:
         if "Character" in parsed_line:
