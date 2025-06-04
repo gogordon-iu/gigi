@@ -19,6 +19,7 @@ sudo apt-get install -y i2c-tools gpiod libgpiod-dev
 sudo groupadd gpio
 sudo chown root:gpio /dev/gpiochip0
 sudo chmod 660 /dev/gpiochip0
+sudo chmod 666 /dev/i2c-0 /dev/i2c-1 /dev/i2c-2
 sudo usermod -aG gpio orangepi
 sudo usermod -aG i2c orangepi
 
