@@ -1,0 +1,9 @@
+/boot/orangepiEnv.txt
+
+verbosity=1
+bootlogo=true
+extraargs=cma=128M
+overlay_prefix=rk356x
+overlays=i2c2-m1
+rootdev=UUID=4b3309b6-9bbe-431d-8609-82360b5b6154
+rootfstype=ext4
