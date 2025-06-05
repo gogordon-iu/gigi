@@ -176,3 +176,4 @@ cython_debug/
 # gigi specific
 activate_environment.sh
 Character/motorData_calibrated.json
+Character/motorData_calibrated.json
