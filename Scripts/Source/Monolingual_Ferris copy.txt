@@ -1,0 +1,126 @@
+﻿Monolingual Ferris Wheel Activity Script 
+[name] Monolingual Ferris
+[Character] female Child
+[Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
+[Speak] I love building with LEGO and playing with my friends.
+[Speak] Would you like to play with me? 
+[Speak] If you want to play, raise your hands! [face] look_up [move] arms_up [pause] after: 1
+[Speak] High! [pause] after: 1 
+[Speak] Higher! [pause] after: 1
+[Speak] This is great! I’m so happy you want to play with me.
+
+[Speak] Can you see? You have a bin with LEGO blocks and figures on the table. [move] arms_down [pause] after: 3
+[Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it.
+[Speak] When you are done, raise the black and white card you have in front of you.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] I see you are having fun. Let me know when you are done by raising the card. [goto] -1
+[edge] yes [speak] Did you pick a boy or a girl? What kind of hair do they have? Curly? Straight? Short? Long? What color is their shirt?
+[Speak] Show your friends your figure and tell them what you picked. [move] look_from_side_to_side [pause] after: 10
+
+[Speak] Now, we’re ready to start!
+[Speak] Today we’re going to build a Ferris wheel. Do you know what a Ferris wheel is?
+[hear] words: yes, no
+[edge] yes [speak] Ferris wheels are so much fun! I love going on them and spinning round and round.
+[edge] no [speak] A Ferris wheel is a big wheel that spins round and round. You can find Ferris wheels in carnivals! I love them!
+[audio] laugh
+[Speak] Have you ever been on a Ferris wheel? Tell your friends. [pause] after: 10
+[Speak] Today we will build a big Ferris wheel together for our LEGO friends!
+[Speak] Look at the bin at the center of your table! It has all the pieces we need to build a Ferris wheel. So Lets get started! [face] look_down [move] arms_down
+[Speak] Are you ready? [pause] after: 5
+
+
+Step 1: find the Controller and Pins
+[Speak] Can you find the yellow contoller block and four green pins? [show] image: ferris_step_01
+[Speak] When you are done, raise your card. [show] image: ferris_step_01
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still searching? Take your time. [goto] -1
+[edge] yes [speak] Great! That’s our controller!
+________________
+
+
+Step 2: Add controller to Base
+[Speak] Now connect the controller to the gray LEGO plate. the base. [show] image: ferris_step_02
+[Speak] One person holds the base while the other clicks the controller in.
+[Speak] Raise your card when you are ready. [show] image: ferris_step_02
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Not quite done? I will wait. [show] image: ferris_step_02 [goto] -1
+[edge] yes [speak] Excellent teamwork!
+________________
+
+
+Step 3-5: Build One Tower
+[Speak] This tower is key! First put the yellow part. [show] image: ferris_step_03
+[Speak] Then stack one red brick as base and three bricks, one on top of the other. [show] image: ferris_step_05
+[Speka] You can take turns: one stacks, the other one counts. Then switch! 
+[Speak] When it’s done, raise your card. [show] image: ferris_step_05
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Not quite done? I will wait. [show] image: ferris_step_05 [goto] -1
+[edge] yes [speak] Excellent teamwork!
+________________
+
+
+Step 6-8: Attach the Second Tower
+[Speak] Now put the second yellow tower, the yellow plate on top of it and two small orage pieces on top of that. One friend can hold the baseplate while the other presses the tower down. [show] image: ferris_step_08
+[Speak] When it’s steady, raise your card. [show] image: ferris_step_08
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still building? I will wait for your signal. [show] image: ferris_step_08 [goto] -1
+[edge] yes [speak] One tower is ready! Great job.
+________________
+
+
+Step 9-10: Attach the light
+[Speak] Find the light piece and connect green pieces to it, similar to the controller. [show] image: ferris_step_09 [pause] after: 5
+[Speak] Then attach it to the base. Try switching roles, the one who counted can now be the builder!
+[Speak] When the light is attached to the base, hold up your cards. [show] image: ferris_step_10
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Take your time. I will wait here until the light piece is attached. [show] image: ferris_step_10 [goto] -1
+[edge] yes [speak] Awesome! 
+________________
+
+
+Step 11-12: Add the Motor
+[Speak] Like the light, find the motor, attach green pins to it. [show] image: ferris_step_11 [pause] after: 5
+[Speak] Then attach the motor to the tower. 
+[Speak] When it is attached, raise your card. [show] image: ferris_step_12
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Let me know when it is attached. I will wait! [show] image: ferris_step_12 [goto] -1
+[edge] yes [speak] That was great teamwork!
+________________
+
+
+Step 13-14: Build the stairs
+[Speak] You figures need a way to reach the ferris wheel. How about building stairs?
+[Speak] Find and connect the yellow brick and the blue tiles. [show] image: ferris_step_13 [pause] after: 5
+[Speak] Then connect two more blue tiles.
+[Speak] When they’re all connected, raise your card. [show] image: ferris_step_14
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still snapping them in? I will wait until you are done. [show] image: ferris_step_14 [goto] -1
+[edge] yes [speak] You built stairs! What a super team!
+
+Step 15:
+[Speak] find the rod and put it in the motor. That will make the ferris wheel turn. [show] image: ferris_step_15 [pause] after: 15
+[Speak] Now we build the arms of the ferris wheel. First, start with the main straucture.  [show] image: ferris_step_16 [pause] after: 15
+[Speak] Then connect the green pieces to the round wheel center to form an X. Take turns holding the wheel while your partner adds the arms. Then switch. [show] image: ferris_step_17
+[Speak] When they’re all connected, raise your card. [show] image: ferris_step_17
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still snapping them in? I will wait until you are done. [show] image: ferris_step_17 [goto] -1
+[edge] yes [speak] You made an X! What a super team!
+
+[Speak] Now for the final pieces of the wheel. 
+[Speak] Put one more purple circle. [show] image: ferris_step_18 [pause] after: 10
+[Speak] Then four white pieces. Work together. [show] image: ferris_step_19 [pause] after: 10
+[Speak] Then a green round piece. [show] image: ferris_step_20 [pause] after: 5
+[Speak] And an orange cone. [show] image: ferris_step_21 [pause] after: 10
+
+[Speak] The seats are next. You need to build four seat, one on each arm of the wheel. work together. 
+[Speak] Let me know when you are done. [show] image: ferris_step_22
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Still finalizing those seats? I will wait until you are done. [show] image: ferris_step_22 [goto] -1
+[edge] yes [speak] You have the wheel! What a great team!
+
+Step 8: Attach the Wheel to the Axle
+[Speak] Now gently slide the wheel onto the axle. Be very careful!. One of you can hold the axle, while the other pushes the wheel. [show] image: ferris_step_23 [pause] after:10
+[Speak] Now, Lets test it!  If it spins nicely, raise your card.
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[edge] no [speak] Try again and raise your card when the wheel is spinning well. [goto] -1
+[edge] yes [speak] You did it! Our Ferris Wheel is standing tall and spinning around! You built it together. high five your friend and give a big smile! [move] clap
