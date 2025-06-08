@@ -142,7 +142,8 @@ class Speech():
                 .input(file)
                 .filter('asetrate', '48000*1.3348')
                 .filter('aresample', 48000)
-                # .filter('atempo', 1/1.3348)
+                .filter('atempo', 1/1.3348)
+                # .filter('atempo', 1/1.3348)                
                 .output('../Assets/recorded_speech/child.wav')
                 .overwrite_output()
                 .run(cmd=ffmpeg_path)
@@ -456,9 +457,11 @@ class Speech():
         audio_thread.join()
 
 if __name__ == "__main__":
-    speech = Speech(languages=["en", "es"], verbose=True)
-    speech.run_speech(text="ten we're going to build a Ferris wheel. Or in Spanish, we say. #la noria.# Do you know what a Ferris wheel is? Tell your friends.")
+    speech = Speech(languages=["en", "es"], child=True, verbose=True)
+    speech.set_activity("test_speech")
+    # speech.run_speech(text="ten we're going to build a Ferris wheel. Or in Spanish, we say. #la noria.# Do you know what a Ferris wheel is? Tell your friends.")
     # speech.run_speech(text="¡Hola, mundo dos!")
+    speech.run_speech(text="We are going to build a Ferris wheel. Four.")
     # speech.run_speech(file="../Assets/teacher/laugh.wav")
     # speech.run_speech(file="../Assets/audio/demo_01_greetings.wav")
     # speech.run_speech(text="hi")
