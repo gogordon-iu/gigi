@@ -5,4 +5,4 @@ PATH=/home/orangepi/Code/gigi/venv/bin:/usr/local/bin:/usr/bin:/bin
 DISPLAY=:0
 XAUTHORITY=/home/orangepi/.Xauthority
 
-@reboot /home/orangepi/wakeup_gigi.sh >> /home/orangepi/wakeup_gigi.log 2>&1
+@reboot export DISPLAY=:0 && xset s off && xset -dpms && xset s noblank && /home/orangepi/wakeup_gigi.sh >> /home/orangepi/wakeup_gigi.log 2>&1
