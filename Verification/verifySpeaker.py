@@ -34,7 +34,7 @@ def play_beep(device_id):
     sd.wait()  # Wait until the sound is done playing
 
 if __name__ == "__main__":
-    print("Scanning for audio output devices...")
+    print("Scanning for audio output devices TESTING...")
     devices = list_audio_devices()
     
     if not devices:
