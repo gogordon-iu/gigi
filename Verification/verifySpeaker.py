@@ -1,5 +1,4 @@
 import sounddevice as sd
-import pyttsx3
 import numpy as np
 
 def list_audio_devices():
@@ -34,20 +33,6 @@ def play_beep(device_id):
     sd.play(beep, samplerate=sample_rate, device=device_id)
     sd.wait()  # Wait until the sound is done playing
 
-
-def speak_text(text):
-    """
-    Use pyttsx3 (eSpeak NG backend) to speak a given text.
-    """
-    engine = pyttsx3.init()
-    
-    # Adjust speaking rate and pitch (via voice variant)
-    engine.setProperty('rate', 140)
-    engine.setProperty('voice', 'english+m3')  # male, medium pitch
-
-    engine.say(text)
-    engine.runAndWait()
-
 if __name__ == "__main__":
     print("Scanning for audio output devices...")
     devices = list_audio_devices()
@@ -66,9 +51,5 @@ if __name__ == "__main__":
         try:
             play_beep(first_device)
             print("Beep played successfully!")
-
-            print("Speaking TTS...")
-            speak_text("Speaker test completed successfully. Hello from Orange Pi.")
-
         except Exception as e:
             print(f"Error playing beep: {e}")
