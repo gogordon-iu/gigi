@@ -1,5 +1,3 @@
-import sys
-sys.path.insert(0, "/home/orangepi/Code/gigi/Scripts/Source/nix")
 from nix.models.TTS import NixTTSInference
 from nix.tokenizers.tokenizer_en import NixTokenizerEN
 import numpy as np
