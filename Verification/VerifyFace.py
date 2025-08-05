@@ -12,7 +12,7 @@ from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor
 
 # === Configuration ===
-DB_PATH = "emoface.pkl"
+DB_PATH = "../Resources/emoface.pkl"
 TOLERANCE = 0.6
 MAX_QUEUE_SIZE = 5
 NUM_WORKER_THREADS = 3  
