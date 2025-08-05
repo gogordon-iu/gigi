@@ -344,12 +344,12 @@ def main():
                     cv2.putText(frame, f"{emo}: {count}", (w - 200, stats_y + 25 + i*25), 
                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             
-            # Display FPS
-            if fps_count >= 30:
-                fps = fps_count / (time.time() - fps_start)
-                print(f"[INFO] FPS: {fps:.1f} | Face Queue: {face_queue.qsize()} | Emotion Queue: {emotion_queue.qsize()}")
-                fps_count = 0
-                fps_start = time.time()
+            # # Display FPS
+            # if fps_count >= 30:
+            #     fps = fps_count / (time.time() - fps_start)
+            #     print(f"[INFO] FPS: {fps:.1f} | Face Queue: {face_queue.qsize()} | Emotion Queue: {emotion_queue.qsize()}")
+            #     fps_count = 0
+            #     fps_start = time.time()
 
             cv2.imshow("Face & Emotion Recognition (Threaded)", frame)
             key = cv2.waitKey(1) & 0xFF
@@ -397,7 +397,6 @@ def main():
         
         cap.release()
         cv2.destroyAllWindows()
-        print("[INFO] Cleanup complete")
 
 if __name__ == "__main__":
     main()
