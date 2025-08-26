@@ -159,11 +159,12 @@ class Character():
             return vision_y
         return None
 
-    def listen_backchannel(self):
+    def listen_backchannel(self, timeout=15):
         if self.hearing and self.face:
             stop_event = threading.Event()
             hearing_thread = self.hearing.hearing_thread(stop_event=stop_event)
             hearing_thread.start()
+            threading.Timer(timeout, stop_event.set).start()
             while not stop_event.is_set():
                 self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
             hearing_thread.join()

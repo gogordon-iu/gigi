@@ -77,8 +77,15 @@ class Script:
                     # self.character.lookat_face()
                     if self.character.hearing:
                         self.character.hearing.words = current_data["words"]
-                        self.character.listen_backchannel()
-                        output = self.character.hearing.texts[-1]
+                        if 'timeout' in current_data:
+                            timeout = current_data['timeout']
+                        else:
+                            timeout = 10
+                        self.character.listen_backchannel(timeout=timeout)
+                        if len(self.character.hearing.texts) == 0:
+                            output = 'timeout'
+                        else:
+                            output = self.character.hearing.texts[-1]
                         print("hear output: ", output)
                         for u, v, data in edges:
                             if data['label'] == output:

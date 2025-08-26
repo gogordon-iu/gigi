@@ -286,6 +286,8 @@ class Hearing():
 
 
     def hearing_thread(self, stop_event=None):
+        # start a new list of words heard
+        self.texts = []
         if stop_event is None:
             stop_event = threading.Event()
         t = threading.Thread(target=self.listen, args=[stop_event])
