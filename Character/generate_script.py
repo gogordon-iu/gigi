@@ -185,11 +185,11 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
 
 
 # Example usage
-file_path = '../Scripts/Source/Monolingual_Ferris.txt'  # Replace with your file path
-languages = ['en']
+# file_path = '../Scripts/Source/Monolingual_Ferris.txt'  # Replace with your file path
+# languages = ['en']
 
-# file_path = '../Scripts/Source/Bilingual_Lego.txt'  # Replace with your file path
-# languages = ['en', 'es']
+file_path = '../Scripts/Source/Bilingual_Lego.txt'  # Replace with your file path
+languages = ['en', 'es']
 
 lines_list = read_file_to_list(file_path)
 print('=== lines list ===')
