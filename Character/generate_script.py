@@ -37,6 +37,7 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
         os.makedirs(output_dir)
     file_name = None
     the_name = None
+    file_path = None
     for parsed_line in parsed_lines:
         if "name" in parsed_line:
             activity_name = parsed_line['name'].replace(" ", "_").replace("-", "_")
@@ -183,12 +184,13 @@ languages = ['en']
 # languages = ['en', 'es']
 
 lines_list = read_file_to_list(file_path)
+print('=== lines list ===')
 print(lines_list)
 
-# Example usage
 parsed_lines = parse_lines_to_dict(lines_list)
+print('=== parsed lines ===')
+print(parsed_lines)
 
-# Example usage
 output_directory = '../Scripts'  # Replace with your desired output directory
 activity_file = create_files_with_header(parsed_lines, output_directory, header=script_header, languages=languages)
 
