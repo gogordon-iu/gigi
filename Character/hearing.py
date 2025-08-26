@@ -203,7 +203,7 @@ class Hearing():
             self.stream.read(self.stream.get_read_available(), exception_on_overflow=False)
 
             # read + feed until any recognizer signals "final"
-            while True:
+            while stop_event is None or not stop_event.is_set():
                 data = self.stream.read(int(INPUT_SAMPLE_RATE / 4),
                                         exception_on_overflow=False)
                 # feed all recognizers, check for any final result
