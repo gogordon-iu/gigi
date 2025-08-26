@@ -25,6 +25,7 @@ script_header = """import sys
 sys.path.append('../Character')
 import json
 import sys
+import argparse
 from character import Character
 from script import *
 from scriptGraph import ScriptGraph
@@ -76,6 +77,13 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
     def init_graph(self):
 """
             script_footer = f"""if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Run Monolingual_Ferris script.')
+    parser.add_argument('--offset', type=str, help='Offset from a specific node')
+    args = parser.parse_args()
+    if not args.offset:
+        start_node = 'start'
+    else:
+        start_node = f"Node_{{args.offset}}"
     sg = {class_name}()
     sg.init_graph()
 
@@ -83,7 +91,7 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
     script = Script(graph=sg, character=fuzzy)
     script.generateAllSpeech()
     script.check_assets()
-    script.run()"""
+    script.run(start_node=start_node)"""
 
             file.write(class_header + "\n\n")  # Write the script header
 
