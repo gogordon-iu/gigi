@@ -1,0 +1,12 @@
+﻿Bilingual Ferris Wheel Activity Script 
+[name] Bilingual Lego
+[Character] female
+[Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
+[Speak] I love building with LEGO and playing with my friends.
+[Speak] Would you like to play with me? #¿Quieren jugar conmigo? # [face: look_up, move: hands_up] [hear] words: yes, si  
+[edge] yes [speak] Great!  
+[edge] si [speak] #¡Excelente!#  
+[Speak] How do you say "hello" in Spanish? [pause] after: 3  
+[hear] words: hola  
+[edge] hola [speak] That’s right. # ¡hola! # Let’s all say it together: #¡hola!# [pause] after: 3  
+[Speak] If you want to play, raise your hands! # ¡Levanten las manos! #[move] arms_up [pause] after: 2  

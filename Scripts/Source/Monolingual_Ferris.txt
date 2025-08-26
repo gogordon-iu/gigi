@@ -25,7 +25,8 @@
 [hear] words: yes, no
 [edge] yes [speak] Ferris wheels are so much fun! I love going on them and spinning round and round.
 [edge] no [speak] Who can tell us? What is a Ferris wheel? [pause] after: 5
-[speak]Yes! A Ferris wheel is a big wheel that spins round and round. You can find Ferris wheels in carnivals! I love them!
+[edge] timeout [speak] Ferris wheels are so much fun! I love going on them and spinning round and round.
+[speak] Yes! A Ferris wheel is a big wheel that spins round and round. You can find Ferris wheels in carnivals! I love them!
 [audio] laugh
 [Speak] Have you ever been on a Ferris wheel? Tell your friends. [pause] after: 10
 [Speak] Today we will build a big Ferris wheel together for our LEGO friends!
@@ -35,7 +36,7 @@
 [Speak] Are you ready? 
 [hear] words: yes
 [edge] yes [speak] Great! 
-[edge] yes [speak] Excellent!
+[edge] timeout [speak] Excellent!
 
 Step 1: Find the Controller and Pins
 [Speak] Who wants to be the finder in this step? Can you find the yellow controller block and four green pins? [show] image: ferris_step_01
@@ -53,7 +54,7 @@ Step 2: Add controller to Base
 [Speak] Raise your cards when you are ready. [show] image: ferris_step_02
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
 [edge] no [speak] Not quite done? I will wait. [show] image: ferris_step_02 [goto] -1
-[Speak] Finally, we need a checker. Is what you built the same as in this picture?
+[Speak] Finally, we need a checker. Is what you built the same as in this picture? [show] image: ferris_step_02
 [edge] yes [speak] Excellent teamwork! Isn’t it great to work together?
 ________________
 
@@ -62,9 +63,10 @@ Step 3-5: Build One Tower
 [Speak] This tower is very important. It is 3 blocks high! 
 [Speak] Let’s count to three!  [pause] after: 5
 [hear] words: One, two, three 
-[edge] one [speak] One, two, three. 
-[edge] two[speak] One, two, three. 
-[edge] three [speak] One, two, three. 
+[edge] one [speak] two, three. 
+[edge] two [speak] three. 
+[edge] three [speak] three. 
+[edge] timeout [speak] one, two, three.
 [Speak] Let’s show what a tower looks like with our hands! Reach up tall like a tower,[Speak] Who will be the builder now? , stack three bricks to build a tower. First put the yellow part on the gray base. [show] image: ferris_step_03
 [Speak] Then stack one red brick as base and three bricks, one on top of the other. [show] image: ferris_step_05
 [Speak] Let’s take turns! Who wants to build now?! Stack the blocks, one on top of the other?  Who wants to count them? 
@@ -78,15 +80,11 @@ ________________
 Step 6-8: Build and Add the Second Tower
 [Speak] Time to add the second tower! 
 [Speak] What parts do we need to build the tower? Who wants to be the finder? [pause] after: 3
-[Speak] Great! Find the yellow tower, the yellow plate and these two orange  pieces. Raise your card when you’re done! 
+[Speak] Great! Find the yellow tower, the yellow plate and these two orange pieces. Raise your card when you’re done! [show] image: ferris_step_08
 [Speak] Are we ready to build? Who will be the builder this time? [pause] after: 3
 [Speak] Put the tower together! The builder can hold the baseplate while the assistant presses the tower down. [show] image: ferris_step_08
-[Speak] Let’s check and see: does the tower look right? Is it the same as in the picture? 
-
-[Speak] Let’s see: the yellow part goes first, and then the two small orange parts go on top of it. 
-[Speak] Everybody can check and help!
-[Speak] Raise your cards when the tower is ready! on top of it and two small orange pieces on top of that. One friend can hold the baseplate while the other presses the tower down. [show] image: ferris_step_08
-[Speak] If it is connected, raise your cards. [show] image: ferris_step_08
+[Speak] Let’s check and see: does the tower look right? Is it the same as in the picture? [show] image: ferris_step_08 [pause] 3
+[Speak] If it is connected, raise your cards.
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
 [edge] no [speak] Still building? I will wait. [show] image: ferris_step_08 [goto] -1
 [edge] yes [speak] The second tower is ready! Great job.
@@ -101,10 +99,10 @@ Step 9-10: Attach the light
 [Speak] Attach the parts and put the light together! 
 [Speak] Find the light piece and connect the green pieces to it, similar to the motor.  [show] image: ferris_step_09 [pause] after: 5
 
-[Speak] Time to check! Does the light look like in the picture? Raise your cards if you think it’s correct. 
+[Speak] Time to check! Does the light look like in the picture? Raise your cards if you think it’s correct. [show] image: ferris_step_09
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
 [edge] no [speak] oh uh! Let’s check again! Is there a mistake? Who can help fix it? 
-[edge] yes [speak] All the cards are raised] Good work! It’s so important to check our work at each step so we can catch our mistakes on time! 
+[edge] yes [speak] All the cards are raised. Good work! It’s so important to check our work at each step so we can catch our mistakes on time! 
 [Speak] Is the light attached to the base? Like in this picture? 
 [Speak] If it isn’t, let’s attach it now! Builder, go ahead! 
 [Speak] When the light is attached to the base, hold up your cards. [show] image: ferris_step_10
@@ -129,7 +127,7 @@ ________________
 
 Step 13-14: Build the stairs
 [Speak] The wheel is really coming together! Now, your figures need a way to reach  the ferris wheel. Who has an idea? Tell your friends!! [pause] after: 5
-[Speak] How about building stairs?
+[Speak] How about building stairs? [pause] after: 2
 [Speak] Who’s turn is it to be the finder? Find the yellow brick and the blue tiles in the picture! Raise your card when you’re done! [pause] after: 5
 [Speak] Now, let’s build the stairs! Who’s turn is it to be the builder?  connect the yellow brick and the blue tiles. [show] image: ferris_step_13 [pause] after: 5
 [Speak] Then connect two more blue tiles.
@@ -142,6 +140,7 @@ Step 13-14: Build the stairs
 [hear] words: yes, no
 [edge] yes [speak] It’s my favorite color!
 [edge] no [speak] That’s okay. What color do you like best?
+[edge] timeout [speak] That’s okay. What color do you like best?
 [hear] words: yellow, red, green, gray, black, white, pink, purple, brown
 [edge] yellow [speak] I like those too!
 [edge] red [speak] I like those too!
@@ -152,6 +151,7 @@ Step 13-14: Build the stairs
 [edge] pink [speak] I like those too!
 [edge] purple [speak] I like those too!
 [edge] brown [speak] I like those too!
+[edge] timeout [speak] I love those colors.
 
 Step 15:
 [Speak] Okay, now, find the rod and put it in the motor. That will make the ferris wheel turn. [show] image: ferris_step_15 [pause] after: 15
