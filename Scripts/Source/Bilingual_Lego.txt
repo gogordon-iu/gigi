@@ -6,7 +6,7 @@
 [hear] words: Spanish [timeout] 5
 [edge] spanish [speak] That’s great! I can speak a little Spanish too! 
 [edge] timeout [speak] I can speak a little Spanish too! 
-[Speak] Would you like to play with me? #¿Quieren jugar conmigo? # [face] look_up [move] hands_up 
+[Speak] Would you like to play with me? #¿Quieren jugar conmigo? # [face] look_up [move] arms_up 
 [hear] words: yes, si  
 [edge] yes [speak] Great!  
 [edge] si [speak] #¡Excelente!#

@@ -476,7 +476,7 @@ if __name__ == "__main__":
     sg = Bilingual_Lego()
     sg.init_graph()
 
-    fuzzy = Character(child=True, gender='female', activity='Bilingual_Lego', languages=['en', 'es'])
+    fuzzy = Character(child=False, gender='female', activity='Bilingual_Lego', languages=['en', 'es'])
     script = Script(graph=sg, character=fuzzy)
     script.generateAllSpeech()
     script.check_assets()

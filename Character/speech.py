@@ -31,7 +31,7 @@ lanugage_speakers = {
     'en': ('v3_en', {
         'female': 'en_0',
         'male': 'en_1'}, OUTPUT_SAMPLE_RATE),
-    'es': ('v3_es', 'es_2', OUTPUT_SAMPLE_RATE),
+    'es': ('v3_es', 'es_1', OUTPUT_SAMPLE_RATE),
     'multi': ('multi_v2', 'lj', 8000)
 }
 
