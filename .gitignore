@@ -174,7 +174,7 @@ cython_debug/
 .pypirc
 
 # gigi specific
-activate_environment.sh
+./activate_environment.sh
 motorData_calibrated.json
 ./Character/motorData_calibrated.json
 
