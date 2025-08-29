@@ -32,7 +32,7 @@ class Bilingual_Lego(ScriptGraph) :
         self.graph.add_node('Node_6', type=['speak'], text='I can speak a little Spanish too!')
         self.graph.add_edge('Node_4', 'Node_6', label='timeout')
         self.graph.add_edge('Node_6', 'Node_7', label='Node_6_7')
-        self.graph.add_node('Node_7', type=['speak', 'face', 'move'], text='Would you like to play with me? #¿Quieren jugar conmigo? #', face=basic_sequences['look_up'], motors='hands_up')
+        self.graph.add_node('Node_7', type=['speak', 'face', 'move'], text='Would you like to play with me? #¿Quieren jugar conmigo? #', face=basic_sequences['look_up'], motors='arms_up')
         self.graph.add_edge('Node_7', 'Node_8', label='Node_7_8')
         self.graph.add_node('Node_8', type=['hear'], words='["yes", "si", "[unk]"]')
         self.graph.add_node('Node_9', type=['speak'], text='Great!')
@@ -476,7 +476,7 @@ if __name__ == "__main__":
     sg = Bilingual_Lego()
     sg.init_graph()
 
-    fuzzy = Character(child=False, gender='female', activity='Bilingual_Lego', languages=['en', 'es'])
+    fuzzy = Character(child=True, gender='female', activity='Bilingual_Lego', languages=['en', 'es'])
     script = Script(graph=sg, character=fuzzy)
     script.generateAllSpeech()
     script.check_assets()
