@@ -18,7 +18,7 @@ import shutil
 from characterDefinitions import IS_ROBOT, base_assets_path
 
 
-SOUND_OPTION = "sounddevice"
+SOUND_OPTION = "pygame"
 if SOUND_OPTION == "pygame":
     from pygame import mixer, time
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1" 
@@ -26,7 +26,7 @@ elif SOUND_OPTION == "sounddevice":
     import sounddevice as sd
     import soundfile as sf
 
-import torch, torchaudio
+import torch
 lanugage_speakers = {
     'en': ('v3_en', {
         'female': 'en_0',
@@ -59,6 +59,7 @@ class Speech():
 
         if SOUND_OPTION == "pygame":
             mixer.init()
+            self.pygame_lock = threading.Lock()
         elif SOUND_OPTION == "sounddevice":
             speaker_device = self.get_usb_speaker()
             sd.default.device = (None, speaker_device)  # (input_device, output_device)
