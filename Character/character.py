@@ -216,7 +216,7 @@ class Character():
                     offset = next(iter(self.vision.found[what].values()))["offset"][0]     # the x-offset of the first face
                     head_coor = self.lookat_coordinate(offset=offset)
                     # DEBUG
-                    # self.lookat_behavior(target_coor=head_coor)
+                    self.lookat_behavior(target_coor=head_coor)
                     return True
                 else:   # did not see a face
                     if timeout < 0:
@@ -224,7 +224,7 @@ class Character():
                     else:       # select a random side a look for that
                         head_coor = random.choice([1, 0, -1]) * FOLLOW_TORSO_OFFSET * 1.01
                         # DEBUG
-                        # self.lookat_behavior(target_coor=head_coor)
+                        self.lookat_behavior(target_coor=head_coor)
                         duration = time.time() - start_time
                         remaining_timeout = timeout - duration
                         self.lookat_something(what=what, timeout=remaining_timeout)
