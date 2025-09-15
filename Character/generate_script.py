@@ -172,7 +172,16 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                     if 'goto' in parsed_line:
                         node_string += f"        self.graph.add_edge('Node_{node_counter}', 'Node_{node_counter + int(parsed_line['goto'])}', label='Node_{node_counter}_{node_counter + int(parsed_line['goto'])}')\n"
                     else:
-                        node_string += f"        self.graph.add_edge('Node_{node_counter}', 'Node_{node_counter + 1}', label='Node_{node_counter}_{node_counter + 1}')\n"
+                        # check for the next non-edge node
+                        found_next_node = False
+                        for next_node in range(1,4):
+                            if ipl + next_node < len(parsed_lines):
+                                if 'edge' not in parsed_lines[ipl + next_node]:
+                                    node_string += f"        self.graph.add_edge('Node_{node_counter}', 'Node_{node_counter + next_node}', label='Node_{node_counter}_{node_counter + next_node}')\n"
+                                    found_next_node = True
+                                    break
+                        if not found_next_node:
+                            node_string += f"        self.graph.add_edge('Node_{node_counter}', 'Node_{node_counter + 1}', label='Node_{node_counter}_{node_counter + 1}')\n"
                 elif 'find' in parsed_line or 'hear' in parsed_line or 'end' in parsed_line:
                     pass
                 else:
@@ -202,7 +211,7 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
 file_path = '../Scripts/Source/Bilingual_Lego.txt'  # Replace with your file path
 languages = ['en', 'es']
 
-FORCE_GENERATE_AUDIO = True
+FORCE_GENERATE_AUDIO = False
 
 lines_list = read_file_to_list(file_path)
 print('=== lines list ===')
@@ -232,5 +241,5 @@ if FORCE_GENERATE_AUDIO:
 
 
 # Run the generated Python file
-if activity_file:
-    os.system(f"python {activity_file}")
+# if activity_file:
+#     os.system(f"python {activity_file}")
