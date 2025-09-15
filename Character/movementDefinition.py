@@ -204,7 +204,7 @@ basic_sequences["clap"] = [
 
 basic_sequences["arms_circle"] = [
     {
-        "time": 0.5,
+        "time": 0.2,
         "motors": {
             'right_elbow': 0.0,
             'left_elbow': 0.0,
@@ -213,7 +213,7 @@ basic_sequences["arms_circle"] = [
         }
     },
     {
-        "time": 1.0,
+        "time": 0.4,
         "motors": {
             'right_elbow': 0.8,
             'left_elbow': -0.8,
@@ -222,7 +222,7 @@ basic_sequences["arms_circle"] = [
         }
     },
     {
-        "time": 1.5,
+        "time": 0.6,
         "motors": {
             'right_elbow': 0.0,
             'left_elbow': 0.0,
@@ -231,7 +231,7 @@ basic_sequences["arms_circle"] = [
         }
     },
     {
-        "time": 2.0,
+        "time": 0.8,
         "motors": {
             'right_elbow': -0.8,
             'left_elbow': 0.8,
@@ -240,7 +240,7 @@ basic_sequences["arms_circle"] = [
         }
     },
     {
-        "time": 2.5,
+        "time": 1.0,
         "motors": {
             'right_elbow': 0.0,
             'left_elbow': 0.0,
@@ -249,7 +249,7 @@ basic_sequences["arms_circle"] = [
         }
     },
     {
-        "time": 3.0,
+        "time": 1.2,
         "motors": {
             'right_elbow': 0.8,
             'left_elbow': -0.8,
@@ -258,7 +258,7 @@ basic_sequences["arms_circle"] = [
         }
     },
     {
-        "time": 3.5,
+        "time": 1.4,
         "motors": {
             'right_elbow': 0.0,
             'left_elbow': 0.0,
@@ -267,7 +267,7 @@ basic_sequences["arms_circle"] = [
         }
     },
     {
-        "time": 4.0,
+        "time": 1.6,
         "motors": {
             'right_elbow': -0.8,
             'left_elbow': 0.8,
