@@ -217,9 +217,11 @@ class Character():
                     head_coor = self.lookat_coordinate(offset=offset)
                     # DEBUG
                     self.lookat_behavior(target_coor=head_coor)
+                    print("Found something!")
                     return True
                 else:   # did not see a face
                     if timeout < 0:
+                        print("Timed out")
                         return False
                     else:       # select a random side a look for that
                         head_coor = random.choice([1, 0, -1]) * FOLLOW_TORSO_OFFSET * 1.01
@@ -227,7 +229,8 @@ class Character():
                         self.lookat_behavior(target_coor=head_coor)
                         duration = time.time() - start_time
                         remaining_timeout = timeout - duration
-                        self.lookat_something(what=what, timeout=remaining_timeout)
+                        print("Looking again ...")
+                        return self.lookat_something(what=what, timeout=remaining_timeout)
             else:                           # if not calibrated, just report if found something
                 self.vision.look_and_stop(what=what, timeout=timeout)
                 return len(self.vision.found[what]) > 0
