@@ -1,4 +1,6 @@
 import os
+from character import *
+
 
 # Read a text file line by line and store each line in a list
 def read_file_to_list(file_path):
@@ -29,6 +31,7 @@ import argparse
 from character import Character
 from script import *
 from scriptGraph import ScriptGraph
+import shutil
 from characterDefinitions import CHARACTER_FOLDER"""
 
 # Include the script header in the beginning of the generated Python files
@@ -97,7 +100,7 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
 
             node_counter = 1
             first = True
-            for parsed_line in parsed_lines:
+            for ipl, parsed_line in enumerate(parsed_lines):
                 parsed_line = {k.lower(): v for k, v in parsed_line.items()}
                 if "name" in parsed_line:
                     continue
@@ -173,7 +176,15 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                 elif 'find' in parsed_line or 'hear' in parsed_line or 'end' in parsed_line:
                     pass
                 else:
-                    node_string += f"        self.graph.add_edge('{node_label}', 'Node_{node_counter + 1}', label='{node_label}_{node_counter + 1}')\n"
+                    found_next_node = False
+                    for next_node in range(1,4):
+                        if ipl + next_node < len(parsed_lines):
+                            if 'edge' not in parsed_lines[ipl + next_node]:
+                                node_string += f"        self.graph.add_edge('{node_label}', 'Node_{node_counter + next_node}', label='{node_label}_{node_counter + next_node}')\n"
+                                found_next_node = True
+                                break
+                    if not found_next_node:
+                        node_string += f"        self.graph.add_edge('{node_label}', 'Node_{node_counter + 1}', label='{node_label}_{node_counter + 1}')\n"
                 node_string = node_string.replace("’", "`")
                 file.write(node_string)
                 node_counter += 1
@@ -181,7 +192,7 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
             file.write("\n\n")
             file.write(script_footer)
             file.write("\n\n")
-    return file_path
+    return file_path, activity_name
 
 
 # Example usage
@@ -190,6 +201,8 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
 
 file_path = '../Scripts/Source/Bilingual_Lego.txt'  # Replace with your file path
 languages = ['en', 'es']
+
+FORCE_GENERATE_AUDIO = True
 
 lines_list = read_file_to_list(file_path)
 print('=== lines list ===')
@@ -200,7 +213,22 @@ print('=== parsed lines ===')
 print(parsed_lines)
 
 output_directory = '../Scripts'  # Replace with your desired output directory
-activity_file = create_files_with_header(parsed_lines, output_directory, header=script_header, languages=languages)
+activity_file, activity_name = create_files_with_header(parsed_lines, output_directory, header=script_header, languages=languages)
+
+# FORCE generating audio
+if FORCE_GENERATE_AUDIO:
+    fuzzy = Character(activity=activity_name)
+    # remove all references to recorded audio
+    fuzzy.speech.recorded_audio[activity_name] = {}
+    fuzzy.speech.save_recorded_audio()
+
+    # remove all audio files from the activity assets folder
+    speech_folder = f"../Assets/{activity_name}/speech"
+    if os.path.exists(speech_folder):
+        for filename in os.listdir(speech_folder):
+            file_path = os.path.join(speech_folder, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
 
 
 # Run the generated Python file

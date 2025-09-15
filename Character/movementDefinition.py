@@ -1,5 +1,19 @@
 basic_sequences = {}
 
+basic_sequences['home'] = [
+    {
+        "time": 1.0,
+        "motors": {
+            "neck": 0.0,
+            "right_shoulder": 0.0,
+            "left_shoulder": 0.0,
+            "right_elbow": 0.0,
+            "left_elbow": 0.0,
+            "torso": 0.0
+        }
+    }
+]
+
 # wave hello
 # raise right shoulder
 # back and forth twice with right elbow
@@ -186,4 +200,79 @@ basic_sequences["clap"] = [
             "left_shoulder": 0.8
         }
     }
+]
+
+basic_sequences["arms_circle"] = [
+    {
+        "time": 0.5,
+        "motors": {
+            'right_elbow': 0.0,
+            'left_elbow': 0.0,
+            'right_shoulder': 0.8,
+            'left_shoulder': -0.8
+        }
+    },
+    {
+        "time": 1.0,
+        "motors": {
+            'right_elbow': 0.8,
+            'left_elbow': -0.8,
+            'right_shoulder': 0.0,
+            'left_shoulder': 0.0
+        }
+    },
+    {
+        "time": 1.5,
+        "motors": {
+            'right_elbow': 0.0,
+            'left_elbow': 0.0,
+            'right_shoulder': -0.8,
+            'left_shoulder': 0.8
+        }
+    },
+    {
+        "time": 2.0,
+        "motors": {
+            'right_elbow': -0.8,
+            'left_elbow': 0.8,
+            'right_shoulder': 0.0,
+            'left_shoulder': 0.0
+        }
+    },
+    {
+        "time": 2.5,
+        "motors": {
+            'right_elbow': 0.0,
+            'left_elbow': 0.0,
+            'right_shoulder': 0.8,
+            'left_shoulder': -0.8
+        }
+    },
+    {
+        "time": 3.0,
+        "motors": {
+            'right_elbow': 0.8,
+            'left_elbow': -0.8,
+            'right_shoulder': 0.0,
+            'left_shoulder': 0.0
+        }
+    },
+    {
+        "time": 3.5,
+        "motors": {
+            'right_elbow': 0.0,
+            'left_elbow': 0.0,
+            'right_shoulder': -0.8,
+            'left_shoulder': 0.8
+        }
+    },
+    {
+        "time": 4.0,
+        "motors": {
+            'right_elbow': -0.8,
+            'left_elbow': 0.8,
+            'right_shoulder': 0.0,
+            'left_shoulder': 0.0
+        }
+    },
 ]
