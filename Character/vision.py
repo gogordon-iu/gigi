@@ -32,9 +32,11 @@ class Vision:
         return None
     
     def look_for(self, what=None):
+        print(f"Looking for {what} ...")
         if what is None:
             what = self.found.keys()
         debug = 0
+        print(f"Looking for {what} ...")
         while not self.stop_event.is_set():
             debug += 1
 
