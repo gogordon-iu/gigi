@@ -100,6 +100,7 @@ class Script:
                         timeout = current_data['timeout']                      
                     found_something = self.character.lookat_something(what=what, 
                                                                       timeout=timeout)
+                    print(f"Found something: {found_something}, details: {self.character.vision.found[what]}")
                     for u, v, data in edges:
                         if found_something and data['label'] == 'yes':
                             next_node = v
