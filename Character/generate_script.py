@@ -211,7 +211,7 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
 file_path = '../Scripts/Source/Bilingual_Lego.txt'  # Replace with your file path
 languages = ['en', 'es']
 
-FORCE_GENERATE_AUDIO = False
+FORCE_GENERATE_AUDIO = True
 
 lines_list = read_file_to_list(file_path)
 print('=== lines list ===')
@@ -241,5 +241,5 @@ if FORCE_GENERATE_AUDIO:
 
 
 # Run the generated Python file
-# if activity_file:
-#     os.system(f"python {activity_file}")
+if activity_file:
+    os.system(f"python {activity_file}")
