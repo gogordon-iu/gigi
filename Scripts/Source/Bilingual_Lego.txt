@@ -5,13 +5,13 @@
 [Speak] I love building with LEGO and playing with my friends. [move] open_arms [pause] 1
 [Speak] I also love learning new languages! 
 [find] what: face [timeout] 4
-[edge] no [speak] What languages do you speak? [pause] 3
-[edge] yes [speak] What languages do you speak? [pause] 3
-[Speak] Would you like to play with me? #¿Quieren jugar conmigo? # [pause] 3
+[edge] no [speak] What languages do you speak? [pause] 2
+[edge] yes [speak] What languages do you speak? [pause] 2
+[Speak] Would you like to play with me? #¿Quieren jugar conmigo? # [pause] 2
 [Speak] #¡Excelente!#
 [Speak] How do you say hello in Spanish?
 [move] look_from_side_to_side [puase] 3
-[speak] That’s right. # ¡hola! # Let’s all waive our hands and say it together:#¡hola!# [move] wave_hello [pause] after: 3  
+[speak] That’s right. #hola# Let’s all waive our hands and say it together:#hola# [move] wave_hello [pause] after: 3  
 [Speak] If you want to play, raise your hands! # ¡Si quieren jugar, levanten las manos! #[move] arms_up [pause] after: 2  
 
 [Speak] High! [pause] after: 1 
@@ -23,7 +23,7 @@
 [Speak] Can you see? You have a bin with LEGO blocks and LEGO figures on the table. [move] arms_down [face] look_down
 [Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it. # Elijan una figura LEGO y decórenla. #
 [Speak] Show your figure to your friends. When you are done, raise the black and white card you have in front of you. # Muestra tu figura a tus amigos. Cuando termines, levanta la tarjeta con la carita sonriente que tienes frente a ti. # [face] idle
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
 [edge] no [speak] I see you are having fun. Let me know when you are done by raising the card. [goto] -1
 [edge] yes [speak] Great!
 [Speak] Did you pick a boy or a girl? # ¿Escogiste a un niño o una niña? # [pause] 1
@@ -70,7 +70,7 @@ Step 1: Find the Controller and Pins
 [Speak] Who wants to be the finder in this step?, #¿Quién quiere ser el buscador o la buscadora en este paso?# [move] look_from_side_to_side
 [speak] Can you find the yellow controller block #el bloque controlador amarillo# and four green pins #y cuatro clavijas verdes#? [show] image: ferris_step_01
 [Speak] When you are done, raise your cards. #Cuando terminen, levanten sus tarjetas.# [show] image: ferris_step_01
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
 [edge] no [speak] Still searching? Take your time. [show] image: ferris_step_01 [goto] -1
 [edge] yes [speak] Great! That’s our yellow controller! 
 [speak] Do you remember how to say yellow in Spanish? [pause] 4
@@ -91,7 +91,7 @@ Step 2: Add Controller to Base
 [edge] yes [speak] Who can hold the base while the builder clicks the controller in?
 [Speak] #Una persona sostiene la base mientras la otra encaja el controlador.# [pause] 3
 [Speak] Raise your card when you are ready. #Levanta tu tarjeta cuando estés listo.# [show] image: ferris_step_02
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
 [edge] no [speak] Not quite done? I will wait. # ¿Todavía no? Aquí espero.# [goto] -1 
 [edge] yes [speak] Excellent teamwork! # ¡Buen trabajo en equipo!#
 [Speak] Oh, do you remember how to say gray in Spanish? [pause] 4
@@ -116,7 +116,7 @@ Step 3-5: Build One Tower
 [Speak] You can take turns: one stacks, the other one counts. Then switch!  #Pueden turnarse: uno apila y el otro cuenta.# [pause] 3
 
 [Speak] When it’s done, raise your cards. # Cuando terminen, levanten sus tarjetas. #[show] image: ferris_step_05
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 30
 [edge] no [speak] Not quite done? I will wait. # ¿Todavía no? Aquí espero.# [goto] -1 
 [edge] yes [speak] Excellent teamwork! # ¡Buen trabajo!#
 [audio] laugh
@@ -132,7 +132,7 @@ Step 6-8: Build and Add the Second Tower
 [Speak] Are we ready to build? Who will be the builder this time? El constructor o la constructora? [move] look_from_side_to_side [pause] 3
 [speak] Put the tower together! The builder can hold the base plate while the assistant presses the tower down. #El constructor puede sostener la base mientras el assistente presiona la torre hacia abajo# [show] image: ferris_step_08
 [speak] Let’s check and see: does the tower look right? Is it the same as in the picture? ¿La torre se parece a la que está en la foto? Raise your cards.  # ¿¿Está conectado? Levanten sus tarjetas. # [show] image: ferris_step_08
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
 [edge] no [speak] Still building? I will wait. ¿Todavía no? Aquí espero.# [goto] -1
 [edge] yes [speak] Great! # ¡Muy bien! #
 [Speak] By the way, do you remember how to say yellow in Spanish? [pause] 3
@@ -146,16 +146,16 @@ Step 9-10: Attach the light
 [Speak] Who wants to be the finder now? What pieces do we need to build the light? Take a look! [show] image: ferris_step_09 [pause] 5
 [Speak] Do we have everything we need? #¿Tenemos todo lo que necesitamos?#
 [Speak] Now, whose turn is it to be the builder? Attach the parts and put the light together! [move] look_from_side_to_side
-[Speak] Find the light piece #la pieza de luz# and connect the green pieces to it #conecta las piezas verdes#, similar to the motor. #igual que con el motor.# [show] image: ferris_step_09 [pause] after: 5
+[Speak] Find the light piece #la pieza de luz# and connect the green pieces to it #conecta las piezas verdes#, similar to the controller. #igual que con el motor.# [show] image: ferris_step_09 [pause] after: 5
 [Speak] Remember how to say green in Spanish? [pause] 4
 [speak] Great! # ¡Muy bien! # It’s #verde#, green. 
 
 [Speak] Time to check! Does the light look like in the picture? ¿La luz se ve como en la foto? Raise your cards if you think it’s correct. [show] image: ferris_step_09
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 10
 [edge] no [speak] oh uh! Let’s check again! Is there a mistake? Who can help fix it? ¿Algo anda mal? ¿Quién puede ayudar a arreglarlo?
 [edge] yes [speak] Good work! It’s so important to check our work at each step so we can catch our mistakes on time! .[Speak] Is the light attached to the base? Like in this picture? ¿La luz se ve como en la foto?
 [Speak] When the light is attached to the base, hold up your cards. # ¿Cuando esté listo, levanten sus tarjetas. # [show] image: ferris_step_10
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 10
 [edge] no [speak] Take your time. I will wait here until the light piece is attached. [show] image: ferris_step_10 [goto] -1
 [edge] yes [speak] That was great teamwork!  
 [speak] Awesome!  # ¡Muy bien! #
@@ -170,7 +170,7 @@ Step 11-12: Add the Motor
 [Speak] Great! find the motor, attach green pins to it. [show] image: ferris_step_11 [pause] after: 5 
 [speak] Now, who wants to attach the motor to the tower?  #¿Quien quierre adjuntar el motor al torre?# Make sure it is attached in the correct spot! [show] image: ferris_step_12
 [Speak] Let’s check together! If you think the motor is attached the right way, raise your cards! [show] image: ferris_step_12
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 10
 [edge] no [speak] Let me know when it is attached. I will wait! #Espero aqui# [goto] -1
 [edge] yes [speak] That was great teamwork! #¡Eso fue un gran trabajo en equipo!#
 [Speak] By the way, do you know how to say “motor" in Spanish?
@@ -194,7 +194,7 @@ Step 13-14: Build the stairs
 [Speak] How about building stairs? ¿Qué tal si construyen unas escaleras?" [pause] 2
 [Speak] Who’s turn is it to be the finder? [move] look_from_side_to_side
 [Speak] Find the yellow brick # el ladrillo amarillo# and the blue tiles #y las piezas azules# in the picture! Raise your card when you’re done! [show] image: ferris_step_13
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
 [edge] no [speak] Let me know when you find it. I will wait! #Espero aqui# [goto] -1
 [edge] yes [speak] That was great teamwork! #¡Eso fue un gran trabajo en equipo!#
 [Speak] Now, let’s build the stairs! Who’s turn is it to be the builder? #¿Quien es el constructor or la constructora?# [pause] 3
@@ -202,7 +202,7 @@ Step 13-14: Build the stairs
 
 [Speak] Then connect two more blue tiles. #Conecten dos piezas azules más.#
 [Speak] When they’re all connected, raise your card. #  ¿Cuando esté listo, levanten sus tarjetas. #[show] image: ferris_step_14
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
 [edge] no [speak] Still fixing the stairs? I will wait until you are done. [goto] -1
 [edge] yes [speak] You built the blue stairs #escaleras#! What a super team! 
 [Speak] I love the color blue. Remember how to say blue in Spanish? [pause] 4
@@ -224,7 +224,7 @@ Step 15:
 
 [Speak] Now, connect the green pieces #las piezas verdes# to the round wheel center #al centro redondo de la rueda# to form an X. [show] image: ferris_step_17
 [Speak] Holder, you can now hold the wheel while your friend adds the arms #mientras su compañero agrega los brazos#. When they’re all connected, raise your cards. #Cuando todo esté conectado, levanten sus tarjetas.# [show] image: ferris_step_17
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
 [edge] no [speak] Need more time? I will wait until you are done. #¿Todavía no? Aquí espero.# [show] image: ferris_step_17 [goto] -1
 [edge] yes [speak] You made an X! What a super team!
 
@@ -257,7 +257,7 @@ Attach the Wheel to the Axle
 [edge] yes [speak] Now gently slide the wheel onto the axle.
 [Speak] #deslicen suavemente la rueda en el eje.# Be very careful!. #¡Tengan cuidado!# One of you can hold the axle, while the other pushes the wheel. #Trabajen juntos! Uno puede sostener el eje, el otro empuja la rueda.# Be very careful! [show] image: ferris_step_23 [pause] after:10
 [Speak] Now, let`s test it!  If it spins nicely, raise your card. #Ahora, vamos a probarlo! Si gira bien, levanten sus tarjetas.#
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 15
 [edge] no [speak] What can be the problem? #¿Cuál puede ser el problema?# Who can help the wheel turn around?. [goto] -1
 [edge] yes [speak] You did it! 
 [edge] timeout [speak] #¡Excelente!#
@@ -265,3 +265,5 @@ Attach the Wheel to the Axle
 [speak] Our Ferris Wheel is standing tall and spinning around! #Muy bien! ¡Nuestra rueda de la fortuna está de pie y girando!# 
 [Speak] You built it together. [pause] 1 
 [Speak] High five your friend and give a big smile! [move] clap
+[Speak] That`s it for today. Bye bye and have a great day.
+[audio] laugh [pause] 120

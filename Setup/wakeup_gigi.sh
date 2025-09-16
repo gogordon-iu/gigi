@@ -4,6 +4,12 @@ export DISPLAY=:0
 export XAUTHORITY=/home/orangepi/.Xauthority
 
 # Prevent screen blanking
+
+gsettings set org.gnome.desktop.session idle-delay 0
+gsettings set org.gnome.desktop.screensaver lock-enabled false
+
+echo "xset s off && xset s noblank && xset -dpms" >> ~/.bashrc
+
 xset s off
 xset -dpms
 xset s noblank
