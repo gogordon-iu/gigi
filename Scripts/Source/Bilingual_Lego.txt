@@ -4,10 +4,10 @@
 [Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
 [Speak] I love building with LEGO and playing with my friends. [move] open_arms [pause] 1
 [Speak] I also love learning new languages! 
-[find] what: face [timeout] 10
-[edge] no [speak] What languages do you speak? [pause] 10
-[edge] yes [speak] What languages do you speak? [pause] 10
-[Speak] Would you like to play with me? #¿Quieren jugar conmigo? # [pause] 5 
+[find] what: face [timeout] 4
+[edge] no [speak] What languages do you speak? [pause] 3
+[edge] yes [speak] What languages do you speak? [pause] 3
+[Speak] Would you like to play with me? #¿Quieren jugar conmigo? # [pause] 3
 [Speak] #¡Excelente!#
 [Speak] How do you say hello in Spanish?
 [move] look_from_side_to_side [puase] 3
@@ -38,23 +38,23 @@
 [Speak] Today we’re going to build a Ferris wheel. # Hoy vamos a construir una rueda de la fortuna.# [move] arms_up
 [Speak] Do you know what a Ferris wheel is? #¿Saben qué es?#
 [hear] words: yes, no
-[edge] yes [speak] Ferris wheels are so much fun! I love going on them and spinning round and round.
+[edge] yes [speak] Ferris wheels are so much fun! I love going on them and spinning round and round. Or in Spanish, #gira#, round and round. [move] arms_circle
 [edge] no [speak] Who can tell us? What is a Ferris wheel? ¿Quién puede decirnos?¿Qué es una rueda de la fortuna?
-[edge] timeout [speak] Ferris wheels are so much fun! I love going on them and spinning round and round.
-[speak] Yes! A Ferris wheel is a big wheel that spins round and round. Or in Spanish, #gira#, round and round. [move] arms_circle
+[edge] timeout [speak] Ferris wheels are so much fun! I love going on them and spinning round and round. Or in Spanish, #gira#, round and round. [move] arms_circle
 [speak] You can find Ferris wheels in carnivals! I love them! ¡Las puedes encontrar en ferias! ¡Me encantan!# 
 [audio] laugh
 
 [Speak] Did you know? People say “Ferris wheel” in different ways in Spanish, depending on where they live. [pause] 1 
-[Speak] In Mexico, many people say #rueda de la fortuna#. In Argentina, they say #vuelta al mundo#. In Spain, they often say #noria#. Some people say #rueda gigante#. [pause] 1
+[Speak] In Mexico, many people say #rueda de la fortuna#. In Argentina, they say #vuelta al mundo#. 
+[Speak] In Spain, they often say #noria#. Some people say #rueda gigante#. [pause] 1
 
-[find] what: face [timeout] 5
+[find] what: face [timeout] 3
 [edge] no [speak] What about you?
 [edge] yes [speak] What about you?
-[Speak] How do you say “Ferris wheel” at home or in your family’s language? #¿Y ustedes? ¿Cómo lo dicen en su casa o en su idioma?# [pause] after: 10  
+[Speak] How do you say “Ferris wheel” at home or in your family’s language? #¿Y ustedes? ¿Cómo lo dicen en su casa o en su idioma?# [pause] after: 5  
 [Speak] Wow, so many ways to say it! Isn’t it cool that we can learn from each other? #¡Qué bonito aprender diferentes palabras entre todos!# [move] arms_up
 
-[find] what: face [timeout] 5
+[find] what: face [timeout] 3
 [edge] no [speak] Have you ever been on a Ferris wheel?
 [edge] yes [speak] Have you ever been on a Ferris wheel?
 [Speak] Tell your friends. ¿Alguna vez has subido a una rueda de la fortuna? Cuéntenle a sus amigos.# [pause] after: 10
