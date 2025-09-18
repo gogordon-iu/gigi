@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append('../Character')
 import json
 import sys
@@ -7,7 +8,7 @@ from character import Character
 from script import *
 from scriptGraph import ScriptGraph
 import shutil
-from characterDefinitions import CHARACTER_FOLDER
+from characterDefinitions import CHARACTER_FOLDER, IS_ROBOT
 
 # Auto-generated file
 # Name: Bilingual_Lego
@@ -494,7 +495,8 @@ if __name__ == "__main__":
 
     fuzzy = Character(child=False, gender='female', activity='Bilingual_Lego', languages=['en', 'es'])
     script = Script(graph=sg, character=fuzzy)
-    script.generateAllSpeech()
+    if not IS_ROBOT:
+        script.generateAllSpeech()
     script.check_assets()
     script.run(start_node=start_node)
 
