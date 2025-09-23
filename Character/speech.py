@@ -1,4 +1,5 @@
 import librosa
+
 IS_FFMPEG = False
 try:
     import ffmpeg
@@ -18,7 +19,7 @@ import shutil
 from characterDefinitions import IS_ROBOT, base_assets_path
 
 
-SOUND_OPTION = "pygame"
+SOUND_OPTION = "sounddevice"
 if SOUND_OPTION == "pygame":
     from pygame import mixer, time
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1" 
@@ -26,7 +27,20 @@ elif SOUND_OPTION == "sounddevice":
     import sounddevice as sd
     import soundfile as sf
 
-import torch
+TTS_MODEL = "silero"
+if TTS_MODEL == "nix":
+    import sys
+    sys.path.append('../Resources')
+
+    from nix.models.TTS import NixTTSInference
+    from nix.tokenizers.tokenizer_en import NixTokenizerEN
+    OUTPUT_SAMPLE_RATE = 22050
+
+elif TTS_MODEL == "silero":
+    import torch
+    OUTPUT_SAMPLE_RATE = 48000
+
+
 lanugage_speakers = {
     'en': ('v3_en', {
         'female': 'en_0',
@@ -66,56 +80,57 @@ class Speech():
 
 
         # Download the model from TorchHub
-        if IS_ROBOT: # No model
-            self.model = None
-            # self.model, self.symbols, self.audio_sample_rate, example_text, self.apply_tts = torch.hub.load(repo_or_dir='snakers4/silero-models', model='silero_tts', language='en', speaker='lj_8khz')
-            # self.device   = torch.device('cpu')   # keep it on CPU for Orange Pi
-        else: # Large model
-            self.languages = []
-            if isinstance(languages, str):
-                self.languages.append(languages)
-            elif isinstance(languages, list):
-                self.languages = languages
-            
-            if len(self.languages) == 1:
+        self.languages = []
+        if isinstance(languages, str):
+            self.languages.append(languages)
+        elif isinstance(languages, list):
+            self.languages = languages
+        
+        if len(self.languages) == 1:
+            if TTS_MODEL == "silero" and not IS_ROBOT:
                 self.model, example_text = torch.hub.load(repo_or_dir='snakers4/silero-models', 
-                                                          model='silero_tts', 
-                                                          language=self.languages[0], 
-                                                          speaker=lanugage_speakers[self.languages[0]][0])
-                if isinstance(lanugage_speakers[self.languages[0]][1], dict):
-                    if self.gender in lanugage_speakers[self.languages[0]][1]:
-                        self.speaker = lanugage_speakers[self.languages[0]][1][self.gender]
-                    else:
-                        self.speaker = lanugage_speakers[self.languages[0]][1].values()[0]
-                else:
-                    self.speaker = lanugage_speakers[self.languages[0]][1]
-                self.wav_sr = lanugage_speakers[self.languages[0]][2]
+                                                        model='silero_tts', 
+                                                        language=self.languages[0], 
+                                                        speaker=lanugage_speakers[self.languages[0]][0])
+            elif TTS_MODEL == "nix":
+                self.model = NixTTSInference(model_dir="../Resources/nix/models/")
             else:
-                if MULTI:
-                    self.model, example = torch.hub.load('snakers4/silero-models',
-                                                        'silero_tts',
-                                                        language='multi', # multilingual checkpoint
-                                                        speaker=lanugage_speakers['multi'][0])
-                    self.speaker = lanugage_speakers['multi'][1]
-                    self.wav_sr = lanugage_speakers['multi'][2]
-                else:   
-                    self.models = []
-                    self.speakers = []
-                    self.wav_sr = OUTPUT_SAMPLE_RATE
-                    for lang in self.languages:
-                        model, example_text = torch.hub.load(repo_or_dir='snakers4/silero-models', 
-                                                             model='silero_tts', 
-                                                             language=lang, 
-                                                             speaker=lanugage_speakers[lang][0])
-                        self.models.append(model)
-                        speaker = 'en_0'
-                        if isinstance(lanugage_speakers[lang][1], dict):
-                            if self.gender in lanugage_speakers[lang][1]:
-                                speaker = lanugage_speakers[lang][1][gender]
-                        else:
-                            speaker = lanugage_speakers[lang][1]
-                        self.speakers.append(speaker)
-    
+                self.model = None
+
+            if isinstance(lanugage_speakers[self.languages[0]][1], dict):
+                if self.gender in lanugage_speakers[self.languages[0]][1]:
+                    self.speaker = lanugage_speakers[self.languages[0]][1][self.gender]
+                else:
+                    self.speaker = lanugage_speakers[self.languages[0]][1].values()[0]
+            else:
+                self.speaker = lanugage_speakers[self.languages[0]][1]
+            self.wav_sr = lanugage_speakers[self.languages[0]][2]
+        else:
+            if MULTI:
+                self.model, example = torch.hub.load('snakers4/silero-models',
+                                                    'silero_tts',
+                                                    language='multi', # multilingual checkpoint
+                                                    speaker=lanugage_speakers['multi'][0])
+                self.speaker = lanugage_speakers['multi'][1]
+                self.wav_sr = lanugage_speakers['multi'][2]
+            else:   
+                self.models = []
+                self.speakers = []
+                self.wav_sr = OUTPUT_SAMPLE_RATE
+                for lang in self.languages:
+                    model, example_text = torch.hub.load(repo_or_dir='snakers4/silero-models', 
+                                                            model='silero_tts', 
+                                                            language=lang, 
+                                                            speaker=lanugage_speakers[lang][0])
+                    self.models.append(model)
+                    speaker = 'en_0'
+                    if isinstance(lanugage_speakers[lang][1], dict):
+                        if self.gender in lanugage_speakers[lang][1]:
+                            speaker = lanugage_speakers[lang][1][gender]
+                    else:
+                        speaker = lanugage_speakers[lang][1]
+                    self.speakers.append(speaker)
+
     def set_activity(self, activity_name):
         self.activity = activity_name
         if self.activity:
@@ -172,9 +187,14 @@ class Speech():
             return None
 
         if len(self.languages) == 1:
-            audio = self.model.apply_tts(text=text, 
-                                        speaker=self.speaker, 
-                                        sample_rate=self.wav_sr)
+            if TTS_MODEL == "nix":
+                c, c_length, _ = self.model.tokenizer([text])
+                wav = self.model.vocalize(c, c_length)[0, 0].astype(np.float32)
+            elif TTS_MODEL == "silero" and not IS_ROBOT:
+                audio = self.model.apply_tts(text=text, 
+                                            speaker=self.speaker, 
+                                            sample_rate=self.wav_sr)
+                wav = audio.numpy()
         else:
             if MULTI:
                 audio = self.model.apply_tts(texts=[text], 
@@ -208,7 +228,7 @@ class Speech():
                         #                    audio_part.unsqueeze(0) if audio_part.dim() == 1 else audio_part), dim=1)
                     num_parts += 1
 
-        wav = audio.numpy()
+        
         # Increase the pitch of the audio
         # wav = librosa.effects.pitch_shift(wav, sr=self.wav_sr, n_steps=6)
         stereo_audio = np.column_stack((wav, wav))
@@ -458,11 +478,12 @@ class Speech():
         audio_thread.join()
 
 if __name__ == "__main__":
-    speech = Speech(languages=["en", "es"], child=True, verbose=True)
+    # speech = Speech(languages=["en", "es"], child=True, verbose=True)
+    speech = Speech(languages=["en"], child=False, verbose=True)
     speech.set_activity("test_speech")
     # speech.run_speech(text="ten we're going to build a Ferris wheel. Or in Spanish, we say. #la noria.# Do you know what a Ferris wheel is? Tell your friends.")
     # speech.run_speech(text="¡Hola, mundo dos!")
-    speech.run_speech(text="We are going to build a Ferris wheel. Four.")
+    speech.run_speech(text="Hi everyone you goren. We are going to build a Ferris wheel. Four.")
     # speech.run_speech(file="../Assets/teacher/laugh.wav")
     # speech.run_speech(file="../Assets/audio/demo_01_greetings.wav")
     # speech.run_speech(text="hi")

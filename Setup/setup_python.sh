@@ -14,3 +14,6 @@ mkdir recorded_speech
 
 # set speaker volume
 amixer -c 2 set PCM 80%
+
+# set python path and add resources
+export PYTHONPATH=/home/orangepi/Code/gigi/Resources:$PYTHONPATH
