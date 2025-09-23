@@ -1,0 +1,23 @@
+I have used the nix-tts model as my current TTS model in the robot. 
+Paper link
+https://arxiv.org/abs/2203.15643
+
+1) Setup
+git clone https://github.com/rendchevi/nix-tts.git
+cd nix-tts
+pip install -r requirements.txt (ignore onnxruntime version specified in the file and install the latest)
+2) download the onnx files
+https://drive.google.com/drive/folders/1GbFOnJsgKHCAXySm2sTluRRikc4TAWxJ
+download the deterministic one as stochastic seems to be not working. Place these files in any location, but make sure to mention the path in verifyTTS.py file.
+I have pasted the files in nix/models
+
+3) Change code
+I have changed some part of code in TTS.py and tokenizer_en.py files to fix some errors. You can find it in our repo.
+
+4) add nix parent folder to path
+export PYTHONPATH=/home/orangepi/Code/gigi/Resources:$PYTHONPATH
+this way the model is loaded into our file.
+
+5) run the verifyTTS
+In the Verification folder run the verifyTTS.py 
+python verifyTTS.py

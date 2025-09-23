@@ -1,0 +1,27 @@
+Commands to disable screen blanking
+
+We have to disable some settings in gsettings and xset. gsettings once disabled remains the same across reboots whereas xset is not permanent across reboots. We have to add xset commands to bashrc
+
+commands (do it once)
+
+gsettings set org.gnome.desktop.session idle-delay 0
+gsettings set org.gnome.desktop.screensaver lock-enabled false
+
+#current session
+xset s off
+xset s noblank
+xset -dpms
+
+# Add to .bashrc so it runs every time you log in from next session
+echo "xset s off && xset s noblank && xset -dpms" >> ~/.bashrc
+# Source it now
+source ~/.bashrc
+
+verification
+gsettings get org.gnome.desktop.session idle-delay # should be 0
+gsettings set org.gnome.desktop.screensaver lock-enable # should be false
+
+xset q | grep -A 5 "Screen Saver" 
+#expected o/p
+# prefer blanking: no
+# timeout: 0
