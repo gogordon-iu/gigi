@@ -1,20 +1,20 @@
+
 from hearingDefinitions import *
 import sounddevice as sd
 import threading
-import json
 
 language_models = None
-HEARING_OPTION = "whisper"
+HEARING_OPTION = "vosk"
 if HEARING_OPTION == "sr":
     import speech_recognition as sr
 elif HEARING_OPTION == "whisper":
-    from faster_whisper import WhisperModel
+    import whisper
     import numpy as np
     import queue
     import time
-    from hearingDefinitions import NATIVE_SAMPLE_RATE, TARGET_SAMPLE_RATE, SILENCE_DURATION
-    from whisper_helper import WhisperAudioProcessor, transcribe_optimized, calibrate_energy_threshold
+    from hearingDefinitions import *
 elif HEARING_OPTION == "vosk":
+    import json
     from vosk import Model, KaldiRecognizer
     import pyaudio
 
@@ -36,20 +36,10 @@ class Hearing():
         if HEARING_OPTION == "sr":
             self.recognizer = sr.Recognizer()
         elif HEARING_OPTION == "whisper":
-            # Optimized Faster Whisper model
-            self.model = WhisperModel("tiny", device="cpu", compute_type="int8", num_workers=1)
-            # Audio processor for optimized handling with resampling support
-            self.audio_processor = WhisperAudioProcessor(
-                native_sample_rate=NATIVE_SAMPLE_RATE,  # Your mic's native rate (48000)
-                target_sample_rate=TARGET_SAMPLE_RATE,  # Whisper requires 16000
-                energy_threshold=300,  # Lower threshold for better detection
-                buffer_duration=2.0,   # Shorter buffer to reduce lag
-                min_audio_length=0.5,  # Process smaller chunks
-                silence_duration=SILENCE_DURATION,
-                debug=verbose
-            )
+            # Whisper model
+            self.model = whisper.load_model("tiny")
             # Queue to hold audio chunks
-            self.audio_queue = queue.Queue(maxsize=5)
+            self.audio_queue = queue.Queue()
         elif HEARING_OPTION == "vosk":
             self.languages = []
             if isinstance(languages, str):
@@ -156,52 +146,48 @@ class Hearing():
                     print(f"Error with the speech recognition engine: {e}")
         elif HEARING_OPTION == "whisper":
             self.audio_queue = queue.Queue()
+            # Silence detection variables
+            last_non_silent_time = time.time()
+            # Open the audio stream
             text = ""
+            if self.verbose:
+                devices = sd.query_devices()
+                print("Selected device: ", self.mic_index, devices[self.mic_index])
 
-            with sd.InputStream(samplerate=NATIVE_SAMPLE_RATE, channels=1, 
-                                device=self.mic_index, callback=self.audio_callback_optimized, 
-                                blocksize=8192, dtype='int16'):
+            with sd.InputStream(samplerate=INPUT_SAMPLE_RATE, channels=1, 
+                                device=self.mic_index, callback=self.audio_callback, blocksize=12000):
                 print("Listening... Speak into the microphone.")
+                audio_buffer = np.zeros((0,), dtype=np.float32)
 
                 while True:
-                    # Get audio chunk from queue with timeout
-                    try:
-                        audio_float = self.audio_queue.get(timeout=0.5)
-                    except queue.Empty:
-                        # Check if we should stop due to silence
-                        if self.audio_processor.should_process_buffer():
-                            buffered = self.audio_processor.get_buffered_audio()
-                            if buffered is not None:
-                                transcription = transcribe_optimized(
-                                    self.model, buffered, 
-                                    language="en", debug=False
-                                )
-                                if transcription:
-                                    print(f"Transcription: {transcription}")
-                                    text += transcription + " "
-                            
-                            # Check for stopping condition
-                            if len(text) > 10 and time.time() - self.audio_processor.last_speech_time > SILENCE_DURATION:
-                                print("Silence detected. Stopping transcription.")
-                                break
-                        continue
+                    if self.verbose:
+                        print("processing ...")
+                    # Get the audio chunk from the queue
+                    chunk = self.audio_queue.get()
+                    audio_buffer = np.append(audio_buffer, chunk.flatten())
 
-                    # Transcribe the audio chunk using optimized faster_whisper
-                    transcription = transcribe_optimized(
-                        self.model, audio_float, 
-                        language="en", debug=False
-                    )
-                    
-                    if transcription:
-                        print(f"Transcription: {transcription}")
-                        text += transcription + " "
-                
-                if text.strip():
-                    self.texts.append(text.strip())
-                    
+                    # Process in CHUNK_DURATION segments
+                    if len(audio_buffer) >= INPUT_SAMPLE_RATE * CHUNK_DURATION:
+                        audio_chunk = audio_buffer[:INPUT_SAMPLE_RATE * CHUNK_DURATION]
+                        audio_buffer = audio_buffer[INPUT_SAMPLE_RATE * CHUNK_DURATION:]
+
+                        # Check for silence
+                        if self.is_silent(audio_chunk):
+                            if time.time() - last_non_silent_time > SILENCE_DURATION:
+                                if len(text) > 10:
+                                    print("Silence detected. Stopping transcription.")
+                                    break
+                        else:
+                            last_non_silent_time = time.time()
+
+                        # Transcribe the audio chunk
+                        # audio_chunk = (audio_chunk * 32767).astype(np.int16)  # Convert to 16-bit PCM
+                        result = self.model.transcribe(audio_chunk, fp16=False)
+                        print(f"Transcription: {result['text']}")
+                        text += result['text']
+                self.texts.append(text)
                 if stop_event is not None:
-                    stop_event.set()
-                    
+                        stop_event.set()
         elif HEARING_OPTION == "vosk":
             recognizers = {}
             for lang, model in self.model.items():
@@ -217,7 +203,7 @@ class Hearing():
             self.stream.read(self.stream.get_read_available(), exception_on_overflow=False)
 
             # read + feed until any recognizer signals "final"
-            while True:
+            while stop_event is None or not stop_event.is_set():
                 data = self.stream.read(int(INPUT_SAMPLE_RATE / 4),
                                         exception_on_overflow=False)
                 # feed all recognizers, check for any final result
@@ -279,34 +265,12 @@ class Hearing():
             if stop_event is not None:
                 stop_event.set()
 
-    # Optimized audio callback for Whisper
-    def audio_callback_optimized(self, indata, frames, time_info, status):
-        """Optimized callback function with buffering and energy detection."""
-        # Silently handle overflow - it's normal for slow systems
-        
-        # Convert to numpy array and validate
-        audio_data = indata.flatten().copy()
-        
-        if len(audio_data) == 0:
-            return
-        
-        # Add to processor buffer
-        self.audio_processor.add_to_buffer(audio_data)
-        
-        # Check if we should process (do this outside callback to avoid blocking)
-        if self.audio_processor.should_process_buffer():
-            audio_float = self.audio_processor.get_buffered_audio()
-            if audio_float is not None and len(audio_float) > 0:
-                # Add to queue if not full
-                try:
-                    self.audio_queue.put_nowait(audio_float)
-                except queue.Full:
-                    # Drop oldest and add new
-                    try:
-                        self.audio_queue.get_nowait()
-                        self.audio_queue.put_nowait(audio_float)
-                    except:
-                        pass
+    # Function to capture audio in real-time    
+    def audio_callback(self, indata, frames, time_info, status):
+        """Callback function to capture audio chunks."""
+        if status:
+            print(f"Status: {status}")
+        self.audio_queue.put(indata.copy())
 
     # Function to check if audio is silent
     def is_silent(self, audio):
@@ -322,6 +286,8 @@ class Hearing():
 
 
     def hearing_thread(self, stop_event=None):
+        # start a new list of words heard
+        self.texts = []
         if stop_event is None:
             stop_event = threading.Event()
         t = threading.Thread(target=self.listen, args=[stop_event])
