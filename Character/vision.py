@@ -58,6 +58,8 @@ class Vision:
                 # return    # DEBUG        
 
     def detect_motion(self, frame):
+        height, width = frame.shape[:2]
+
         # parameters
         blur_k = 21
         alpha = 0.02
@@ -66,7 +68,7 @@ class Vision:
 
         # resize to reasonable width for speed (maintain aspect ratio)
         max_width = 800
-        height, width = frame.shape[:2]
+        
         scale = 1.0
         if width > max_width:
             scale = max_width / float(width)
@@ -83,6 +85,9 @@ class Vision:
             gray = cv2.GaussianBlur(gray, (blur_k, blur_k), 0).astype("float32")
 
             self.background = gray.copy()  # float32 background model
+
+        height, width = frame.shape[:2]
+        max_width = height * width / 4
 
         frame = resize_frame(frame)
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -118,7 +123,7 @@ class Vision:
             motion_boxes = []
             for i, cnt in enumerate(contours):
                 area = cv2.contourArea(cnt)
-                if area < min_area:
+                if area < min_area and area < max_area:
                     continue
                 x, y, w, h = cv2.boundingRect(cnt)
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 180, 255), 2)
