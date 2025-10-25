@@ -22,7 +22,7 @@ class Vision:
         self.thread = None
         self.stop_event = None
 
-        self.finding_motion = False
+        self.motion_detection_stage = "inactive" # inactive | acquire_background | active
 
    
     def open_camera(self, port):
@@ -74,8 +74,8 @@ class Vision:
                 return cv2.resize(f, (int(f.shape[1]*scale), int(f.shape[0]*scale)))
             return f
 
-        if not self.finding_motion:
-            self.finding_motion = True
+        if self.motion_detection_stage == "inactive":
+            self.motion_detection_stage = "acquire_background"
             frame = resize_frame(frame)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             gray = cv2.GaussianBlur(gray, (blur_k, blur_k), 0).astype("float32")
@@ -104,16 +104,23 @@ class Vision:
         # Find contours on mask
         contours, _ = cv2.findContours(motion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        motion_boxes = []
         for i, cnt in enumerate(contours):
             area = cv2.contourArea(cnt)
             if area < min_area:
                 continue
-            x, y, w, h = cv2.boundingRect(cnt)
-            self.found['motion'][i] = {
-                        "box": (x, y, w, h),
-                        "center": ((x + w // 2), (y + h // 2)),
-                        "offset": (((width // 2) - (x + w // 2)) / width, ((height // 2) - (y + h // 2)) / height)
-                    }
+            motion_boxes.append(cnt)
+        if self.motion_detection_stage == "acquire_background":
+            if len(motion_boxes) == 0:      # no more motion from background
+                self.motion_detection_stage = "active"
+        else:
+            for cnt in motion_boxes:
+                x, y, w, h = cv2.boundingRect(cnt)
+                self.found['motion'][i] = {
+                            "box": (x, y, w, h),
+                            "center": ((x + w // 2), (y + h // 2)),
+                            "offset": (((width // 2) - (x + w // 2)) / width, ((height // 2) - (y + h // 2)) / height)
+                        }
 
     def look_for(self, what=None):
         print(f"Looking for {what} ...")
