@@ -123,7 +123,7 @@ class Vision:
             motion_boxes = []
             for i, cnt in enumerate(contours):
                 area = cv2.contourArea(cnt)
-                if area < min_area and area < max_area:
+                if area < min_area or area > max_area:
                     continue
                 x, y, w, h = cv2.boundingRect(cnt)
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 180, 255), 2)
