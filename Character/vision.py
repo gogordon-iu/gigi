@@ -23,6 +23,8 @@ class Vision:
         self.stop_event = None
 
         self.motion_detection_stage = "inactive" # inactive | acquire_background | active
+        self.motion_detection_calibration = 0
+        self.motion_detection_duration = 10
 
    
     def open_camera(self, port):
@@ -89,38 +91,46 @@ class Vision:
         # Update running average background (float32)
         cv2.accumulateWeighted(frame_blur.astype("float32"), self.background, alpha)
 
-        # Compute absolute difference between background and current frame
-        background_uint8 = cv2.convertScaleAbs(self.background)  # convert to uint8 for absdiff
-        diff = cv2.absdiff(background_uint8, frame_blur)
-
-        # Threshold to get motion regions
-        _, motion_mask = cv2.threshold(diff, thr, 255, cv2.THRESH_BINARY)
-
-        # Morphological ops to reduce noise
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
-        motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_OPEN, kernel, iterations=1)
-        motion_mask = cv2.dilate(motion_mask, kernel, iterations=2)
-
-        # Find contours on mask
-        contours, _ = cv2.findContours(motion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        motion_boxes = []
-        for i, cnt in enumerate(contours):
-            area = cv2.contourArea(cnt)
-            if area < min_area:
-                continue
-            motion_boxes.append(cnt)
         if self.motion_detection_stage == "acquire_background":
-            if len(motion_boxes) == 0:      # no more motion from background
+            self.motion_detection_calibration += 1
+            if self.motion_detection_calibration > self.motion_detection_duration:
                 self.motion_detection_stage = "active"
-        else:
-            for cnt in motion_boxes:
+
+        print(f"Stage {self.motion_detection_stage}, Calibration {self.motion_detection_calibration}")
+
+        if self.motion_detection_stage == "active":
+
+            # Compute absolute difference between background and current frame
+            background_uint8 = cv2.convertScaleAbs(self.background)  # convert to uint8 for absdiff
+            diff = cv2.absdiff(background_uint8, frame_blur)
+
+            # Threshold to get motion regions
+            _, motion_mask = cv2.threshold(diff, thr, 255, cv2.THRESH_BINARY)
+
+            # Morphological ops to reduce noise
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
+            motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_OPEN, kernel, iterations=1)
+            motion_mask = cv2.dilate(motion_mask, kernel, iterations=2)
+
+            # Find contours on mask
+            contours, _ = cv2.findContours(motion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            motion_boxes = []
+            for i, cnt in enumerate(contours):
+                area = cv2.contourArea(cnt)
+                if area < min_area:
+                    continue
                 x, y, w, h = cv2.boundingRect(cnt)
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 180, 255), 2)
                 self.found['motion'][i] = {
                             "box": (x, y, w, h),
                             "center": ((x + w // 2), (y + h // 2)),
                             "offset": (((width // 2) - (x + w // 2)) / width, ((height // 2) - (y + h // 2)) / height)
-                        }
+                            }
+            text = f"Motion boxes: {len(motion_boxes)} Stage {self.motion_detection_stage}"
+            cv2.putText(frame, text, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
+            filename = datetime.now().strftime("motion_%Y-%m-%d_%H-%M-%S.jpg")
+            cv2.imwrite(filename, frame)
 
     def look_for(self, what=None):
         print(f"Looking for {what} ...")
