@@ -2,9 +2,9 @@ Halloween Activity Script
 [name] Halloween
 [Character] female
 [Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
-[Speak] I will hide here quietly and scare people
+[Speak] I will hide here quietly and scare people [move] arms_down
 [show] image: hide
 [find] what: motion [timeout] 60
 [edge] no [speak] hiding [goto] -1
-[edge] yes [audio] scream [show] image: scary
+[edge] yes [audio] scream [show] image: scary [move] arms_up
 [Speak] Trick or treat [face] smile
