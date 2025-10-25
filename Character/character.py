@@ -5,7 +5,7 @@ if HAS_FACE:
 if HAS_SPEECH:
     from speech import Speech
 if HAS_HEARING:
-    from Character.hearing_new import Hearing
+    from hearing_new import Hearing
 if HAS_VISEME:
     from viseme import Viseme
 if HAS_VISION:
