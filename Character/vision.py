@@ -87,7 +87,7 @@ class Vision:
             self.background = gray.copy()  # float32 background model
 
         height, width = frame.shape[:2]
-        max_width = height * width / 4
+        max_area = height * width / 4
 
         frame = resize_frame(frame)
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
