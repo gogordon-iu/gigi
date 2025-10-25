@@ -10,5 +10,5 @@ Halloween Activity Script
 [Speak] Trick or treat [face] smile
 [Speak] Do you want me to do that again?
 [hear] words: yes, no
-[edge] yes [goto] -8
+[edge] yes [Speak] Okay [goto] -8
 [edge] no [Speak] That was fun. Happy Halloween

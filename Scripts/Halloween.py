@@ -40,7 +40,7 @@ class Halloween(ScriptGraph) :
         self.graph.add_node('Node_9', type=['speak'], text='Do you want me to do that again?')
         self.graph.add_edge('Node_9', 'Node_10', label='Node_9_10')
         self.graph.add_node('Node_10', type=['hear'], words='["yes", "no", "[unk]"]')
-        self.graph.add_node('Node_11', type=[])
+        self.graph.add_node('Node_11', type=['speak'], text='Okay')
         self.graph.add_edge('Node_10', 'Node_11', label='yes')
         self.graph.add_edge('Node_11', 'Node_3', label='Node_11_3')
         self.graph.add_node('Node_12', type=['speak'], text='That was fun. Happy Halloween')
