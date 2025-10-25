@@ -208,8 +208,11 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
 # file_path = '../Scripts/Source/Monolingual_Ferris.txt'  # Replace with your file path
 # languages = ['en']
 
-file_path = '../Scripts/Source/Bilingual_Lego.txt'  # Replace with your file path
-languages = ['en', 'es']
+# file_path = '../Scripts/Source/Bilingual_Lego.txt'  # Replace with your file path
+# languages = ['en', 'es']
+
+file_path = '../Scripts/Source/halloween.txt'  # Replace with your file path
+languages = ['en']
 
 FORCE_GENERATE_AUDIO = True
 
