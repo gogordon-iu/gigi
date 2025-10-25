@@ -25,6 +25,7 @@ class Vision:
         self.motion_detection_stage = "inactive" # inactive | acquire_background | active
         self.motion_detection_calibration = 0
         self.motion_detection_duration = 10
+        self.save_motion_frames = False
 
    
     def open_camera(self, port):
@@ -126,16 +127,18 @@ class Vision:
                 if area < min_area or area > max_area:
                     continue
                 x, y, w, h = cv2.boundingRect(cnt)
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 180, 255), 2)
+                if self.save_motion_frames:
+                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 180, 255), 2)
                 self.found['motion'][i] = {
                             "box": (x, y, w, h),
                             "center": ((x + w // 2), (y + h // 2)),
                             "offset": (((width // 2) - (x + w // 2)) / width, ((height // 2) - (y + h // 2)) / height)
                             }
-            text = f"Motion boxes: {len(motion_boxes)} Stage {self.motion_detection_stage}"
-            cv2.putText(frame, text, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
-            filename = datetime.now().strftime("motion_%Y-%m-%d_%H-%M-%S.jpg")
-            cv2.imwrite(filename, frame)
+            if self.save_motion_frames:
+                text = f"Motion boxes: {len(motion_boxes)} Stage {self.motion_detection_stage}"
+                cv2.putText(frame, text, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
+                filename = datetime.now().strftime("motion_%Y-%m-%d_%H-%M-%S.jpg")
+                cv2.imwrite(filename, frame)
 
     def look_for(self, what=None):
         print(f"Looking for {what} ...")
