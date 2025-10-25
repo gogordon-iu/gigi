@@ -101,6 +101,7 @@ class Vision:
             self.motion_detection_calibration += 1
             if self.motion_detection_calibration > self.motion_detection_duration:
                 self.motion_detection_stage = "active"
+                self.motion_detection_calibration = 0
 
         print(f"Stage {self.motion_detection_stage}, Calibration {self.motion_detection_calibration}")
 
