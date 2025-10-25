@@ -37,6 +37,15 @@ class Halloween(ScriptGraph) :
         self.graph.add_edge('Node_7', 'Node_8', label='Node_7_8')
         self.graph.add_node('Node_8', type=['speak', 'face'], text='Trick or treat', face=basic_sequences['smile'])
         self.graph.add_edge('Node_8', 'Node_9', label='Node_8_9')
+        self.graph.add_node('Node_9', type=['speak'], text='Do you want me to do that again?')
+        self.graph.add_edge('Node_9', 'Node_10', label='Node_9_10')
+        self.graph.add_node('Node_10', type=['hear'], words='["yes", "no", "[unk]"]')
+        self.graph.add_node('Node_11', type=[])
+        self.graph.add_edge('Node_10', 'Node_11', label='yes')
+        self.graph.add_edge('Node_11', 'Node_3', label='Node_11_3')
+        self.graph.add_node('Node_12', type=['speak'], text='That was fun. Happy Halloween')
+        self.graph.add_edge('Node_10', 'Node_12', label='no')
+        self.graph.add_edge('Node_12', 'Node_13', label='Node_12_13')
 
 
 if __name__ == "__main__":
