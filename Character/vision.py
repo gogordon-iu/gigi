@@ -25,7 +25,7 @@ class Vision:
         self.motion_detection_stage = "inactive" # inactive | acquire_background | active
         self.motion_detection_calibration = 0
         self.motion_detection_duration = 10
-        self.save_motion_frames = False
+        self.save_motion_frames = True
 
    
     def open_camera(self, port):
