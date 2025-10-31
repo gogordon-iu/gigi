@@ -5,5 +5,14 @@ Halloween Activity Script
 [Speak] Happy Halloween [move] look_from_side_to_side
 [find] what: motion [timeout] 60
 [edge] no [speak] Hello [goto] -3
-[edge] yes [audio] scream [show] image: scary [move] scare [goto] -3
+[edge] yes [audio] scream [show] image: scary [move] scare
+[Speak] Hope I did not scare you too much
+[audio] laugh
+[Speak] You are welcome to take a treat [face] look_down [move] arms_down [pause] 30
+[Speak] Have a great Halloween [pause] 60
+[find] what: motion [timeout] 60
+[edge] no [speak] Hello [goto] -3
+[edge] yes [audio] scream [show] image: scary [move] scare [goto] -6
 [Speak] Bye Bye
+
+fuzzy.lookat_calibration = None  # disable lookat calibration for script runs
