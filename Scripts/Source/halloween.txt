@@ -7,3 +7,4 @@ Halloween Activity Script
 [edge] no [speak] Hello [goto] -3
 [edge] yes [audio] scream [show] image: scary [move] scare
 [Speak] Trick or treat [face] smile [goto] -5
+[Speak] Bye Bye
