@@ -135,7 +135,7 @@ class Vision:
                             "center": ((x + w // 2), (y + h // 2)),
                             "offset": (((width // 2) - (x + w // 2)) / width, ((height // 2) - (y + h // 2)) / height)
                             })
-            if self.save_motion_frames:
+            if self.save_motion_frames and len(motion_boxes) > 0:
                 text = f"Motion boxes: {len(motion_boxes)} Stage {self.motion_detection_stage}"
                 cv2.putText(frame, text, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
                 filename = datetime.now().strftime("motion_%Y-%m-%d_%H-%M-%S.jpg")

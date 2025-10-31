@@ -24,7 +24,7 @@ class Halloween(ScriptGraph) :
         self.graph.add_edge('start', 'Node_2', label='start_2')
         self.graph.add_node('Node_2', type=['speak', 'move'], text='Hello friends! I`m Gigi the robot!', motors='wave_hello')
         self.graph.add_edge('Node_2', 'Node_3', label='Node_2_3')
-        self.graph.add_node('Node_3', type=['speak', 'move'], text='Happy Halloween', motors='look_from_side_to_side')
+        self.graph.add_node('Node_3', type=['speak', 'move'], text='Happy Halloween', motors='home')
         self.graph.add_edge('Node_3', 'Node_4', label='Node_3_4')
         self.graph.add_node('Node_4', type=['find'], what='motion', timeout=60)
         self.graph.add_node('Node_5', type=['speak'], text='Hello')
