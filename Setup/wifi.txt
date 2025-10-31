@@ -56,6 +56,7 @@ nano post-receive
 Paste:
 #!/bin/bash
 GIT_WORK_TREE=/home/orangepi/Code/gigi git checkout -f
+cp /home/orangepi/Code/gigi/Character/motorData_local.json /home/orangepi/Code/gigi/Character/motorData_calibrated.json
 
 Make it executable:
 chmod +x post-receive

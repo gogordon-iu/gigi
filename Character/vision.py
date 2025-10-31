@@ -64,7 +64,7 @@ class Vision:
         # parameters
         blur_k = 21
         alpha = 0.02
-        thr = 25
+        thr = 100
         min_area = 1000
 
         # resize to reasonable width for speed (maintain aspect ratio)
@@ -140,7 +140,7 @@ class Vision:
                 cv2.putText(frame, text, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
                 filename = datetime.now().strftime("motion_%Y-%m-%d_%H-%M-%S.jpg")
                 cv2.imwrite(filename, frame)
-                
+
             for i, m in enumerate(motion_boxes):
                 self.found['motion'][i] = m
 

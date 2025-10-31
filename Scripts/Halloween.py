@@ -32,11 +32,9 @@ class Halloween(ScriptGraph) :
         self.graph.add_edge('Node_5', 'Node_2', label='Node_5_2')
         self.graph.add_node('Node_6', type=['audio', 'show', 'move'], audio='scream.wav', image='../Assets/Halloween/scary.png', motors='scare')
         self.graph.add_edge('Node_4', 'Node_6', label='yes')
-        self.graph.add_edge('Node_6', 'Node_7', label='Node_6_7')
-        self.graph.add_node('Node_7', type=['speak', 'face'], text='Trick or treat', face=basic_sequences['smile'])
+        self.graph.add_edge('Node_6', 'Node_3', label='Node_6_3')
+        self.graph.add_node('Node_7', type=['speak'], text='Bye Bye')
         self.graph.add_edge('Node_7', 'Node_8', label='Node_7_8')
-        self.graph.add_node('Node_8', type=['speak'], text='Bye Bye')
-        self.graph.add_edge('Node_8', 'Node_9', label='Node_8_9')
 
 
 if __name__ == "__main__":
