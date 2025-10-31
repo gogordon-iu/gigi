@@ -72,7 +72,6 @@ if __name__ == "__main__":
     script = Script(graph=sg, character=fuzzy)
     script.generateAllSpeech()
     script.check_assets()
-    
     script.run(start_node=start_node)
 
 
