@@ -276,3 +276,19 @@ basic_sequences["arms_circle"] = [
         }
     },
 ]
+
+basic_sequences['scare'] = [
+    {'time': 0,
+     'motors': {'right_elbow': 0.0,
+                'left_elbow': 0.0,
+                'right_shoulder': 0.8,
+                'left_shoulder': -0.8,
+                "torso": 0.2}},
+    {'time': 3,
+     'motors': {"neck": 0.0,
+            "right_shoulder": 0.0,
+            "left_shoulder": 0.0,
+            "right_elbow": 0.0,
+            "left_elbow": 0.0,
+            "torso": 0.0}}
+]
