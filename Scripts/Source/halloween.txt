@@ -8,6 +8,7 @@ Halloween Activity Script
 [edge] yes [audio] scream [show] image: scary [move] scare
 [Speak] Hope I did not scare you too much
 [audio] laugh
+[Speak] I’m Gigi the robot! [move] wave_hello
 [Speak] You are welcome to take a treat [face] look_down [move] arms_down [pause] 30
 [Speak] Have a great Halloween [pause] 60
 [find] what: motion [timeout] 60
