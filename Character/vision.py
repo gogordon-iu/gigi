@@ -140,6 +140,7 @@ class Vision:
                 cv2.putText(frame, text, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
                 filename = datetime.now().strftime("motion_%Y-%m-%d_%H-%M-%S.jpg")
                 cv2.imwrite(filename, frame)
+                
             for i, m in enumerate(motion_boxes):
                 self.found['motion'][i] = m
 
