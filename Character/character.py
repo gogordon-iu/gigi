@@ -208,9 +208,9 @@ class Character():
     def lookat_something(self, what="face", timeout=-1):
         # timeout - how long (seconds) to look for a face if one is not found
         start_time = time.time()
-        if self.vision:
-            self.vision.look_and_stop(what=what, timeout=1)
+        if self.vision:            
             if self.lookat_calibration:     # if calibrated, look at something
+                self.vision.look_and_stop(what=what, timeout=1)
                 print("DEBUG: ", what, self.vision.found)                
                 if len(self.vision.found[what]) > 0:
                     self.vision.stop_vision()
