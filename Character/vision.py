@@ -64,7 +64,7 @@ class Vision:
         # parameters
         blur_k = 21
         alpha = 0.02
-        thr = 200
+        thr = 150
         min_area = 1000
 
         # resize to reasonable width for speed (maintain aspect ratio)
