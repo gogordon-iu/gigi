@@ -46,6 +46,7 @@ git clone ~/repos/gigi.git
 cd gigi
 chmod +x activate_environment.sh
 
+
 Then you can work on ~/Code/gigi with VSCode SSH.
 When you push to the bare repo, update your working copy manually or automate it with a hook:
 
