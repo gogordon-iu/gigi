@@ -141,6 +141,9 @@ class Vision:
                 filename = datetime.now().strftime("motion_%Y-%m-%d_%H-%M-%S.jpg")
                 cv2.imwrite(filename, frame)
 
+            if len(motion_boxes) > 0:
+                self.motion_detection_stage = "inactive"    # reset the motion detection
+
             for i, m in enumerate(motion_boxes):
                 self.found['motion'][i] = m
 
