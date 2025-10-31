@@ -39,19 +39,21 @@ class Halloween(ScriptGraph) :
         self.graph.add_edge('Node_8', 'Node_9', label='Node_8_9')
         self.graph.add_node('Node_9', type=['speak', 'move'], text='I`m Gigi the robot!', motors='wave_hello')
         self.graph.add_edge('Node_9', 'Node_10', label='Node_9_10')
-        self.graph.add_node('Node_10', type=['speak', 'face', 'move'], text='You are welcome to take a treat', face=basic_sequences['look_down'], motors='arms_down', pause={'after': 30})
+        self.graph.add_node('Node_10', type=['speak', 'face', 'move'], text='You are welcome to take a treat', face=basic_sequences['look_down'], motors='arms_down', pause={'after': 10})
         self.graph.add_edge('Node_10', 'Node_11', label='Node_10_11')
-        self.graph.add_node('Node_11', type=['speak'], text='Have a great Halloween', pause={'after': 60})
+        self.graph.add_node('Node_11', type=['speak'], text='Have a great Halloween')
         self.graph.add_edge('Node_11', 'Node_12', label='Node_11_12')
-        self.graph.add_node('Node_12', type=['find'], what='motion', timeout=60)
-        self.graph.add_node('Node_13', type=['speak'], text='Hello')
-        self.graph.add_edge('Node_12', 'Node_13', label='no')
-        self.graph.add_edge('Node_13', 'Node_10', label='Node_13_10')
-        self.graph.add_node('Node_14', type=['audio', 'show', 'move'], audio='scream.wav', image='../Assets/Halloween/scary.png', motors='scare')
-        self.graph.add_edge('Node_12', 'Node_14', label='yes')
-        self.graph.add_edge('Node_14', 'Node_8', label='Node_14_8')
-        self.graph.add_node('Node_15', type=['speak'], text='Bye Bye')
-        self.graph.add_edge('Node_15', 'Node_16', label='Node_15_16')
+        self.graph.add_node('Node_12', type=['speak', 'move', 'face'], text='Bye Bye', motors='wave_hello', face=basic_sequences['smile'], pause={'after': 30})
+        self.graph.add_edge('Node_12', 'Node_13', label='Node_12_13')
+        self.graph.add_node('Node_13', type=['find'], what='motion', timeout=60)
+        self.graph.add_node('Node_14', type=['speak'], text='Hello')
+        self.graph.add_edge('Node_13', 'Node_14', label='no')
+        self.graph.add_edge('Node_14', 'Node_11', label='Node_14_11')
+        self.graph.add_node('Node_15', type=['audio', 'show', 'move'], audio='scream.wav', image='../Assets/Halloween/scary.png', motors='scare')
+        self.graph.add_edge('Node_13', 'Node_15', label='yes')
+        self.graph.add_edge('Node_15', 'Node_7', label='Node_15_7')
+        self.graph.add_node('Node_16', type=['speak'], text='Bye Bye')
+        self.graph.add_edge('Node_16', 'Node_17', label='Node_16_17')
 
 
 if __name__ == "__main__":
@@ -65,13 +67,9 @@ if __name__ == "__main__":
     sg = Halloween()
     sg.init_graph()
 
-
     fuzzy = Character(child=False, gender='female', activity='Halloween', languages=['en'])
-    fuzzy.lookat_calibration = None  # disable lookat calibration for script runs
-
     script = Script(graph=sg, character=fuzzy)
     script.generateAllSpeech()
     script.check_assets()
     script.run(start_node=start_node)
-
 
