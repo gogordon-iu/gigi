@@ -64,7 +64,7 @@ if __name__ == "__main__":
         start_node = f"Node_{args.offset}"
     sg = Halloween()
     sg.init_graph()
-    
+
 
     fuzzy = Character(child=False, gender='female', activity='Halloween', languages=['en'])
     fuzzy.lookat_calibration = None  # disable lookat calibration for script runs
@@ -73,4 +73,5 @@ if __name__ == "__main__":
     script.generateAllSpeech()
     script.check_assets()
     script.run(start_node=start_node)
+    
 
