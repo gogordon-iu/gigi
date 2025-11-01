@@ -123,11 +123,8 @@ class SpinPulley:
         return self.motion_detected
 
     def move_motor_on_motion(self):
-        # Example motor movement on motion detection
-        print("Motion detected! Spinning pulley motor.")
-        forward(2)  # Spin forward for 2 seconds
+        pwm("forward", 10, 2.0)
         time.sleep(1)
-        reverse(2)  # Spin reverse for 2 seconds
         stop()
 
 if __name__ == "__main__":
