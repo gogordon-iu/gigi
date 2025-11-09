@@ -11,13 +11,7 @@ import threading
 from queue import Queue, Empty
 import traceback
 import random
-from pyzbar.pyzbar import decode
 
-"""
-Vision Helper - Contains all helper classes, detection functions, and worker threads
-"""
-
-# === Configuration ===
 DB_PATH = "../Resources/emoface.pkl"
 TOLERANCE = 0.6
 MAX_QUEUE_SIZE = 2
@@ -25,7 +19,6 @@ POSITION_MARGIN = 80
 RECOGNITION_INTERVAL = 15.0
 OVERLAP_THRESHOLD = 0.6
 
-# === Face Recognition DB ===
 class FaceDatabase:
     def __init__(self, db_path=DB_PATH):
         self.db_path = db_path
@@ -40,8 +33,8 @@ class FaceDatabase:
                 with open(self.db_path, 'rb') as f:
                     self.known_names, self.known_encodings = pickle.load(f)
                 self.face_encodings_dict = {name: encoding for name, encoding in zip(self.known_names, self.known_encodings)}
-            except Exception as e:
-                print(f"Error loading database: {e}")
+            except:
+                pass
     
     def save_face_to_db(self, name, encoding):
         try:
@@ -51,8 +44,8 @@ class FaceDatabase:
             
             with open(self.db_path, 'wb') as f:
                 pickle.dump((self.known_names, self.known_encodings), f)
-        except Exception as e:
-            print(f"Error saving to database: {e}")
+        except:
+            pass
     
     def recognize_face_once(self, encoding, tolerance=TOLERANCE):
         if not self.known_encodings:
@@ -65,15 +58,14 @@ class FaceDatabase:
                 best_match_idx = np.argmin(face_distances)
                 if matches[best_match_idx]:
                     return self.known_names[best_match_idx], False
-        except Exception as e:
-            print(f"Error in face recognition: {e}")
+        except:
+            pass
         
         return self.generate_face_id(), True
     
     def generate_face_id(self):
         return f"face_{random.randint(1000, 9999)}"
 
-# === Emotion Detection ===
 class EmotionDetector:
     @staticmethod
     def detect_emotion(face_crop):
@@ -89,7 +81,6 @@ class EmotionDetector:
         except Exception as e:
             return "Unknown"
 
-# === Geometry Utilities ===
 class GeometryUtils:
     @staticmethod
     def calculate_iou(box1, box2):
@@ -111,7 +102,6 @@ class GeometryUtils:
         
         return intersection / union if union > 0 else 0
 
-# === Worker Threads ===
 def face_recognition_worker(face_queue, result_queue, stop_event, face_db):
     while not stop_event.is_set():
         try:
@@ -139,16 +129,15 @@ def face_recognition_worker(face_queue, result_queue, stop_event, face_db):
                     result_queue.put(('recognition', face_id, name, is_new, position_key, timestamp))
                 else:
                     result_queue.put(('recognition', face_id, "Unknown", False, position_key, timestamp))
-                
-            except Exception as e:
+            except:
                 result_queue.put(('recognition', face_id, "Unknown", False, position_key, timestamp))
             
             face_queue.task_done()
-            
         except Empty:
             continue
-        except Exception as e:
-            print(f"Face recognition worker error: {e}")
+        except:
+            pass
+
 
 def emotion_detection_worker(emotion_queue, result_queue, stop_event, emotion_detector):
     while not stop_event.is_set():
@@ -165,18 +154,15 @@ def emotion_detection_worker(emotion_queue, result_queue, stop_event, emotion_de
                     
                 emotion_face = cv2.resize(face_crop, (64, 64))
                 emotion = emotion_detector.detect_emotion(emotion_face)
-                
                 result_queue.put(('emotion', face_id, emotion, timestamp))
-                
-            except Exception as e:
+            except:
                 result_queue.put(('emotion', face_id, "Unknown", timestamp))
             
             emotion_queue.task_done()
-            
         except Empty:
             continue
-        except Exception as e:
-            print(f"Emotion detection worker error: {e}")
+        except:
+            pass
 
 def gesture_recognition_worker(gesture_queue, result_queue, stop_event, gesture_names):
     while not stop_event.is_set():
@@ -190,20 +176,17 @@ def gesture_recognition_worker(gesture_queue, result_queue, stop_event, gesture_
             try:
                 gesture_id = GestureRecognizer.recognize_gesture_fast(landmarks)
                 gesture_name = gesture_names[gesture_id]
-                
                 result_queue.put(('gesture', hand_type, gesture_name, timestamp))
-                
-            except Exception as e:
+            except:
                 result_queue.put(('gesture', hand_type, "Unknown", timestamp))
             
             gesture_queue.task_done()
-            
         except Empty:
             continue
-        except Exception as e:
-            print(f"Gesture recognition worker error: {e}")
+        except:
+            pass
 
-# === Gesture Recognition ===
+
 class GestureRecognizer:
     @staticmethod
     def recognize_gesture_fast(landmarks):
@@ -212,9 +195,9 @@ class GestureRecognizer:
             
             gesture_patterns = {
                 (True, False, False, False, False): GestureRecognizer.check_thumb_direction(landmarks),
-                (False, False, False, False, False): 5,  # Fist
-                (True, True, True, True, True): 6,      # Open hand
-                (False, True, False, False, False): 7,  # Pointing
+                (False, False, False, False, False): 5,
+                (True, True, True, True, True): 6,
+                (False, True, False, False, False): 7,
             }
             
             return gesture_patterns.get(finger_pattern, 0)
@@ -225,7 +208,6 @@ class GestureRecognizer:
     def get_finger_states_fast(landmarks):
         fingers = []
         
-        # Thumb
         thumb_tip = landmarks[4]
         thumb_ip = landmarks[3]
         palm_center = landmarks[9]
@@ -234,7 +216,6 @@ class GestureRecognizer:
         thumb_ip_distance = ((thumb_ip.x - palm_center.x)**2 + (thumb_ip.y - palm_center.y)**2)**0.5
         fingers.append(thumb_tip_distance > thumb_ip_distance)
         
-        # Other fingers
         finger_tip_ids = [8, 12, 16, 20]
         finger_pip_ids = [6, 10, 14, 18]
         finger_mcp_ids = [5, 9, 13, 17]
@@ -253,12 +234,11 @@ class GestureRecognizer:
         wrist_y = landmarks[0].y
         return 1 if thumb_tip_y < wrist_y else 2
 
-# === Improved Face Cache with Duplicate Detection ===
 class ImprovedFaceCache:
     def __init__(self):
         self.faces = {}
         self.position_to_face = {}
-        self.next_id = 0
+        self.next_id = 1
         self.lock = threading.Lock()
         
     def get_position_key(self, x_center, y_center):
@@ -388,7 +368,6 @@ class ImprovedFaceCache:
                     del self.position_to_face[position_key]
                 del self.faces[face_id]
 
-# === MediaPipe Initializers ===
 class MediaPipeInitializers:
     @staticmethod
     def initialize_face_mesh():
@@ -420,253 +399,59 @@ class MediaPipeInitializers:
         except Exception as e:
             raise Exception(f"Failed to initialize hands: {e}")
 
-# === Detection Functions ===
-class DetectionFunctions:
-    
+class VisionHelpers:
     @staticmethod
-    def detect_qr(frame, last_detection_data, verbose=False):
-        """Detect QR codes in frame"""
+    def draw_face_info(frame, x_min, y_min, x_max, y_max, face_data):
         try:
-            height, width = frame.shape[:2]
-            decoded_objects = decode(frame)
+            cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 255), 2)
             
-            if decoded_objects:
-                for obj in decoded_objects:
-                    qr_data = obj.data.decode('utf-8')
-                    center_x = obj.rect.left + obj.rect.width // 2
-                    center_y = obj.rect.top + obj.rect.height // 2
-                    
-                    # Store in last_detection_data with unique ID
-                    qr_id = f"qr_{qr_data}"
-                    last_detection_data[qr_id] = {
-                        'type': 'qr',
-                        'data': qr_data,
-                        'box': (obj.rect.left, obj.rect.top, obj.rect.width, obj.rect.height),
-                        'center': (center_x, center_y),
-                        'offset': (((width // 2) - center_x) / width, ((height // 2) - center_y) / height)
-                    }
-                    
-                    if verbose:
-                        print(f"QR Code detected: {qr_data}")
-        
-        except Exception as e:
-            print(f"Error in QR detection: {e}")
+            x_center = face_data.get('x', 0)
+            y_center = face_data.get('y', 0)
+            
+            crosshair_size = 10
+            cv2.line(frame, (x_center - crosshair_size, y_center), 
+                    (x_center + crosshair_size, y_center), (0, 255, 255), 2)
+            cv2.line(frame, (x_center, y_center - crosshair_size), 
+                    (x_center, y_center + crosshair_size), (0, 255, 255), 2)
+            cv2.circle(frame, (x_center, y_center), 3, (0, 255, 255), -1)
+            
+            name = face_data.get('name', 'Recognizing...')
+            emotion = face_data.get('emotion', 'Unknown')
+            gesture = face_data.get('gesture', 'Unknown')
+            
+            label = f"{name}"
+            if emotion != 'Unknown':
+                label += f" | {emotion}"
+            if gesture != 'Unknown':
+                label += f" | {gesture}"
+            
+            coord_label = f"({x_center}, {y_center})"
+            
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.5
+            thickness = 1
+            
+            (text_width, text_height), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+            
+            cv2.rectangle(frame, (x_min, y_min - text_height - 10), 
+                         (x_min + text_width, y_min), (0, 255, 255), -1)
+            cv2.putText(frame, label, (x_min, y_min - 5), 
+                       font, font_scale, (0, 0, 0), thickness)
+            
+            (coord_width, coord_height), coord_baseline = cv2.getTextSize(coord_label, font, font_scale, thickness)
+            cv2.rectangle(frame, (x_min, y_max), 
+                         (x_min + coord_width, y_max + coord_height + 10), (0, 255, 255), -1)
+            cv2.putText(frame, coord_label, (x_min, y_max + coord_height + 5), 
+                       font, font_scale, (0, 0, 0), thickness)
+        except:
+            pass
     
     @staticmethod
-    def detect_motion(frame, motion_state, last_detection_data, verbose=False):
-        """Detect motion in frame"""
-        try:
-            height, width = frame.shape[:2]
-            
-            # Parameters
-            blur_k = 21
-            alpha = 0.02
-            thr = 25
-            min_area = 1000
-            max_width = 800
-            
-            # Resize for speed
-            scale = 1.0
-            if width > max_width:
-                scale = max_width / float(width)
-            
-            def resize_frame(f):
-                if scale != 1.0:
-                    return cv2.resize(f, (int(f.shape[1]*scale), int(f.shape[0]*scale)))
-                return f
-            
-            # Initialize background
-            if motion_state['stage'] == "inactive":
-                motion_state['stage'] = "acquire_background"
-                frame_resized = resize_frame(frame)
-                gray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2GRAY)
-                gray = cv2.GaussianBlur(gray, (blur_k, blur_k), 0).astype("float32")
-                motion_state['background'] = gray.copy()
-                return
-            
-            # Process frame
-            frame_resized = resize_frame(frame)
-            height, width = frame_resized.shape[:2]
-            max_area = height * width / 4
-            
-            frame_gray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2GRAY)
-            frame_blur = cv2.GaussianBlur(frame_gray, (blur_k, blur_k), 0)
-            
-            # Update background
-            cv2.accumulateWeighted(frame_blur.astype("float32"), motion_state['background'], alpha)
-            
-            # Calibration phase
-            if motion_state['stage'] == "acquire_background":
-                motion_state['calibration'] += 1
-                if motion_state['calibration'] > motion_state['duration']:
-                    motion_state['stage'] = "active"
-                    motion_state['calibration'] = 0
-                    if verbose:
-                        print("Motion detection active")
-                return
-            
-            # Active detection
-            if motion_state['stage'] == "active":
-                background_uint8 = cv2.convertScaleAbs(motion_state['background'])
-                diff = cv2.absdiff(background_uint8, frame_blur)
-                _, motion_mask = cv2.threshold(diff, thr, 255, cv2.THRESH_BINARY)
-                
-                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-                motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_OPEN, kernel, iterations=1)
-                motion_mask = cv2.dilate(motion_mask, kernel, iterations=2)
-                
-                contours, _ = cv2.findContours(motion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                
-                for i, cnt in enumerate(contours):
-                    area = cv2.contourArea(cnt)
-                    if area < min_area or area > max_area:
-                        continue
-                    
-                    x, y, w, h = cv2.boundingRect(cnt)
-                    motion_id = f"motion_{i}"
-                    
-                    last_detection_data[motion_id] = {
-                        'type': 'motion',
-                        'box': (x, y, w, h),
-                        'center': (x + w // 2, y + h // 2),
-                        'offset': (((width // 2) - (x + w // 2)) / width,
-                                  ((height // 2) - (y + h // 2)) / height),
-                        'area': area
-                    }
-        
-        except Exception as e:
-            print(f"Error in motion detection: {e}")
-    
-    @staticmethod
-    def detect_faces_simple(frame, face_cascade, last_detection_data, verbose=False):
-        """Simple face detection using Haar Cascades"""
-        try:
-            height, width = frame.shape[:2]
-            gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            
-            faces = face_cascade.detectMultiScale(
-                gray_image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
-            )
-            
-            for i, (x, y, w, h) in enumerate(faces):
-                face_id = f"face_{i}"
-                center_x = x + w // 2
-                center_y = y + h // 2
-                
-                last_detection_data[face_id] = {
-                    'type': 'face',
-                    'box': (x, y, w, h),
-                    'center': (center_x, center_y),
-                    'offset': (((width // 2) - center_x) / width,
-                              ((height // 2) - center_y) / height)
-                }
-                
-                if verbose and i == 0:  # Only print first face
-                    print(f"Face detected at ({center_x}, {center_y})")
-        
-        except Exception as e:
-            print(f"Error in simple face detection: {e}")
-    
-    @staticmethod
-    def detect_faces_advanced(frame, current_time, face_mesh, hands, face_cache, 
-                             face_queue, emotion_queue, gesture_queue,
-                             should_process_recognition, should_process_emotion, should_process_gesture,
-                             hand_gesture, gesture_names, verbose=False):
-        """
-        Advanced face detection with MediaPipe, recognition, emotion, and gesture
-        Returns updated hand_gesture value
-        """
-        h, w = frame.shape[:2]
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        # Face Detection with MediaPipe
-        try:
-            face_results = face_mesh.process(rgb)
-            
-            if face_results.multi_face_landmarks:
-                for face_landmarks in face_results.multi_face_landmarks:
-                    x_coords = [lm.x * w for lm in face_landmarks.landmark]
-                    y_coords = [lm.y * h for lm in face_landmarks.landmark]
-                    
-                    x_min = max(int(min(x_coords)) - 30, 0)
-                    x_max = min(int(max(x_coords)) + 30, w)
-                    y_min = max(int(min(y_coords)) - 30, 0)
-                    y_max = min(int(max(y_coords)) + 30, h)
-                    
-                    if x_max <= x_min or y_max <= y_min:
-                        continue
-                    
-                    x_center = (x_min + x_max) // 2
-                    y_center = (y_min + y_max) // 2
-                    box = (x_min, y_min, x_max, y_max)
-                    
-                    face_id = face_cache.get_face_id(x_center, y_center, box)
-                    face_crop = frame[y_min:y_max, x_min:x_max]
-                    
-                    if face_crop.size > 0:
-                        # Face Recognition
-                        if should_process_recognition:
-                            if face_cache.needs_recognition(face_id) and not face_queue.full():
-                                try:
-                                    position_key = face_cache.get_position_key(x_center, y_center)
-                                    face_queue.put_nowait((face_id, face_crop.copy(), position_key, current_time))
-                                except:
-                                    pass
-                        
-                        # Emotion Detection
-                        if should_process_emotion:
-                            face_data = face_cache.get_face_data(face_id)
-                            if (current_time - face_data.get('last_emotion', 0) > 5.0 and
-                                not emotion_queue.full()):
-                                try:
-                                    emotion_queue.put_nowait((face_id, face_crop.copy(), current_time))
-                                except:
-                                    pass
-        
-        except Exception as e:
-            print(f"Error in face detection: {e}")
-        
-        # Gesture Detection
-        if should_process_gesture:
-            try:
-                hand_results = hands.process(rgb)
-                
-                if hand_results.multi_hand_landmarks and hand_results.multi_handedness:
-                    for hand_landmarks, handedness in zip(hand_results.multi_hand_landmarks,
-                                                          hand_results.multi_handedness):
-                        hand_type = handedness.classification[0].label
-                        
-                        if not gesture_queue.full():
-                            try:
-                                landmarks = hand_landmarks.landmark
-                                gesture_queue.put_nowait((landmarks, hand_type, current_time))
-                            except:
-                                pass
-                        
-                        # Associate gesture to nearest face
-                        wrist = hand_landmarks.landmark[0]
-                        hand_x = wrist.x
-                        hand_y = wrist.y
-                        
-                        closest_face_id = DetectionFunctions.associate_gesture_to_face(
-                            hand_x, hand_y, w, h, face_cache
-                        )
-                        if closest_face_id is not None and hand_gesture != "Unknown":
-                            face_cache.update_face(closest_face_id, 'gesture', hand_gesture)
-            
-            except Exception as e:
-                print(f"Error in gesture detection: {e}")
-        
-        return hand_gesture
-    
-    @staticmethod
-    def associate_gesture_to_face(hand_x, hand_y, w, h, face_cache):
-        """Associate gesture to nearest face"""
+    def associate_gesture_to_face(hand_x, hand_y, w, h, all_faces):
         try:
             min_distance = float('inf')
             closest_face_id = None
             
-            all_faces = face_cache.get_all_faces()
             for face_id, face_data in all_faces.items():
                 face_x = face_data['x'] / w
                 face_y = face_data['y'] / h
@@ -678,5 +463,90 @@ class DetectionFunctions:
                     closest_face_id = face_id
             
             return closest_face_id
-        except Exception as e:
+        except:
             return None
+    
+    @staticmethod
+    def update_data_structure(face_cache, last_data, timestamped_data):
+        timestamp = time.strftime("%H:%M:%S")
+        current_data = {}
+        all_faces = face_cache.get_all_faces()
+        
+        for face_id, face_data in all_faces.items():
+            face_id_str = str(face_id).zfill(4)
+            
+            if face_id_str not in last_data:
+                last_data[face_id_str] = {}
+            
+            current_face_data = {}
+            
+            name = face_data.get('name', 'Unknown')
+            if name not in ['Recognizing...', 'Unknown']:
+                current_face_data['name'] = name
+                last_data[face_id_str]['name'] = name
+            elif 'name' in last_data[face_id_str]:
+                current_face_data['name'] = last_data[face_id_str]['name']
+            else:
+                current_face_data['name'] = name
+            
+            emotion = face_data.get('emotion', 'Unknown')
+            if emotion != 'Unknown':
+                current_face_data['emotion'] = emotion
+                last_data[face_id_str]['emotion'] = emotion
+            elif 'emotion' in last_data[face_id_str]:
+                current_face_data['emotion'] = last_data[face_id_str]['emotion']
+            else:
+                current_face_data['emotion'] = emotion
+            
+            gesture = face_data.get('gesture', 'Unknown')
+            if gesture != 'Unknown':
+                current_face_data['gesture'] = gesture
+                last_data[face_id_str]['gesture'] = gesture
+            elif 'gesture' in last_data[face_id_str]:
+                current_face_data['gesture'] = last_data[face_id_str]['gesture']
+            else:
+                current_face_data['gesture'] = gesture
+            
+            current_face_data['center_x'] = face_data.get('x', 0)
+            current_face_data['center_y'] = face_data.get('y', 0)
+            last_data[face_id_str]['center_x'] = current_face_data['center_x']
+            last_data[face_id_str]['center_y'] = current_face_data['center_y']
+            
+            current_data[face_id_str] = current_face_data
+        
+        if current_data:
+            timestamped_data[timestamp] = current_data
+    
+    @staticmethod
+    def look_for_worker(what, timeout, result_container, stop_event, get_data_func):
+        start_time = time.time()
+        while not stop_event.is_set():
+            if time.time() - start_time > timeout:
+                result_container['found'] = False
+                result_container['data'] = None
+                result_container['done'] = True
+                return
+            
+            data = get_data_func()
+            
+            for face_id, face_info in data.items():
+                match = True
+                
+                if 'name' in what and face_info.get('name', 'Unknown') != what['name']:
+                    match = False
+                if 'emotion' in what and face_info.get('emotion', 'Unknown') != what['emotion']:
+                    match = False
+                if 'gesture' in what and face_info.get('gesture', 'Unknown') != what['gesture']:
+                    match = False
+                
+                if match:
+                    result_container['found'] = True
+                    result_container['data'] = {face_id: face_info}
+                    result_container['done'] = True
+                    return
+            
+            time.sleep(0.1)
+        
+        result_container['found'] = False
+        result_container['data'] = None
+        result_container['done'] = True
