@@ -16,7 +16,7 @@ DB_PATH = "../Resources/emoface.pkl"
 TOLERANCE = 0.6
 MAX_QUEUE_SIZE = 2
 POSITION_MARGIN = 80
-RECOGNITION_INTERVAL = 15.0
+RECOGNITION_INTERVAL = 5.0
 OVERLAP_THRESHOLD = 0.6
 
 class FaceDatabase:
@@ -193,38 +193,58 @@ class GestureRecognizer:
         try:
             finger_pattern = GestureRecognizer.get_finger_states_fast(landmarks)
             
-            gesture_patterns = {
-                (True, False, False, False, False): GestureRecognizer.check_thumb_direction(landmarks),
-                (False, False, False, False, False): 5,
-                (True, True, True, True, True): 6,
-                (False, True, False, False, False): 7,
-            }
+            # Count extended fingers
+            extended_count = sum(finger_pattern)
             
-            return gesture_patterns.get(finger_pattern, 0)
-        except Exception:
+            # Specific patterns
+            if finger_pattern == (True, False, False, False, False):
+                return GestureRecognizer.check_thumb_direction(landmarks)
+            elif finger_pattern == (False, False, False, False, False):
+                return 5  # Fist
+            elif extended_count == 5:
+                return 6  # Open hand
+            elif finger_pattern == (False, True, False, False, False):
+                return 7  # Pointing
+            elif finger_pattern == (True, True, False, False, False):
+                return 6  # Peace/Victory (treat as open hand)
+            elif extended_count >= 3:
+                return 6  # Open hand (lenient)
+            elif extended_count == 0:
+                return 5  # Fist (lenient)
+            else:
+                return 0
+        except:
             return 0
 
     @staticmethod
     def get_finger_states_fast(landmarks):
         fingers = []
         
+        # Thumb - check if extended from palm
         thumb_tip = landmarks[4]
         thumb_ip = landmarks[3]
-        palm_center = landmarks[9]
+        thumb_mcp = landmarks[2]
+        wrist = landmarks[0]
         
-        thumb_tip_distance = ((thumb_tip.x - palm_center.x)**2 + (thumb_tip.y - palm_center.y)**2)**0.5
-        thumb_ip_distance = ((thumb_ip.x - palm_center.x)**2 + (thumb_ip.y - palm_center.y)**2)**0.5
-        fingers.append(thumb_tip_distance > thumb_ip_distance)
+        # Distance from wrist
+        thumb_dist = ((thumb_tip.x - wrist.x)**2 + (thumb_tip.y - wrist.y)**2)**0.5
+        mcp_dist = ((thumb_mcp.x - wrist.x)**2 + (thumb_mcp.y - wrist.y)**2)**0.5
+        fingers.append(thumb_dist > mcp_dist * 1.3)
         
+        # Other fingers - check if tip is above PIP joint
         finger_tip_ids = [8, 12, 16, 20]
         finger_pip_ids = [6, 10, 14, 18]
-        finger_mcp_ids = [5, 9, 13, 17]
         
         for i in range(4):
-            tip_y = landmarks[finger_tip_ids[i]].y
-            pip_y = landmarks[finger_pip_ids[i]].y
-            mcp_y = landmarks[finger_mcp_ids[i]].y
-            fingers.append(tip_y < pip_y and tip_y < mcp_y)
+            tip = landmarks[finger_tip_ids[i]]
+            pip = landmarks[finger_pip_ids[i]]
+            wrist = landmarks[0]
+            
+            # Distance-based check (more robust)
+            tip_dist = ((tip.x - wrist.x)**2 + (tip.y - wrist.y)**2)**0.5
+            pip_dist = ((pip.x - wrist.x)**2 + (pip.y - wrist.y)**2)**0.5
+            
+            fingers.append(tip_dist > pip_dist * 1.1)
         
         return tuple(fingers)
 
@@ -302,7 +322,8 @@ class ImprovedFaceCache:
                 'last_recognition': 0,
                 'last_emotion': 0,
                 'last_seen': current_time,
-                'recognition_attempted': False
+                'recognition_attempted': False,
+                'is_new': True
             }
             
             self.position_to_face[position_key] = face_id
@@ -316,6 +337,7 @@ class ImprovedFaceCache:
                 self.faces[face_id]['name'] = name
                 self.faces[face_id]['last_recognition'] = time.time()
                 self.faces[face_id]['recognition_attempted'] = True
+                self.faces[face_id]['is_new'] = False
                 
                 if old_position in self.position_to_face:
                     del self.position_to_face[old_position]
@@ -349,6 +371,10 @@ class ImprovedFaceCache:
             
             face_data = self.faces[face_id]
             current_time = time.time()
+            
+            # Prioritize new faces - always recognize immediately
+            if face_data.get('is_new', False):
+                return True
             
             return (not face_data.get('recognition_attempted', False) or 
                    current_time - face_data.get('last_recognition', 0) > RECOGNITION_INTERVAL)

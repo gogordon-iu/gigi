@@ -100,17 +100,6 @@ class Vision:
         return self.timestamped_data.copy()
     
     def look_for(self, what, timeout=5.0):
-        '''Search for specific criteria in detection data
-        
-        Args:
-            what: Dictionary with search criteria
-                  Examples:
-                  {'name': 'Goren'}
-                  {'emotion': 'happy'}
-                  {'gesture': 'thumbs up'}
-                  {'name': 'Goren', 'emotion': 'happy'}
-            timeout: Maximum time to search (seconds)'''
-        
         result_container = {'found': False, 'data': None, 'done': False}
         stop_event = threading.Event()
         search_thread = threading.Thread(target=vh.VisionHelpers.look_for_worker,
@@ -192,6 +181,11 @@ class Vision:
             
             if face_detection:
                 self.initialize_face_detection()
+                
+                # Start face recognition worker if needed
+                if face_recognition:
+                    self.start_worker_if_needed('face_recognition')
+                
                 try:
                     face_results = self.face_mesh.process(rgb)
                     if face_results.multi_face_landmarks:
@@ -216,14 +210,12 @@ class Vision:
                             face_crop = frame[y_min:y_max, x_min:x_max]
                             
                             if face_crop.size > 0:
-                                if face_recognition:
-                                    self.start_worker_if_needed('face_recognition')
-                                    if self.face_cache.needs_recognition(face_id) and not self.face_queue.full():
-                                        try:
-                                            position_key = self.face_cache.get_position_key(x_center, y_center)
-                                            self.face_queue.put_nowait((face_id, face_crop.copy(), position_key, current_time))
-                                        except:
-                                            pass
+                                if face_recognition and self.face_cache.needs_recognition(face_id) and not self.face_queue.full():
+                                    try:
+                                        position_key = self.face_cache.get_position_key(x_center, y_center)
+                                        self.face_queue.put_nowait((face_id, face_crop.copy(), position_key, current_time))
+                                    except:
+                                        pass
                                 
                                 if emotion:
                                     self.start_worker_if_needed('emotion')
@@ -241,6 +233,7 @@ class Vision:
             if gesture:
                 self.initialize_gesture_detection()
                 self.start_worker_if_needed('gesture')
+                
                 try:
                     hand_results = self.hands.process(rgb)
                     if hand_results.multi_hand_landmarks and hand_results.multi_handedness:
@@ -297,7 +290,7 @@ class Vision:
 
 if __name__ == "__main__":
     vision = Vision(camera_source=0)
-    vision.set_processing_flags({'face_detection': 30, 'face_recognition': 30, 'emotion': 5, 'gesture': 10})
+    vision.set_processing_flags({'face_detection': 30, 'face_recognition': 30, 'emotion': 10, 'gesture': 5})
     
     try:
         frame_count = 0
