@@ -12,7 +12,7 @@ elif HEARING_OPTION == "whisper":
     import numpy as np
     import queue
     import time
-    from hearingDefinitions import NATIVE_SAMPLE_RATE, TARGET_SAMPLE_RATE, SILENCE_DURATION
+    from hearingDefinitions import INPUT_SAMPLE_RATE, TARGET_SAMPLE_RATE, SILENCE_DURATION
     from whisper_helper import WhisperAudioProcessor, transcribe_optimized, calibrate_energy_threshold
 elif HEARING_OPTION == "vosk":
     from vosk import Model, KaldiRecognizer
@@ -40,7 +40,7 @@ class Hearing():
             self.model = WhisperModel("tiny", device="cpu", compute_type="int8", num_workers=1)
             # Audio processor for optimized handling with resampling support
             self.audio_processor = WhisperAudioProcessor(
-                native_sample_rate=NATIVE_SAMPLE_RATE,  # Your mic's native rate (48000)
+                native_sample_rate=INPUT_SAMPLE_RATE,  # Your mic's native rate (48000)
                 target_sample_rate=TARGET_SAMPLE_RATE,  # Whisper requires 16000
                 energy_threshold=300,  # Lower threshold for better detection
                 buffer_duration=2.0,   # Shorter buffer to reduce lag
