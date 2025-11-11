@@ -174,12 +174,22 @@ class Speech():
         devices = sd.query_devices()
         for i, d in enumerate(devices):
             if d['max_output_channels'] > 0 and "USB" in d["name"]:
-                print("Using USB speaker:", d["name"])
-                return i
-        # No USB speaker, find another one
+                # Return the ALSA "plughw" string instead of index
+                return f"plughw:{i},0"
         for i, d in enumerate(devices):
             if d['max_output_channels'] > 0:
                 return i
+
+    # def get_usb_speaker(self):
+    #     devices = sd.query_devices()
+    #     for i, d in enumerate(devices):
+    #         if d['max_output_channels'] > 0 and "USB" in d["name"]:
+    #             print("Using USB speaker:", d["name"])
+    #             return i
+    #     # No USB speaker, find another one
+    #     for i, d in enumerate(devices):
+    #         if d['max_output_channels'] > 0:
+    #             return i
     
     def generate_speech_text(self, text=None, file=None):
         print("Generating speech ... ", text)
