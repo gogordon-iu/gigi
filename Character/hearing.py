@@ -158,7 +158,7 @@ class Hearing():
             self.audio_queue = queue.Queue()
             text = ""
 
-            with sd.InputStream(samplerate=NATIVE_SAMPLE_RATE, channels=1, 
+            with sd.InputStream(samplerate=INPUT_SAMPLE_RATE, channels=1, 
                                 device=self.mic_index, callback=self.audio_callback_optimized, 
                                 blocksize=8192, dtype='int16'):
                 print("Listening... Speak into the microphone.")
