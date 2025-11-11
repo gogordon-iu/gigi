@@ -174,6 +174,7 @@ class Speech():
         devices = sd.query_devices()
         for i, d in enumerate(devices):
             if d['max_output_channels'] > 0 and "USB" in d["name"]:
+                print("Using USB speaker:", d["name"])
                 return i
         # No USB speaker, find another one
         for i, d in enumerate(devices):
