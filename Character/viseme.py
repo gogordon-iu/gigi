@@ -53,4 +53,5 @@ if __name__ == "__main__":
     viseme.speech.set_activity(activity_name="wakeup")
     # viseme.run_viseme(file="Assets/audio/demo_01_greetings.wav")
     # viseme.run_viseme(text="Hi my name is gigi. This is test number three.")
-    viseme.generate_viseme_sequence(text="It's me again, Gigi.")
+    # viseme.generate_viseme_sequence(text="It's me again, Gigi.")
+    viseme.run_viseme(text="It's me again, Gigi.")
