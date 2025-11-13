@@ -27,7 +27,7 @@ elif SOUND_OPTION == "sounddevice":
     import sounddevice as sd
     import soundfile as sf
 
-TTS_MODEL = "silero"
+TTS_MODEL = "nix"
 if TTS_MODEL == "nix":
     import sys
     sys.path.append('../Resources')
