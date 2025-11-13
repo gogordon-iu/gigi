@@ -1,0 +1,19 @@
+# If you have issues with dlib
+
+
+# in the shell where cl is x64
+$env:CMAKE_GENERATOR = "Visual Studio 17 2022"
+$env:CMAKE_GENERATOR_PLATFORM = "x64"
+
+# activate venv
+cd 'C:\Users\gorengor\Goren\IUB\Research\Gigi\Code\gigi'
+.\venv\Scripts\Activate.ps1
+
+# sanity checks
+where cl
+cl
+where cmake
+cmake --version
+
+# try install (verbose output helps diagnose)
+python -m pip install dlib --verbose
