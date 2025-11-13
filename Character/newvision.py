@@ -288,48 +288,48 @@ class Vision:
             thread.join(timeout=1.0)
         cv2.destroyAllWindows()
 
-if __name__ == "__main__":
-    vision = Vision(camera_source=0)
-    vision.set_processing_flags({'face_detection': 30, 'face_recognition': 30, 'emotion': 10, 'gesture': 5})
+# if __name__ == "__main__":
+#     vision = Vision(camera_source=0)
+#     vision.set_processing_flags({'face_detection': 30, 'face_recognition': 30, 'emotion': 10, 'gesture': 5})
     
-    try:
-        frame_count = 0
-        while True:
-            processed = vision.get_latest_frame()
-            if processed is not None:
-                cv2.imshow('Vision', processed)
+#     try:
+#         frame_count = 0
+#         while True:
+#             processed = vision.get_latest_frame()
+#             if processed is not None:
+#                 cv2.imshow('Vision', processed)
             
-            data = vision.get_last_data()
-            if frame_count % 90 == 0 and len(data) > 0:
-                print("\n=== Data Structure ===")
-                for face_id, face_info in data.items():
-                    name = face_info.get('name', 'Unknown')
-                    emotion = face_info.get('emotion', 'Unknown')
-                    gesture = face_info.get('gesture', 'Unknown')
-                    x = face_info.get('center_x', 0)
-                    y = face_info.get('center_y', 0)
-                    print(f"{face_id}: name={name}, emotion={emotion}, gesture={gesture}, pos=({x},{y})")
-                print("======================\n")
+#             data = vision.get_last_data()
+#             if frame_count % 90 == 0 and len(data) > 0:
+#                 print("\n=== Data Structure ===")
+#                 for face_id, face_info in data.items():
+#                     name = face_info.get('name', 'Unknown')
+#                     emotion = face_info.get('emotion', 'Unknown')
+#                     gesture = face_info.get('gesture', 'Unknown')
+#                     x = face_info.get('center_x', 0)
+#                     y = face_info.get('center_y', 0)
+#                     print(f"{face_id}: name={name}, emotion={emotion}, gesture={gesture}, pos=({x},{y})")
+#                 print("======================\n")
             
-            frame_count += 1
+#             frame_count += 1
             
-            # Example 1: Only face detection
-            if frame_count % 90 == 0:  # Every 3 seconds at 30fps
-                processed_frame, detection_data = vision.process_frame(frame, {
-                    'face_detection': frame_count % 90 == 0,
-                    'face_recognition': frame_count % 90 == 0,
-                    'emotion': frame_count % 90 == 0,
-                    'gesture': frame_count % 90 == 0
-                })
-                print("=== Face Detection Only ===")
-                vision.print_detection_data()
+#             # Example 1: Only face detection
+#             if frame_count % 90 == 0:  # Every 3 seconds at 30fps
+#                 processed_frame, detection_data = vision.process_frame(frame, {
+#                     'face_detection': frame_count % 90 == 0,
+#                     'face_recognition': frame_count % 90 == 0,
+#                     'emotion': frame_count % 90 == 0,
+#                     'gesture': frame_count % 90 == 0
+#                 })
+#                 print("=== Face Detection Only ===")
+#                 vision.print_detection_data()
             
-            else:
-                processed_frame = frame.copy()
+#             else:
+#                 processed_frame = frame.copy()
             
-            cv2.imshow('Vision System', processed_frame)
+#             cv2.imshow('Vision System', processed_frame)
             
     
-    finally:
-        vision.cleanup()
-        cv2.destroyAllWindows()
+#     finally:
+#         vision.cleanup()
+#         cv2.destroyAllWindows()
