@@ -20,7 +20,7 @@ else:
     HAS_VISEME = False
 
     HAS_HEARING = False
-    HAS_VISION = False
+    HAS_VISION = True   # False
 
     HAS_MOVEMENT = False
     HAS_CONVERSATION = False
