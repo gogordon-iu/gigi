@@ -13,6 +13,9 @@ sudo apt install python3 python3-venv python3-pip -y
 # audio
 sudo apt install pocketsphinx python3-pocketsphinx -y
 sudo apt install portaudio19-dev -y
+sudo apt install espeak -y
+sudo apt install cmake -y
+
 
 # motors
 sudo apt-get install -y i2c-tools gpiod libgpiod-dev
