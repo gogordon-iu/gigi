@@ -17,3 +17,4 @@ fuzzy = Character(child=False, gender='female', activity='TelomenDemo', language
 # print(f"Found: {found}")
 
 # Say something using tts
+fuzzy.speech.run_speech(text="Hello Stephanie, how are you today?")
