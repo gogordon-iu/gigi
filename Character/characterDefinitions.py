@@ -15,12 +15,12 @@ if IS_ROBOT:
     HAS_MOVEMENT = True
     HAS_CONVERSATION = False
 else:
-    HAS_FACE = False
+    HAS_FACE = True
     HAS_SPEECH = True
-    HAS_VISEME = False
+    HAS_VISEME = True
 
-    HAS_HEARING = False
-    HAS_VISION = True   # False
+    HAS_HEARING = True
+    HAS_VISION = False
 
     HAS_MOVEMENT = False
     HAS_CONVERSATION = False
