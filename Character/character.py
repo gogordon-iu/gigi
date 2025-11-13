@@ -10,7 +10,7 @@ if HAS_HEARING:
 if HAS_VISEME:
     from viseme import Viseme
 if HAS_VISION:
-    from vision import Vision
+    from newvision import Vision
 if HAS_MOVEMENT:
     from movement import Movement
 if HAS_CONVERSATION:
@@ -179,14 +179,14 @@ class Character():
             while not stop_event.is_set() and time.time() < end_time:
                 self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
 
-    def lookfor_backchannel(self, what=None):
-        if self.vision and self.face:
-            stop_event = threading.Event()
-            vision_thread = self.vision.vision_thread(stop_event=stop_event, what=what)
-            vision_thread.start()
-            while not stop_event.is_set():
-                self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
-            vision_thread.join()
+    # def lookfor_backchannel(self, what=None):
+    #     if self.vision and self.face:
+    #         stop_event = threading.Event()
+    #         vision_thread = self.vision.vision_thread(stop_event=stop_event, what=what)
+    #         vision_thread.start()
+    #         while not stop_event.is_set():
+    #             self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
+    #         vision_thread.join()
 
     def lookat_behavior(self, target_coor=0.0):
         side = "left" if target_coor > 0 else "right"
