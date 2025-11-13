@@ -24,3 +24,6 @@ fuzzy = Character(child=False, gender='female', activity='TelomenDemo', language
 fuzzy.viseme.run_viseme(text="Hello Stephanie, how are you today?")
 
 # wait for response using speech recognition
+fuzzy.hearing.run_hearing()
+response = fuzzy.hearing.texts[-1]
+print(f"Stephanie said: {response}")
