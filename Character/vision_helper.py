@@ -36,6 +36,41 @@ class FaceDatabase:
             except:
                 pass
     
+    def save_face_img_to_db(self, name, img):
+        try:
+            frame = cv2.imread(img)
+            h, w = frame.shape[:2]
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mpi = MediaPipeInitializers()
+            self.face_mesh = mpi.initialize_face_mesh()
+            face_results = self.face_mesh.process(rgb)
+            print(f'Face results: {face_results}')
+            if face_results.multi_face_landmarks:
+                for face_landmarks in face_results.multi_face_landmarks:
+                    x_coords = [lm.x * w for lm in face_landmarks.landmark]
+                    y_coords = [lm.y * h for lm in face_landmarks.landmark]
+                    
+                    x_min = max(int(min(x_coords)) - 30, 0)
+                    x_max = min(int(max(x_coords)) + 30, w)
+                    y_min = max(int(min(y_coords)) - 30, 0)
+                    y_max = min(int(max(y_coords)) + 30, h)
+                    
+                    if x_max <= x_min or y_max <= y_min:
+                        continue
+                    
+                    # x_center = (x_min + x_max) // 2
+                    # y_center = (y_min + y_max) // 2
+                    # box = (x_min, y_min, x_max, y_max)
+                    
+                    face_crop = frame[y_min:y_max, x_min:x_max]
+                    small_face = cv2.resize(face_crop, (0, 0), fx=0.5, fy=0.5)
+                    face_crop_rgb = cv2.cvtColor(small_face, cv2.COLOR_BGR2RGB)
+                    face_encodings = face_recognition.face_encodings(face_crop_rgb)
+                    self.save_face_to_db(name, face_encodings[0])
+        except Exception as e:
+            print(f"Error in save_face_img_to_db: {e}")
+            pass
+
     def save_face_to_db(self, name, encoding):
         try:
             self.known_names.append(name)
@@ -576,3 +611,7 @@ class VisionHelpers:
         result_container['found'] = False
         result_container['data'] = None
         result_container['done'] = True
+
+# if __name__ == "__main__":
+#     fd = FaceDatabase()
+#     fd.save_face_img_to_db("Stephanie", "../temp/StephanieKim.jpg.webp")

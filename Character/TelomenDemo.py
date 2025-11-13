@@ -14,23 +14,49 @@ from character import Character
 
 # initialize character
 
-fuzzy = Character(child=False, gender='female', activity='TelomenDemo', languages=['en'], full_screen=False)
+gigi = Character(child=False, gender='female', activity='TelomenDemo', languages=['en'], full_screen=False)
+gigi.vision.run_vision()
+
+face_name = "Stephanie"
 # use vision to look for face
-fuzzy.vision.run_vision()
-found = fuzzy.vision.look_for(what="name", timeout=60)
-print(f"Found: {found}")
+found = gigi.vision.look_for(what={"name": face_name}, timeout=60)
 
-# # Say something using tts
-# response = "You just saw a person named Stephanie. Please introduce yourself to her. End with a polite question."
-# gigi_message = fuzzy.conv.get_response_with_tts_sync(response)
-# fuzzy.viseme.run_viseme(text=gigi_message)
-# fuzzy.viseme.run_viseme(text="Hello Stephanie, how are you today?")
+# Say something using tts
+gigi_1 = f"You just saw a person named {face_name}. Say hi and introduce yourself to her. Invite a question about you."
+print(f'***** Gigi prompt: {gigi_1} *****')
+gigi_message = gigi.conv.get_response_with_tts_sync(gigi_1)
+print(f'***** Gigi Response: {gigi_message} *****')
+movement_thread = gigi.movement.movement_thread(motor_data="wave_hello")
+movement_thread.start()
+gigi.viseme.run_viseme(text=gigi_message)
+movement_thread.join()
 
-# # wait for response using speech recognition
-# fuzzy.listen_backchannel()
-# response = fuzzy.hearing.texts[-1]
-# print(f"Stephanie said: {response}")
+# wait for response using speech recognition
+gigi.listen_backchannel()
+response_1 = gigi.hearing.texts[-1]
+print(f'***** Response: {response_1} *****')
 
-# # reply to the response
-# gigi_message = fuzzy.conv.get_response_with_tts_sync(response)
-# fuzzy.viseme.run_viseme(text=gigi_message)
+# reply to the response
+gigi_2 = f"{face_name} said: {response_1}. Reply to her concisely and then say: Goren, are you happy to be here?"
+print(f'***** Gigi prompt: {gigi_2} *****')
+gigi_message = gigi.conv.get_response_with_tts_sync(gigi_2)
+print(f'***** Gigi Response: {gigi_message} *****')
+movement_thread = gigi.movement.movement_thread(motor_data="look_from_side_to_side")
+movement_thread.start()
+gigi.viseme.run_viseme(text=gigi_message)
+movement_thread.join()
+
+# look for thumps up
+found = gigi.vision.look_for(what={"gesture": "Thumbs Up"}, timeout=60)
+
+gigi_3 = f"Goren did a thumbs up! Say goodbye to {face_name} and Goren and wish them a great day!"
+print(f'***** Gigi prompt: {gigi_3} *****')
+gigi_message = gigi.conv.get_response_with_tts_sync(gigi_3)
+print(f'***** Gigi Response: {gigi_message} *****')
+movement_thread = gigi.movement.movement_thread(motor_data="wave_hello")
+movement_thread.start()
+gigi.viseme.run_viseme(text=gigi_message)
+movement_thread.join()
+
+gigi.vision.cleanup()
+gigi.movement.release()

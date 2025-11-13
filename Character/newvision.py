@@ -5,9 +5,10 @@ from queue import Queue, Empty
 import vision_helper as vh
 
 class Vision:
-    def __init__(self, camera_source=0, auto_start=True):
+    def __init__(self, camera_source=None, auto_start=False):
         self.camera_source = camera_source
         self.cap = None
+        self.is_robot = True
         
         self.face_db = vh.FaceDatabase()
         self.emotion_detector = vh.EmotionDetector()
@@ -29,7 +30,7 @@ class Vision:
         self.vision_thread = None
         self.running = False
         
-        self.processing_flags = {'face_detection': 0, 'face_recognition': 0, 'emotion': 0, 'gesture': 0}
+        self.processing_flags = {'face_detection': 5, 'face_recognition': 5, 'emotion': 5, 'gesture': 5}
         self.gesture_names = {0: "Unknown", 1: "Thumbs Up", 2: "Thumbs Down", 5: "Rock/Fist", 6: "Open Hand", 7: "Pointing"}
         self.hand_gesture = "Unknown"
         
@@ -44,16 +45,32 @@ class Vision:
         if auto_start:
             self.run_vision()
     
+    def open_camera(self, port):
+        if port is None:
+            ports = range(10)
+        else:
+            ports = [port]
+        for port in ports:  # Try ports 0-9
+            print("Checking port ", port)
+            cap = cv2.VideoCapture(port)
+            if cap.isOpened():
+                return cap
+        print(f"Unable to open camera!")
+        return None
+
     def _capture_loop(self):
-        self.cap = cv2.VideoCapture(self.camera_source)
-        while not self.stop_event.is_set():
-            ret, frame = self.cap.read()
-            if ret:
+        self.cap = self.open_camera(self.camera_source) # cv2.VideoCapture(0)
+        try:
+            while not self.stop_event.is_set():
+                ret, frame = self.cap.read()
+                if not ret:
+                    break
                 with self.frame_lock:
                     self.raw_frame = frame.copy()
-            time.sleep(0.001)
-        if self.cap:
-            self.cap.release()
+                time.sleep(0.01)
+        finally:
+            if self.cap:
+                self.cap.release()
     
     def _vision_loop(self):
         while not self.stop_event.is_set():
@@ -62,6 +79,10 @@ class Vision:
             
             if frame is not None:
                 processed_frame, _ = self._process_frame(frame)
+                if not self.is_robot:
+                    cv2.imshow('Camera Feed', frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        self.stop_event.set()
                 with self.frame_lock:
                     self.latest_frame = processed_frame
             time.sleep(0.001)
@@ -99,6 +120,11 @@ class Vision:
     def get_timestamped_data(self):
         return self.timestamped_data.copy()
     
+    def look_and_stop(self, what, timeout=5.0):
+        result = self.look_for(what, timeout)
+        
+        return result
+
     def look_for(self, what, timeout=5.0):
         result_container = {'found': False, 'data': None, 'done': False}
         stop_event = threading.Event()
@@ -268,6 +294,8 @@ class Vision:
             return frame, self.get_last_data()
         except:
             return frame, self.get_last_data()
+        
+        
     
     def cleanup(self):
         self.stop_vision()
@@ -288,48 +316,19 @@ class Vision:
             thread.join(timeout=1.0)
         cv2.destroyAllWindows()
 
-# if __name__ == "__main__":
-#     vision = Vision(camera_source=0)
-#     vision.set_processing_flags({'face_detection': 30, 'face_recognition': 30, 'emotion': 10, 'gesture': 5})
-    
-#     try:
-#         frame_count = 0
-#         while True:
-#             processed = vision.get_latest_frame()
-#             if processed is not None:
-#                 cv2.imshow('Vision', processed)
-            
-#             data = vision.get_last_data()
-#             if frame_count % 90 == 0 and len(data) > 0:
-#                 print("\n=== Data Structure ===")
-#                 for face_id, face_info in data.items():
-#                     name = face_info.get('name', 'Unknown')
-#                     emotion = face_info.get('emotion', 'Unknown')
-#                     gesture = face_info.get('gesture', 'Unknown')
-#                     x = face_info.get('center_x', 0)
-#                     y = face_info.get('center_y', 0)
-#                     print(f"{face_id}: name={name}, emotion={emotion}, gesture={gesture}, pos=({x},{y})")
-#                 print("======================\n")
-            
-#             frame_count += 1
-            
-#             # Example 1: Only face detection
-#             if frame_count % 90 == 0:  # Every 3 seconds at 30fps
-#                 processed_frame, detection_data = vision.process_frame(frame, {
-#                     'face_detection': frame_count % 90 == 0,
-#                     'face_recognition': frame_count % 90 == 0,
-#                     'emotion': frame_count % 90 == 0,
-#                     'gesture': frame_count % 90 == 0
-#                 })
-#                 print("=== Face Detection Only ===")
-#                 vision.print_detection_data()
-            
-#             else:
-#                 processed_frame = frame.copy()
-            
-#             cv2.imshow('Vision System', processed_frame)
-            
-    
-#     finally:
-#         vision.cleanup()
-#         cv2.destroyAllWindows()
+if __name__ == "__main__":
+    vision = Vision(camera_source=None)
+    vision.set_processing_flags({'face_detection': 5.0, 'face_recognition': 5.0, 'emotion': 5.0, 'gesture': 5.0})
+    vision.run_vision()
+    found = vision.look_for(what={"name": "Stephanie"}, timeout=60)
+    print(f'Found: {found}')
+
+    # try:
+    #     while not vision.stop_event.is_set():
+    #         # found = vision.look_for(what={"name": "Someone"}, timeout=10)
+    #         # print(f'Found: {found}')
+
+    #         time.sleep(0.1)
+    # finally:
+    #     vision.stop_vision()
+    #     vision.cleanup()
