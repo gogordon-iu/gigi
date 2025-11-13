@@ -31,6 +31,7 @@ class Hearing():
         print("Initializing hearing ...")
         self.verbose = verbose
         self.recognizer = None
+        self.words = None
         self.texts = []
         self.mic_index = self.get_usb_microphone()
         if HEARING_OPTION == "sr":

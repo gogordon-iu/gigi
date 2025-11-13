@@ -3,7 +3,7 @@ import ollama
 import requests
 
 class Conversation:
-    def __init__(self):
+    def __init__(self, system_prompt=None):
         print("Initiazling conversation ...")
 
         model_name = "EleutherAI/gpt-neo-125M"  # Replace with a smaller model if needed
@@ -12,6 +12,20 @@ class Conversation:
         self.ollama_url = "http://localhost:11434"
         self.ollama_model = "llama3.2:1b-instruct-q4_K_M"
         self.conversation_history = []
+        if system_prompt:
+            self.conversation_history.append({
+                "role": "system",
+                "content": system_prompt
+            })
+        else:
+            self.conversation_history.append({
+                "role": "system",
+                "content": "Your name is Gigi, a social robot teaching assistant. " +
+                 "You are going to interact with children in a friendly and engaging manner. " +
+                 "Keep your responses concise and appropriate for children." + 
+                 "DO NOT include any movements, or facial expressions. Respond only with the speech content."
+            })
+
         self.max_history = 5 
         # Assign eos_token as pad_token
         self.tokenizer.pad_token = self.tokenizer.eos_token

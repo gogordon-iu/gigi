@@ -23,7 +23,7 @@ else:
     HAS_VISION = False
 
     HAS_MOVEMENT = False
-    HAS_CONVERSATION = False
+    HAS_CONVERSATION = True
 
 # Paths
 from pathlib import Path

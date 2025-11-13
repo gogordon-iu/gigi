@@ -21,9 +21,16 @@ fuzzy = Character(child=False, gender='female', activity='TelomenDemo', language
 # print(f"Found: {found}")
 
 # Say something using tts
+response = "You just saw a person named Stephanie. Please introduce yourself to her. End with a polite question."
+gigi_message = fuzzy.conv.get_response_with_tts_sync(response)
+fuzzy.viseme.run_viseme(text=gigi_message)
 fuzzy.viseme.run_viseme(text="Hello Stephanie, how are you today?")
 
 # wait for response using speech recognition
-fuzzy.hearing.run_hearing()
+fuzzy.listen_backchannel()
 response = fuzzy.hearing.texts[-1]
 print(f"Stephanie said: {response}")
+
+# reply to the response
+gigi_message = fuzzy.conv.get_response_with_tts_sync(response)
+fuzzy.viseme.run_viseme(text=gigi_message)
