@@ -14,7 +14,7 @@ from character import Character
 
 # initialize character
 
-gigi = Character(child=False, gender='female', activity='TelomenDemo', languages=['en'], full_screen=False)
+gigi = Character(child=False, gender='female', activity='TelomenDemo', languages=['en'], full_screen=True)
 gigi.vision.run_vision()
 
 face_name = "Stephanie"
