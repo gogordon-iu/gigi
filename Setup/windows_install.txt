@@ -17,3 +17,44 @@ cmake --version
 
 # try install (verbose output helps diagnose)
 python -m pip install dlib --verbose
+
+
+
+B — Reliable: install giflib via vcpkg and make the DLL visible
+
+vcpkg is Microsoft's package manager for C++ libs. It will build giflib and place the runtime DLL for you. Then copy the DLL into your venv site-packages or add its bin dir to PATH.
+
+1) Install vcpkg (one-time)
+
+Run in PowerShell (make directory where you want vcpkg; example uses %USERPROFILE%\vcpkg):
+
+# clone vcpkg
+cd $env:USERPROFILE
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+
+2) Use vcpkg to install giflib for x64
+# from the vcpkg folder
+.\vcpkg.exe install giflib:x64-windows
+
+
+This will download/build giflib and place artifacts under vcpkg_installed\x64-windows\bin (DLLs) and vcpkg_installed\x64-windows\lib (libs).
+
+3) Locate the produced DLL and copy it next to the dlib .pyd
+# locate built DLL
+Get-ChildItem -Path .\vcpkg_installed\x64-windows\bin -Filter "libgif*.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName
+
+# copy the DLL to the venv site-packages location (make sure path matches yours)
+Copy-Item ".\vcpkg_installed\x64-windows\bin\libgif-7.dll" -Destination "C:\Users\gorengor\Goren\IUB\Research\Gigi\Code\gigi\venv\Lib\site-packages" -Force
+
+
+(If the DLL name differs slightly, use the actual DLL filename from the Get-ChildItem result.)
+
+4) Test import
+# in the same x64 shell and with venv activated
+.\venv\Scripts\Activate.ps1
+python -c "import dlib; print('dlib imported OK', getattr(dlib,'__version__','?'))"
+
+
+If that succeeds, you’re done. If not, paste the error and we’ll continue.
