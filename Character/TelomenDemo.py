@@ -11,5 +11,9 @@ from character import Character
 
 fuzzy = Character(child=False, gender='female', activity='TelomenDemo', languages=['en'])
 
+# use vision to look for face
+# fuzzy.vision.run_vision()
+# found = fuzzy.vision.look_for(what="name", timeout=60)
+# print(f"Found: {found}")
 
-# use vision
+# Say something using tts
