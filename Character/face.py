@@ -23,10 +23,11 @@ class Face():
         self.show_face = True
         self.set_activity(activity_name=activity)
         
+        print(1)
         # init screen options
         if IMAGE_OPTION == "pygame":
             pygame.init()
-
+            print(2)
             # Set up the full-screen display
             self.infoObject = pygame.display.Info()
             if full_screen:
@@ -35,6 +36,7 @@ class Face():
             else:
                 self.screen_size = (self.infoObject.current_w/2, self.infoObject.current_h/2)
                 self.screen = pygame.display.set_mode(self.screen_size)
+            print(3)
         elif IMAGE_OPTION == "cv":
             screen = get_monitors()[0]
             screen_width, screen_height = screen.width, screen.height
@@ -45,8 +47,9 @@ class Face():
                 cv2.namedWindow("Image Viewer", cv2.WINDOW_NORMAL)
                 self.screen_size = (int(screen_width / 2), int(screen_height / 2))
             cv2.resizeWindow("Image Viewer", self.screen_size[0], self.screen_size[1])
-
+        print(4)
         self.initialize_character(save=True)
+        print(5)
 
     def stop_face(self):
         if IMAGE_OPTION == "pygame":
