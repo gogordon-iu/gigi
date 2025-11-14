@@ -10,6 +10,9 @@ git config --global user.email "gigi@iu.edu"
 sudo apt update
 sudo apt install python3 python3-venv python3-pip -y
 
+# remote access
+sudo apt install wget ca-certificates tar -y
+
 # audio
 sudo apt install pocketsphinx python3-pocketsphinx -y
 sudo apt install portaudio19-dev -y
