@@ -178,6 +178,7 @@ class Face():
         elif IMAGE_OPTION == "cv":
             image_ = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)
             cv2.imshow(self.win_name, image_)
+            cv2.waitKey(1)
 
     def get_sequence_length(self, sequence):
         max_length = 0
@@ -372,6 +373,6 @@ if __name__ == "__main__":
     # c = face.combine_seuqences(sequences=[[0.1, basic_sequences["talk"]], [0.5, basic_sequences["look_left"]]])
     # print(c)
     face.set_activity(activity_name="Demo")
-    # face.display_image_file(filename="../Assets/Demo/face/cobot.jpg")
+    face.display_image_file(filename="../Assets/Demo/face/cobot.jpg")
     face.display_text(text="Hello, I am Gigi!")
     cv2.waitKey(2000)
