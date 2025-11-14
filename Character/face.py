@@ -16,6 +16,11 @@ elif IMAGE_OPTION == "cv":
 import time
 import threading
 
+import face_recognition
+import mediapipe as mp
+from deepface import DeepFace
+
+
 class Face():
     def __init__(self, character="fuzzy", full_screen=True, activity=None):
         print("Initiliazing face ...")
