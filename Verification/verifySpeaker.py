@@ -15,7 +15,7 @@ def get_usb_speaker():
     devices = sd.query_devices()
     for i, d in enumerate(devices):
         if d['max_output_channels'] > 0 and "USB" in d["name"]:
-            return i
+            return i, d
     raise RuntimeError("No USB speaker found!")
 
 
@@ -45,8 +45,9 @@ if __name__ == "__main__":
             print(f"{idx}: {device['name']}")
         
         # Use the first available output device
-        first_device = get_usb_speaker()
+        first_device, device_info = get_usb_speaker()
         print(f"Using the first device: {first_device}")
+        print(f"Device info: {device_info}")
         
         try:
             play_beep(first_device)
