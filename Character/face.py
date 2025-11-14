@@ -13,6 +13,8 @@ elif IMAGE_OPTION == "cv":
     from screeninfo import get_monitors
     import cv2
     import numpy as np
+    import subprocess
+
 import time
 import threading
 
@@ -51,8 +53,32 @@ class Face():
             screen = get_monitors()[0]
             screen_width, screen_height = screen.width, screen.height
             if full_screen:
-                cv2.namedWindow("Image Viewer", cv2.WND_PROP_FULLSCREEN)
-                cv2.setWindowProperty("Image Viewer", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                win = "Image Viewer"
+
+                if IS_ROBOT:
+                    # create a normal (resizable) window so WM registers it, then request fullscreen
+                    cv2.namedWindow(win, cv2.WINDOW_NORMAL)
+
+                    # show an initial frame so the window appears
+                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                    cv2.imshow(win, frame)
+                    cv2.waitKey(1)
+
+                    # give WM a tiny moment to map the window
+                    time.sleep(0.12)
+
+                    # tell the window manager to make it fullscreen
+                    # -r <WIN> will match by title (partial match ok)
+                    subprocess.run(["wmctrl", "-r", win, "-b", "add,fullscreen"], check=False)
+
+                    # optionally activate it (ensure it's focused)
+                    subprocess.run(["wmctrl", "-a", win], check=False)
+
+                    # hide cursor using unclutter (start in background)
+                    subprocess.Popen(["unclutter", "-idle", "0"])
+                else:
+                    cv2.namedWindow("Image Viewer", cv2.WND_PROP_FULLSCREEN)
+                    cv2.setWindowProperty("Image Viewer", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
             else:
                 cv2.namedWindow("Image Viewer", cv2.WINDOW_NORMAL)
