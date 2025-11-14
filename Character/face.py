@@ -16,9 +16,9 @@ elif IMAGE_OPTION == "cv":
 import time
 import threading
 
-import face_recognition
+# import face_recognition
 import mediapipe as mp
-from deepface import DeepFace
+# from deepface import DeepFace
 
 
 class Face():
