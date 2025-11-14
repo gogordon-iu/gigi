@@ -17,6 +17,7 @@ import os
 import time
 import shutil
 from characterDefinitions import IS_ROBOT, base_assets_path
+import sys
 
 
 SOUND_OPTION = "sounddevice"
@@ -29,7 +30,6 @@ elif SOUND_OPTION == "sounddevice":
 
 TTS_MODEL = "nix"
 if TTS_MODEL == "nix":
-    import sys
     sys.path.append('../Resources')
 
     from nix.models.TTS import NixTTSInference
@@ -38,7 +38,6 @@ if TTS_MODEL == "nix":
 
 elif TTS_MODEL == "silero":
     import torch
-import sys
     TTS_SAMPLE_RATE = 48000
 
 
