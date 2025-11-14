@@ -58,11 +58,6 @@ class Face():
                     # give WM a tiny moment to map the window
                     time.sleep(0.12)
 
-
-                    # get the window id (first match)
-                    proc = subprocess.run(["xdotool", "search", "--name", self.win_name], capture_output=True, text=True)
-                    wid = proc.stdout.splitlines()[0].strip()
-
                     cmd = (
                         f"wmctrl -r {self.win_name} -b add,fullscreen && "
                         f"wmctrl -a {self.win_name} && "
