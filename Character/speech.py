@@ -339,7 +339,7 @@ class Speech():
                     found = True
                     break
 
-        
+        print(f'DEBUG: update_audio_objects found={found} text={text} file={file} env_file={env_file}')
         if text is not None:
             if file is None:
                 audio_file = self.generate_speech_text(text=text)
