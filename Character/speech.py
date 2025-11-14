@@ -63,7 +63,7 @@ class Speech():
         self.audio_objects = {}
 
         self.recorded_audio = {}
-        self.keep_record = not IS_ROBOT #True
+        self.keep_record = True
         self.set_activity(activity_name=activity)
 
         if os.path.exists(recorded_speech_filename):
