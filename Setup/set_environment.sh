@@ -42,6 +42,8 @@ sudo apt install mpv
 #if False:
 
 # screen
+sudo apt install -y wmctrl xdotool unclutter
+# Set up the LCD screen
 sudo rm -rf LCD-show
 cd
 git clone https://github.com/goodtft/LCD-show.git
