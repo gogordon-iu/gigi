@@ -65,7 +65,7 @@ class Face():
 
                     cmd = (
                         f"wmctrl -r {self.win_name} -b add,fullscreen && "
-                        f"wmctrl -r {self.win_name} -a && "
+                        f"wmctrl -a {self.win_name} && "
                         f"xprop -name {self.win_name} -f _MOTIF_WM_HINTS 32c "
                         '-set _MOTIF_WM_HINTS \"0x2, 0x0, 0x0, 0x0, 0x0\" && '
                         'unclutter -idle 0 &'
