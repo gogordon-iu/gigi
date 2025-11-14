@@ -10,7 +10,7 @@ if IS_ROBOT:
     HAS_VISEME = True
 
     HAS_HEARING = True
-    HAS_VISION = True
+    HAS_VISION = False
 
     HAS_MOVEMENT = True
     HAS_CONVERSATION = False
