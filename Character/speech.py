@@ -75,7 +75,7 @@ class Speech():
             mixer.init()
             self.pygame_lock = threading.Lock()
         elif SOUND_OPTION == "sounddevice":
-            speaker_device = self.get_usb_speaker()
+            speaker_device, self.speaker_sample_rate = self.get_usb_speaker()
             sd.default.device = (None, speaker_device)  # (input_device, output_device)
 
 
@@ -176,10 +176,10 @@ class Speech():
             if d['max_output_channels'] > 0 and "USB" in d["name"]:
                 # Return the ALSA "plughw" string instead of index
                 # return f"plughw:{i},0"
-                return i
+                return i, d['default_samplerate']
         for i, d in enumerate(devices):
             if d['max_output_channels'] > 0:
-                return i
+                return i, d['default_samplerate']
 
     # def get_usb_speaker(self):
     #     devices = sd.query_devices()
@@ -202,8 +202,13 @@ class Speech():
 
         if len(self.languages) == 1:
             if TTS_MODEL == "nix":
+                print(1)
                 c, c_length, _ = self.model.tokenizer([text])
+                print(2)
                 wav = self.model.vocalize(c, c_length)[0, 0].astype(np.float32)
+                print(3)
+                wav_resampled = librosa.resample(wav, orig_sr=OUTPUT_SAMPLE_RATE, target_sr=self.speaker_sample_rate)
+                wav = wav_resampled.astype(np.float32)
             elif TTS_MODEL == "silero" and not IS_ROBOT:
                 audio = self.model.apply_tts(text=text, 
                                             speaker=self.speaker, 
@@ -246,6 +251,7 @@ class Speech():
         # Increase the pitch of the audio
         # wav = librosa.effects.pitch_shift(wav, sr=self.wav_sr, n_steps=6)
         stereo_audio = np.column_stack((wav, wav))
+        print(4)
 
         if self.keep_record:
             audio_file = self.activity_speech_path + generate_random_filename(extension="wav")
@@ -255,6 +261,7 @@ class Speech():
             self.save_recorded_audio()
         else:
             audio_file = "../temp/output.wav"
+        print(5)
         env_file = audio_file.replace(".wav", ".npy")
         if SOUND_OPTION == "sounddevice":
             if len(stereo_audio.shape) > 1:
@@ -272,6 +279,7 @@ class Speech():
                 "samplerate": OUTPUT_SAMPLE_RATE,
                 "envelope": envelope
             }
+        print(6)
         if SOUND_OPTION == "pygame":
             sf.write(file=audio_file, data=stereo_audio, samplerate=OUTPUT_SAMPLE_RATE)
             envelope = self.get_envelope(audio_file)
