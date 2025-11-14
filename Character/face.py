@@ -30,9 +30,12 @@ class Face():
             print(2)
             # Set up the full-screen display
             self.infoObject = pygame.display.Info()
+            print(2.1)
             if full_screen:
                 self.screen_size = (self.infoObject.current_w, self.infoObject.current_h)
+                print(2.2)
                 self.screen = pygame.display.set_mode(self.screen_size, pygame.FULLSCREEN)
+                print(2.3)
             else:
                 self.screen_size = (self.infoObject.current_w/2, self.infoObject.current_h/2)
                 self.screen = pygame.display.set_mode(self.screen_size)
