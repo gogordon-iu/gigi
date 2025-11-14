@@ -242,21 +242,45 @@ class Face():
 
     def display_text(self, text=None):    
         if text:
-            # Create a blank image with white background
-            font = pygame.font.Font(None, 36)  # Default font with size 36
-            text_surface = font.render(text, True, (0, 0, 0))  # Black text
-            text_width, text_height = text_surface.get_size()
-            image_width, image_height = self.screen_size
-            background = pygame.Surface((image_width, image_height))
-            background.fill((255, 255, 255))  # White background
+            if IMAGE_OPTION == "pygame":
+                # Create a blank image with white background
+                font = pygame.font.Font(None, 36)  # Default font with size 36
+                text_surface = font.render(text, True, (0, 0, 0))  # Black text
+                text_width, text_height = text_surface.get_size()
+                image_width, image_height = self.screen_size
+                background = pygame.Surface((image_width, image_height))
+                background.fill((255, 255, 255))  # White background
 
-            # Center the text on the screen
-            text_x = (image_width - text_width) // 2
-            text_y = (image_height - text_height) // 2
-            background.blit(text_surface, (text_x, text_y))
+                # Center the text on the screen
+                text_x = (image_width - text_width) // 2
+                text_y = (image_height - text_height) // 2
+                background.blit(text_surface, (text_x, text_y))
 
-            self.show_face = False
-            self.display_face(background)            
+                self.show_face = False
+                self.display_face(background)
+            elif IMAGE_OPTION == "cv":
+                # Create a blank image with white background
+                image_width, image_height = self.screen_size
+                background = np.ones((image_height, image_width, 3), dtype=np.uint8) * 255  # White background
+
+                # Set font and scale
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 1.5
+                font_thickness = 2
+
+                # Get text size
+                (text_width, text_height), _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+
+                # Center the text on the screen
+                text_x = (image_width - text_width) // 2
+                text_y = (image_height + text_height) // 2
+
+                # Put the text on the image
+                cv2.putText(background, text, (text_x, text_y), font, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
+
+                self.show_face = False
+                self.display_face(background)
+
         else:
             self.show_face = True
 
