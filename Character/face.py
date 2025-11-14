@@ -29,34 +29,27 @@ class Face():
         self.show_face = True
         self.set_activity(activity_name=activity)
         
-        print(1)
         # init screen options
         if IMAGE_OPTION == "pygame":
             pygame.init()
-            print(2)
             # Set up the full-screen display
             self.infoObject = pygame.display.Info()
-            print(2.1)
             if full_screen:
                 self.screen_size = (self.infoObject.current_w, self.infoObject.current_h)
-                print(2.2)
-                print(self.screen_size)
                 flags = pygame.NOFRAME | pygame.DOUBLEBUF | pygame.HWSURFACE
                 # flags = pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.HWSURFACE
                 self.screen = pygame.display.set_mode(self.screen_size, flags)
-                print(2.3)
             else:
                 self.screen_size = (self.infoObject.current_w/2, self.infoObject.current_h/2)
                 self.screen = pygame.display.set_mode(self.screen_size)
-            print(3)
         elif IMAGE_OPTION == "cv":
             screen = get_monitors()[0]
             screen_width, screen_height = screen.width, screen.height
             if full_screen:
                 win = "Image Viewer"
 
-                cv2.namedWindow("Image Viewer", cv2.WND_PROP_FULLSCREEN)
-                cv2.setWindowProperty("Image Viewer", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                cv2.namedWindow(win, cv2.WINDOW_NORMAL)
+                cv2.setWindowProperty(win, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
                 
                 if IS_ROBOT:
