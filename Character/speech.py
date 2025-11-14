@@ -384,7 +384,7 @@ class Speech():
                         if samplerate != self.speaker_sample_rate:
                             data = librosa.resample(data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
                             # Save the resampled audio to a new file
-                            self.save_audio_file(audio_file, data, samplerate=self.speaker_sample_rate)
+                            self.save_audio_file(audio_file, data)
 
                         if env_file is not None:
                             if os.path.exists(env_file):
