@@ -1,0 +1,37 @@
+Demo Activity Script 
+[name] Demo
+[Character] female
+[Speak] Hi, it is Gigi again. [move] wave_hello
+[Speak] Great to see you again, Gaia [move] look_left
+[Speak] Emma [move] look_right.
+[Speak] Last time we learned about robots in general.
+[Speak] Today we are going to learn about co-bots.
+[Speak] Short of Collaborative Robots. [show] caption: Collaborative Robots
+[Speak] What do you think co-bots are? [move] arms_up_and_down
+[hear] silence: 10
+[Speak] That is a great explanation, Gaia, thank you for sharing.
+[Speak] Emma, do you want to share your thoughts? [move] look_right
+[hear] silence: 10
+[Speak] That was a great idea, Emma, I love it.
+[audio] laugh
+[Speak] Collaborative robots, or co-bots, are robots designed to work safely alongside people, helping them with tasks instead of replacing them. [show] image: techman
+[hear] silence: 10
+[Speak] That is a great question, Gaia, I also love to learn new things.
+[Speak] They can sense and respond to human actions, making teamwork between humans and machines easier and safer. [show] image: cobot [pause] after: 3
+[Speak] Let us do an activity to better understand what are co-bots.
+[Speak] In front of you are a pencil and pencil sharpener [face] look_down [move] arms_down
+[Speak] You need to sharpen the pencil [move] home
+[audio] laugh
+[Speak] But one of you holds the pencil with one arm [move] look_left
+[Speak] And the other holds the sharpener with one arm [move] look_right [pause] after: 1
+[Speak] Think you can do it? Try [pause] after: 10
+[audio] laugh
+[Speak] That was fun. [pause] after: 1
+[Speak] Now let us simulate a co-bot.
+[Speak] Gaia, you are the co-bot [move] look_left
+[Speak] Emma, you need to tell Gaia exactly what to do, since you are the programmer and she is the co-bot [move] look_right
+[Speak] Gaia, only do what Emma tells you. Do not act on your own. [move] look_left [pause] 15
+[Speak] That was great. [move] arms_up
+[audio] laugh
+[Speak] Emma, you are an excellent co-bot operator [move] look_right [pause] after: 2
+[Speak] That is it for today. See you next time, Gaia and Emma. [move] wave_hello

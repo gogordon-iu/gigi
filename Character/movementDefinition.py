@@ -292,3 +292,13 @@ basic_sequences['scare'] = [
             "left_elbow": 0.0,
             "torso": 0.0}}
 ]
+
+basic_sequences["look_left"] = [
+    {'time': 1,
+     'motors': {'neck': 0.8}}
+]
+
+basic_sequences["look_right"] = [
+    {'time': 1,
+     'motors': {'neck': -0.8}}
+]

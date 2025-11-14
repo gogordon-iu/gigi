@@ -125,10 +125,26 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                         node_string += f"motors='{value.strip()}', "
                     elif key == "show": 
                         show_str = value.split(":")
-                        image_filename = show_str[1].strip()
-                        if not os.path.exists(image_filename):
-                            image_filename = f"../Assets/{class_name}/{image_filename}.png"
-                        node_string += f"{show_str[0].strip()}='{image_filename}', "
+                        show_type = show_str[0].strip().lower()
+                        if show_type == "caption":
+                            node_string += f"caption='{show_str[1].strip()}', "
+                        elif show_type == "video":
+                            video_filename = show_str[1].strip()
+                            if not os.path.exists(video_filename):
+                                video_filename = f"../Assets/{class_name}/{video_filename}.mp4"
+                            node_string += f"video='{video_filename}', "
+                        elif show_type == "image":
+                            image_filename = show_str[1].strip()
+                            # check if the file exists, if not, check in the Assets folder
+                            if not os.path.exists(image_filename):
+                                image_filename = f"../Assets/{class_name}/face/{image_filename}"
+                            # if still not exists, try adding .jpg
+                            if not os.path.exists(image_filename):
+                                image_filename = image_filename + ".jpg"
+                            # if still not exists, try adding .png
+                            if not os.path.exists(image_filename):
+                                image_filename = image_filename[:-4] + ".png"
+                            node_string += f"{show_str[0].strip()}='{image_filename}', "
                     elif key == "find":
                         find_str = value.split(":")
                         node_string += f"{find_str[0].strip()}='{find_str[1].strip()}', "
@@ -140,11 +156,15 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                         split_node = node_label
                     elif key == "hear":
                         hear_str = value.split(":")
-                        words = [f"'{word.strip()}'" for word in hear_str[1].split(",")]
-                        hear_string = f"{hear_str[0].strip()}='["
-                        for w in words:
-                            hear_string += ('"%s", ' % w).replace("'", "")
-                        hear_string = hear_string.rstrip(", ") + ", \"[unk]\"]', "
+                        hear_type = hear_str[0].strip()
+                        if hear_type == "words":
+                            words = [f"'{word.strip()}'" for word in hear_str[1].split(",")]
+                            hear_string = f"{hear_str[0].strip()}='["
+                            for w in words:
+                                hear_string += ('"%s", ' % w).replace("'", "")
+                            hear_string = hear_string.rstrip(", ") + ", \"[unk]\"]', "
+                        elif hear_type == "silence":
+                            hear_string = f"timeout={hear_str[1].strip()}, "
                         node_string += hear_string
 
                         if 'timeout' in parsed_line:
@@ -182,7 +202,9 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                                     break
                         if not found_next_node:
                             node_string += f"        self.graph.add_edge('Node_{node_counter}', 'Node_{node_counter + 1}', label='Node_{node_counter}_{node_counter + 1}')\n"
-                elif 'find' in parsed_line or 'hear' in parsed_line or 'end' in parsed_line:
+                elif 'find' in parsed_line or 'end' in parsed_line:
+                    pass
+                elif 'hear' in parsed_line and 'words' in parsed_line:
                     pass
                 else:
                     found_next_node = False
@@ -211,7 +233,7 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
 # file_path = '../Scripts/Source/Bilingual_Lego.txt'  # Replace with your file path
 # languages = ['en', 'es']
 
-file_path = '../Scripts/Source/halloween.txt'  # Replace with your file path
+file_path = '../Scripts/Source/demo.txt'  # Replace with your file path
 languages = ['en']
 
 FORCE_GENERATE_AUDIO = True
@@ -241,7 +263,7 @@ if FORCE_GENERATE_AUDIO:
             file_path = os.path.join(speech_folder, filename)
             if os.path.isfile(file_path):
                 os.remove(file_path)
-
+    fuzzy.stop_character()
 
 # Run the generated Python file
 if activity_file:

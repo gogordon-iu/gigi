@@ -28,7 +28,7 @@ class Character():
                  full_screen=True, wakeup=False, activity=None, languages=['en']):
         print("Initializing character ...")
         if HAS_FACE:
-            self.face = Face(character=character_name, full_screen=full_screen)
+            self.face = Face(character=character_name, full_screen=IS_ROBOT and full_screen)
             if wakeup:
                 self.face.generate_face(parts_selected=basic_sequences["idle"])
         else:
@@ -139,6 +139,8 @@ class Character():
         if self.vision:
             if self.vision.stop_event:
                 self.vision.stop_vision()
+        if self.face:
+            self.face.stop_face()
 
     def lookat_coordinate(self, offset=0.0):
         if self.lookat_calibration:

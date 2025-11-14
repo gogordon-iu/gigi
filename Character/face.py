@@ -48,6 +48,12 @@ class Face():
 
         self.initialize_character(save=True)
 
+    def stop_face(self):
+        if IMAGE_OPTION == "pygame":
+            pygame.quit()
+        elif IMAGE_OPTION == "cv":
+            cv2.destroyAllWindows()
+
     def set_activity(self, activity_name):
         self.activity = activity_name
         if self.activity:
