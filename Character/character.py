@@ -1,8 +1,5 @@
 from characterDefinitions import *
 from faceDefinitions import *
-if HAS_VISION:
-    print('Importing Vision module')
-    from newvision import Vision
 if HAS_FACE:
     print('Importing Face module')
     from face import Face
@@ -16,6 +13,9 @@ if HAS_HEARING:
 if HAS_VISEME:
     print('Importing Viseme module')
     from viseme import Viseme
+if HAS_VISION:
+    print('Importing Vision module')
+    from newvision import Vision
 if HAS_MOVEMENT:
     print('Importing Movement module')
     from movement import Movement
