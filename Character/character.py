@@ -1,19 +1,26 @@
 from characterDefinitions import *
 from faceDefinitions import *
 if HAS_FACE:
+    print('Importing Face module')
     from face import Face
 if HAS_SPEECH:
+    print('Importing Speech module')
     from speech import Speech
 if HAS_HEARING:
+    print('Importing Hearing module')
     from hearing_new import Hearing
     # from hearing import Hearing
 if HAS_VISEME:
+    print('Importing Viseme module')
     from viseme import Viseme
 if HAS_VISION:
+    print('Importing Vision module')
     from newvision import Vision
 if HAS_MOVEMENT:
+    print('Importing Movement module')
     from movement import Movement
 if HAS_CONVERSATION:
+    print('Importing Conversation module')
     from conversation import Conversation
 import threading
 import numpy as np
