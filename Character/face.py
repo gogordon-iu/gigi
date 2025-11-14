@@ -294,7 +294,7 @@ class Face():
                 filename = image_folder_path + filename.split('/')[-1]
             print("FACE DEBUG: ", filename)
             if os.path.exists(filename):
-                print("FACE DEBUG FOUDN: ", filename)
+                print("FACE DEBUG FOUND: ", filename)
                 pil_image = Image.open(filename)
                 if IMAGE_OPTION == "cv":
                     # Convert PIL image to an OpenCV BGR numpy array, handling transparency by compositing onto white
@@ -363,7 +363,7 @@ if __name__ == "__main__":
     face = Face()
     face.initialize_character()
     # # face.generate_face(parts_selected=basic_sequences["blink"])
-    face.generate_face(parts_selected=basic_sequences["look_right"])
+    # face.generate_face(parts_selected=basic_sequences["look_right"])
     # face.generate_face(parts_selected=basic_sequences["idle"])
     # face.generate_face(parts_selected=basic_sequences["look_down"])
     # face.generate_face(parts_selected=basic_sequences["smile"])
@@ -371,3 +371,7 @@ if __name__ == "__main__":
 
     # c = face.combine_seuqences(sequences=[[0.1, basic_sequences["talk"]], [0.5, basic_sequences["look_left"]]])
     # print(c)
+    face.set_activity(activity_name="Demo")
+    # face.display_image_file(filename="../Assets/Demo/face/cobot.jpg")
+    face.display_text(text="Hello, I am Gigi!")
+    cv2.waitKey(2000)
