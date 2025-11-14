@@ -18,9 +18,6 @@ elif IMAGE_OPTION == "cv":
 import time
 import threading
 
-import mediapipe as mp
-# from deepface import DeepFace
-
 
 class Face():
     def __init__(self, character="fuzzy", full_screen=True, activity=None):
@@ -49,7 +46,7 @@ class Face():
                 win = "Image Viewer"
 
                 cv2.namedWindow(win, cv2.WINDOW_NORMAL)
-                cv2.setWindowProperty(win, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                # cv2.setWindowProperty(win, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
                 
                 if IS_ROBOT:
