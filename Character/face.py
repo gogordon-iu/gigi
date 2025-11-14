@@ -55,10 +55,11 @@ class Face():
             if full_screen:
                 win = "Image Viewer"
 
+                cv2.namedWindow("Image Viewer", cv2.WND_PROP_FULLSCREEN)
+                cv2.setWindowProperty("Image Viewer", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                self.screen_size = (screen_width, screen_height)
+                
                 if IS_ROBOT:
-                    # create a normal (resizable) window so WM registers it, then request fullscreen
-                    cv2.namedWindow(win, cv2.WINDOW_NORMAL)
-
                     # show an initial frame so the window appears
                     frame = np.zeros((480, 640, 3), dtype=np.uint8)
                     cv2.imshow(win, frame)
@@ -76,10 +77,6 @@ class Face():
 
                     # hide cursor using unclutter (start in background)
                     subprocess.Popen(["unclutter", "-idle", "0"])
-                else:
-                    cv2.namedWindow("Image Viewer", cv2.WND_PROP_FULLSCREEN)
-                    cv2.setWindowProperty("Image Viewer", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-                self.screen_size = (screen_width, screen_height)
             else:
                 cv2.namedWindow("Image Viewer", cv2.WINDOW_NORMAL)
                 self.screen_size = (int(screen_width / 2), int(screen_height / 2))
