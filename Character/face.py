@@ -43,16 +43,16 @@ class Face():
             screen = get_monitors()[0]
             screen_width, screen_height = screen.width, screen.height
             if full_screen:
-                win = "Image Viewer"
+                self.win_name = "face_window"
 
-                cv2.namedWindow(win, cv2.WND_PROP_FULLSCREEN)
-                # cv2.setWindowProperty("Image Viewer", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                cv2.namedWindow(self.win_name, cv2.WND_PROP_FULLSCREEN)
+                # cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
                 
                 if IS_ROBOT:
                     # show an initial frame so the window appears
                     frame = np.zeros((480, 640, 3), dtype=np.uint8)
-                    cv2.imshow(win, frame)
+                    cv2.imshow(self.win_name, frame)
                     cv2.waitKey(1)
 
                     # give WM a tiny moment to map the window
@@ -60,28 +60,22 @@ class Face():
 
 
                     # get the window id (first match)
-                    proc = subprocess.run(["xdotool", "search", "--name", win], capture_output=True, text=True)
+                    proc = subprocess.run(["xdotool", "search", "--name", self.win_name], capture_output=True, text=True)
                     wid = proc.stdout.splitlines()[0].strip()
 
-                    # remove window decorations using _MOTIF_WM_HINTS
-                    # this sets decorations off (0x2 = no decorations)
-                    subprocess.run([
-                        "xprop", "-id", wid,
-                        "-f", "_MOTIF_WM_HINTS", "32c",
-                        "-set", "_MOTIF_WM_HINTS", "0x2, 0x0, 0x0, 0x0, 0x0"
-                    ])
+                    cmd = (
+                        f"wmctrl -r {self.win_name} -b add,fullscreen && "
+                        f"wmctrl -r {self.win_name} -a && "
+                        f"xprop -name {self.win_name} -f _MOTIF_WM_HINTS 32c "
+                        '-set _MOTIF_WM_HINTS \"0x2, 0x0, 0x0, 0x0, 0x0\" && '
+                        'unclutter -idle 0 &'
+                    )
 
-                    # optional: ensure fullscreen state at WM level
-                    subprocess.run(["wmctrl", "-i", "-r", wid, "-b", "add,fullscreen"])
-                    # optional: raise/focus
-                    subprocess.run(["wmctrl", "-i", "-a", wid])
-
-                    # hide cursor using unclutter (start in background)
-                    subprocess.Popen(["unclutter", "-idle", "0"])
+                    subprocess.run(cmd, shell=True)
             else:
-                cv2.namedWindow("Image Viewer", cv2.WINDOW_NORMAL)
+                cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL)
                 self.screen_size = (int(screen_width / 2), int(screen_height / 2))
-            cv2.resizeWindow("Image Viewer", self.screen_size[0], self.screen_size[1])
+            cv2.resizeWindow(self.win_name, self.screen_size[0], self.screen_size[1])
         print(4)
         self.initialize_character(save=True)
         print(5)
@@ -189,7 +183,7 @@ class Face():
             pygame.display.flip()
         elif IMAGE_OPTION == "cv":
             image_ = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)
-            cv2.imshow("Image Viewer", image_)
+            cv2.imshow(self.win_name, image_)
 
     def get_sequence_length(self, sequence):
         max_length = 0
