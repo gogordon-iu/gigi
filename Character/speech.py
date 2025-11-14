@@ -175,7 +175,8 @@ class Speech():
         for i, d in enumerate(devices):
             if d['max_output_channels'] > 0 and "USB" in d["name"]:
                 # Return the ALSA "plughw" string instead of index
-                return f"plughw:{i},0"
+                # return f"plughw:{i},0"
+                return i
         for i, d in enumerate(devices):
             if d['max_output_channels'] > 0:
                 return i
