@@ -6,11 +6,11 @@ IS_ROBOT = sys.platform.startswith("linux")
 
 if IS_ROBOT:
     HAS_FACE = True
-    HAS_SPEECH = True
+    HAS_SPEECH = False
     HAS_VISEME = False
 
-    HAS_HEARING = True
-    HAS_VISION = True
+    HAS_HEARING = False
+    HAS_VISION = False
 
     HAS_MOVEMENT = True
     HAS_CONVERSATION = False
