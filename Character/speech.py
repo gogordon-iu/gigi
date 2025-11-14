@@ -38,7 +38,8 @@ if TTS_MODEL == "nix":
 
 elif TTS_MODEL == "silero":
     import torch
-    TTS_SAMPLE_RATE = TTS_SAMPLE_RATE48000
+import sys
+    TTS_SAMPLE_RATE = 48000
 
 
 lanugage_speakers = {
@@ -509,4 +510,8 @@ if __name__ == "__main__":
     # speech.run_speech(text="Hi everyone you goren. We are going to build a Ferris wheel. Four.")
     # speech.run_speech(file="../Assets/teacher/laugh.wav")
     # speech.run_speech(file="../Assets/audio/demo_01_greetings.wav")
-    speech.run_speech(text="Test number 2")
+    tts_text = sys.argv[1] if len(sys.argv) > 1 else None
+    if tts_text is not None:
+        speech.run_speech(text=tts_text)
+    else:
+        speech.run_speech(text="Test number one")
