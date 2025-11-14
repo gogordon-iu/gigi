@@ -3,7 +3,7 @@ Demo Activity Script
 [Character] female
 [Speak] Hi, it is Gigi again. [move] wave_hello
 [Speak] Great to see you again, Gaia [move] look_left
-[Speak] Emma [move] look_right.
+[Speak] Emma [move] look_right
 [Speak] Last time we learned about robots in general.
 [Speak] Today we are going to learn about co-bots.
 [Speak] Short of Collaborative Robots. [show] caption: Collaborative Robots

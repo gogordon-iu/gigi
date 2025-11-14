@@ -42,9 +42,8 @@ class Face():
         elif IMAGE_OPTION == "cv":
             screen = get_monitors()[0]
             screen_width, screen_height = screen.width, screen.height
+            self.win_name = "face_window"
             if full_screen:
-                self.win_name = "face_window"
-
                 cv2.namedWindow(self.win_name, cv2.WND_PROP_FULLSCREEN)
                 # cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
@@ -73,9 +72,7 @@ class Face():
                 cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL)
                 self.screen_size = (int(screen_width / 2), int(screen_height / 2))
             cv2.resizeWindow(self.win_name, self.screen_size[0], self.screen_size[1])
-        print(4)
         self.initialize_character(save=True)
-        print(5)
 
     def stop_face(self):
         if IMAGE_OPTION == "pygame":

@@ -148,7 +148,6 @@ class Speech():
         json.dump(self.recorded_audio, open(recorded_speech_filename, "w+"))
 
     def save_audio_file(self, file, data):
-        print(f'speaker_sample_rate: {self.speaker_sample_rate}')
         sf.write(file, data, self.speaker_sample_rate, subtype='PCM_16')
         
         if self.child and IS_FFMPEG:
@@ -202,11 +201,8 @@ class Speech():
 
         if len(self.languages) == 1:
             if TTS_MODEL == "nix":
-                print(1)
                 c, c_length, _ = self.model.tokenizer([text])
-                print(2)
                 wav = self.model.vocalize(c, c_length)[0, 0].astype(np.float32)
-                print(3)
                 # wav_resampled = librosa.resample(wav, orig_sr=TTS_SAMPLE_RATE, target_sr=self.speaker_sample_rate)
                 # wav = wav_resampled.astype(np.float32)
             elif TTS_MODEL == "silero" and not IS_ROBOT:
@@ -251,19 +247,15 @@ class Speech():
         # Increase the pitch of the audio
         # wav = librosa.effects.pitch_shift(wav, sr=self.wav_sr, n_steps=6)
         stereo_audio = np.column_stack((wav, wav))
-        print(4)
 
         if self.keep_record:
             audio_file = self.activity_speech_path + generate_random_filename(extension="wav")
             # remove previous record if exists
             self.recorded_audio[self.activity] = {key: value for key, value in self.recorded_audio[self.activity].items() if value != text}
             self.recorded_audio[self.activity][audio_file] = text
-            print(f'DEBUG: saving recorded audio {audio_file} for activity {self.activity} text={text}')
             self.save_recorded_audio()
-            print(4.5)
         else:
             audio_file = "../temp/output.wav"
-        print(5)
         env_file = audio_file.replace(".wav", ".npy")
         if SOUND_OPTION == "sounddevice":
             if len(stereo_audio.shape) > 1:
@@ -281,7 +273,6 @@ class Speech():
                 "samplerate": self.speaker_sample_rate,
                 "envelope": envelope
             }
-        print(6)
         if SOUND_OPTION == "pygame":
             sf.write(file=audio_file, data=stereo_audio, samplerate=self.speaker_sample_rate)
             envelope = self.get_envelope(audio_file)
@@ -313,7 +304,7 @@ class Speech():
         if samplerate != self.speaker_sample_rate:
             data = librosa.resample(data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
             # Save the resampled audio to a new file
-            self.save_audio_file(file, data, samplerate=self.speaker_sample_rate)
+            self.save_audio_file(file, data)
         envelope = self.get_envelope(file, y=data, sr=samplerate)
 
         if self.keep_record:
@@ -351,7 +342,6 @@ class Speech():
                     found = True
                     break
 
-        print(f'DEBUG: update_audio_objects found={found} text={text} file={file} env_file={env_file}')
         if text is not None:
             if file is None:
                 audio_file = self.generate_speech_text(text=text)

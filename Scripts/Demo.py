@@ -26,7 +26,7 @@ class Demo(ScriptGraph) :
         self.graph.add_edge('Node_2', 'Node_3', label='Node_2_3')
         self.graph.add_node('Node_3', type=['speak', 'move'], text='Great to see you again, Gaia', motors='look_left')
         self.graph.add_edge('Node_3', 'Node_4', label='Node_3_4')
-        self.graph.add_node('Node_4', type=['speak', 'move'], text='Emma', motors='look_right.')
+        self.graph.add_node('Node_4', type=['speak', 'move'], text='Emma', motors='look_right')
         self.graph.add_edge('Node_4', 'Node_5', label='Node_4_5')
         self.graph.add_node('Node_5', type=['speak'], text='Last time we learned about robots in general.')
         self.graph.add_edge('Node_5', 'Node_6', label='Node_5_6')
