@@ -39,7 +39,8 @@ class Face():
                 self.screen_size = (self.infoObject.current_w, self.infoObject.current_h)
                 print(2.2)
                 print(self.screen_size)
-                flags = pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.HWSURFACE
+                flags = pygame.NOFRAME | pygame.DOUBLEBUF | pygame.HWSURFACE
+                # flags = pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.HWSURFACE
                 self.screen = pygame.display.set_mode(self.screen_size, flags)
                 print(2.3)
             else:
