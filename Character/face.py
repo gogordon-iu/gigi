@@ -5,7 +5,7 @@ from characterDefinitions import IS_ROBOT, base_assets_path
 if IS_ROBOT:
     from mpv import MPV
 import math
-IMAGE_OPTION = "pygame"
+IMAGE_OPTION = "cv"
 if IMAGE_OPTION == "pygame":
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1" 
     import pygame
@@ -259,12 +259,26 @@ class Face():
             if os.path.exists(filename):
                 print("FACE DEBUG FOUDN: ", filename)
                 pil_image = Image.open(filename)
-                mode = pil_image.mode
-                size = pil_image.size
-                data = pil_image.tobytes()
+                if IMAGE_OPTION == "cv":
+                    # Convert PIL image to an OpenCV BGR numpy array, handling transparency by compositing onto white
+                    if pil_image.mode in ("RGBA", "LA") or (pil_image.mode == "P" and pil_image.info.get("transparency") is not None):
+                        rgba = pil_image.convert("RGBA")
+                        alpha = rgba.split()[-1]
+                        background = Image.new("RGB", rgba.size, (255, 255, 255))
+                        background.paste(rgba, mask=alpha)
+                        image = np.array(background)
+                    else:
+                        image = np.array(pil_image.convert("RGB"))
 
-                # Create a Pygame Surface from the PIL image data
-                image = pygame.image.fromstring(data, size, mode)
+                    # Convert RGB (PIL) to BGR (OpenCV)
+                    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                elif IMAGE_OPTION == "pygame":
+                    mode = pil_image.mode
+                    size = pil_image.size
+                    data = pil_image.tobytes()
+
+                    # Create a Pygame Surface from the PIL image data
+                    image = pygame.image.fromstring(data, size, mode)
                 self.show_face = False
                 self.display_face(image)
         else:
