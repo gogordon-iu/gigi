@@ -45,7 +45,7 @@ class Face():
             if full_screen:
                 win = "Image Viewer"
 
-                cv2.namedWindow("Image Viewer", cv2.WND_PROP_FULLSCREEN)
+                cv2.namedWindow(win, cv2.WND_PROP_FULLSCREEN)
                 # cv2.setWindowProperty("Image Viewer", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
                 
@@ -57,6 +57,14 @@ class Face():
 
                     # give WM a tiny moment to map the window
                     time.sleep(0.12)
+
+                    # remove window decorations using _MOTIF_WM_HINTS
+                    # this sets decorations off (0x2 = no decorations)
+                    subprocess.run([
+                        "xprop", "-id", win,
+                        "-f", "_MOTIF_WM_HINTS", "32c",
+                        "-set", "_MOTIF_WM_HINTS", "0x2, 0x0, 0x0, 0x0, 0x0"
+                    ])
 
                     # tell the window manager to make it fullscreen
                     # -r <WIN> will match by title (partial match ok)
