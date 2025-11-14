@@ -143,10 +143,9 @@ class Speech():
             self.recorded_audio[self.activity] = {}
 
     def save_recorded_audio(self):
-        if not IS_ROBOT:
-            if not os.path.exists(recorded_speech_path):
-                os.makedirs(recorded_speech_path)
-            json.dump(self.recorded_audio, open(recorded_speech_filename, "w+"))
+        if not os.path.exists(recorded_speech_path):
+            os.makedirs(recorded_speech_path)
+        json.dump(self.recorded_audio, open(recorded_speech_filename, "w+"))
 
     def save_audio_file(self, file, data):
         print(f'speaker_sample_rate: {self.speaker_sample_rate}')
@@ -259,6 +258,7 @@ class Speech():
             # remove previous record if exists
             self.recorded_audio[self.activity] = {key: value for key, value in self.recorded_audio[self.activity].items() if value != text}
             self.recorded_audio[self.activity][audio_file] = text
+            print(f'DEBUG: saving recorded audio {audio_file} for activity {self.activity} text={text}')
             self.save_recorded_audio()
             print(4.5)
         else:
