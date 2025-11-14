@@ -5,7 +5,7 @@ base_assets_path = "../Assets/"
 IS_ROBOT = sys.platform.startswith("linux")
 
 if IS_ROBOT:
-    HAS_FACE = True
+    HAS_FACE = False
     HAS_SPEECH = True
     HAS_VISEME = True
 
