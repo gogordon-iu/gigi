@@ -45,8 +45,8 @@ class Face():
             if full_screen:
                 win = "Image Viewer"
 
-                cv2.namedWindow(win, cv2.WINDOW_NORMAL)
-                # cv2.setWindowProperty(win, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                cv2.namedWindow("Image Viewer", cv2.WND_PROP_FULLSCREEN)
+                # cv2.setWindowProperty("Image Viewer", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
                 
                 if IS_ROBOT:
