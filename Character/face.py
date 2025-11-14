@@ -52,6 +52,7 @@ class Face():
             screen_width, screen_height = screen.width, screen.height
             if full_screen:
                 cv2.namedWindow("Image Viewer", cv2.WND_PROP_FULLSCREEN)
+                cv2.setWindowProperty("Image Viewer", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
             else:
                 cv2.namedWindow("Image Viewer", cv2.WINDOW_NORMAL)
