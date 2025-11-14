@@ -305,13 +305,13 @@ class Face():
             
 if __name__ == "__main__":
     face = Face()
-    # face.initialize_character()
+    face.initialize_character()
     # # face.generate_face(parts_selected=basic_sequences["blink"])
-    # face.generate_face(parts_selected=basic_sequences["look_right"])
+    face.generate_face(parts_selected=basic_sequences["look_right"])
     # face.generate_face(parts_selected=basic_sequences["idle"])
     # face.generate_face(parts_selected=basic_sequences["look_down"])
     # face.generate_face(parts_selected=basic_sequences["smile"])
     # face.run_sequence()
 
-    c = face.combine_seuqences(sequences=[[0.1, basic_sequences["talk"]], [0.5, basic_sequences["look_left"]]])
-    print(c)
+    # c = face.combine_seuqences(sequences=[[0.1, basic_sequences["talk"]], [0.5, basic_sequences["look_left"]]])
+    # print(c)
