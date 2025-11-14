@@ -71,12 +71,10 @@ class Face():
                         "-set", "_MOTIF_WM_HINTS", "0x2, 0x0, 0x0, 0x0, 0x0"
                     ])
 
-                    # tell the window manager to make it fullscreen
-                    # -r <WIN> will match by title (partial match ok)
-                    subprocess.run(["wmctrl", "-r", win, "-b", "add,fullscreen"], check=False)
-
-                    # optionally activate it (ensure it's focused)
-                    subprocess.run(["wmctrl", "-a", win], check=False)
+                    # optional: ensure fullscreen state at WM level
+                    subprocess.run(["wmctrl", "-i", "-r", wid, "-b", "add,fullscreen"])
+                    # optional: raise/focus
+                    subprocess.run(["wmctrl", "-i", "-a", wid])
 
                     # hide cursor using unclutter (start in background)
                     subprocess.Popen(["unclutter", "-idle", "0"])
