@@ -195,8 +195,10 @@ class Speech():
     def generate_speech_text(self, text=None, file=None):
         print("Generating speech ... ", text)
         # Synthesize speech
-        if IS_ROBOT:
-            return None
+        
+        # Added new TTS on the robot
+        # if IS_ROBOT:
+        #     return None
 
         if len(self.languages) == 1:
             if TTS_MODEL == "nix":
