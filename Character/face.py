@@ -60,22 +60,15 @@ class Face():
 
                     win = self.win_name
 
-                    # 1) try to activate/focus (ignore error if not found)
-                    subprocess.run(["wmctrl", "-a", win], check=False)
-
-                    # 2) make fullscreen (match by name)
-                    subprocess.run(["wmctrl", "-r", win, "-b", "add,fullscreen"], check=False)
-
-                    # 3) set MOTIF hints (pass arg exactly, avoid backslashes)
-                    xprop_cmd = [
-                        "xprop", "-name", win,
+                    subprocess.Popen(["wmctrl", "-a", self.win_name])  # bring to front
+                    subprocess.Popen(["wmctrl", "-r", self.win_name, "-b", "add,fullscreen"])
+                    subprocess.Popen([
+                        "xprop", "-name", self.win_name,
                         "-f", "_MOTIF_WM_HINTS", "32c",
                         "-set", "_MOTIF_WM_HINTS", "0x2, 0x0, 0x0, 0x0, 0x0"
-                    ]
-                    subprocess.run(xprop_cmd, check=False)
-
-                    # # 4) hide cursor with unclutter
-                    # subprocess.Popen(["unclutter", "-grab", "-idle", "0"])
+                    ])
+                    # Hide cursor (non-blocking)
+                    subprocess.Popen(["unclutter", "-grab", "-idle", "0"])
             else:
                 cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL)
                 self.screen_size = (int(screen_width / 2), int(screen_height / 2))
