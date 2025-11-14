@@ -260,6 +260,7 @@ class Speech():
             self.recorded_audio[self.activity] = {key: value for key, value in self.recorded_audio[self.activity].items() if value != text}
             self.recorded_audio[self.activity][audio_file] = text
             self.save_recorded_audio()
+            print(4.5)
         else:
             audio_file = "../temp/output.wav"
         print(5)
