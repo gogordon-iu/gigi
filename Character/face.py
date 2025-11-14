@@ -58,10 +58,15 @@ class Face():
                     # give WM a tiny moment to map the window
                     time.sleep(0.12)
 
+
+                    # get the window id (first match)
+                    proc = subprocess.run(["xdotool", "search", "--name", win], capture_output=True, text=True)
+                    wid = proc.stdout.splitlines()[0].strip()
+
                     # remove window decorations using _MOTIF_WM_HINTS
                     # this sets decorations off (0x2 = no decorations)
                     subprocess.run([
-                        "xprop", "-id", win,
+                        "xprop", "-id", wid,
                         "-f", "_MOTIF_WM_HINTS", "32c",
                         "-set", "_MOTIF_WM_HINTS", "0x2, 0x0, 0x0, 0x0, 0x0"
                     ])
