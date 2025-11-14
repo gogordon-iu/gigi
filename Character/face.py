@@ -74,8 +74,8 @@ class Face():
                     ]
                     subprocess.run(xprop_cmd, check=False)
 
-                    # 4) hide cursor with unclutter
-                    subprocess.Popen(["unclutter", "-grab", "-idle", "0"])
+                    # # 4) hide cursor with unclutter
+                    # subprocess.Popen(["unclutter", "-grab", "-idle", "0"])
             else:
                 cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL)
                 self.screen_size = (int(screen_width / 2), int(screen_height / 2))
