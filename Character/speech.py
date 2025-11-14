@@ -401,6 +401,14 @@ class Speech():
                 audio_file = file
                 if SOUND_OPTION == "sounddevice":
                     data, samplerate = sf.read(file)
+                    if samplerate != self.speaker_sample_rate:
+                        data = librosa.resample(
+                            data.T,  # librosa expects shape (channels, samples)
+                            orig_sr=samplerate,
+                            target_sr=self.speaker_sample_rate
+                        ).T
+                        sf.write(file, data, self.speaker_sample_rate)
+         
                        
                 if os.path.exists(env_file):
                     envelope = np.load(env_file)
