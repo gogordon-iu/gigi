@@ -17,6 +17,7 @@ import os
 import time
 import shutil
 from characterDefinitions import IS_ROBOT, base_assets_path
+import sys
 
 
 SOUND_OPTION = "sounddevice"
@@ -27,25 +28,24 @@ elif SOUND_OPTION == "sounddevice":
     import sounddevice as sd
     import soundfile as sf
 
-TTS_MODEL = "silero"
+TTS_MODEL = "nix"
 if TTS_MODEL == "nix":
-    import sys
     sys.path.append('../Resources')
 
     from nix.models.TTS import NixTTSInference
     from nix.tokenizers.tokenizer_en import NixTokenizerEN
-    OUTPUT_SAMPLE_RATE = 22050
+    TTS_SAMPLE_RATE = 22050
 
 elif TTS_MODEL == "silero":
     import torch
-    OUTPUT_SAMPLE_RATE = 48000
+    TTS_SAMPLE_RATE = 48000
 
 
 lanugage_speakers = {
     'en': ('v3_en', {
         'female': 'en_0',
-        'male': 'en_1'}, OUTPUT_SAMPLE_RATE),
-    'es': ('v3_es', 'es_1', OUTPUT_SAMPLE_RATE),
+        'male': 'en_1'}, TTS_SAMPLE_RATE),
+    'es': ('v3_es', 'es_1', TTS_SAMPLE_RATE),
     'multi': ('multi_v2', 'lj', 8000)
 }
 
@@ -63,7 +63,7 @@ class Speech():
         self.audio_objects = {}
 
         self.recorded_audio = {}
-        self.keep_record = not IS_ROBOT #True
+        self.keep_record = True
         self.set_activity(activity_name=activity)
 
         if os.path.exists(recorded_speech_filename):
@@ -75,7 +75,7 @@ class Speech():
             mixer.init()
             self.pygame_lock = threading.Lock()
         elif SOUND_OPTION == "sounddevice":
-            speaker_device = self.get_usb_speaker()
+            speaker_device, self.speaker_sample_rate = self.get_usb_speaker()
             sd.default.device = (None, speaker_device)  # (input_device, output_device)
 
 
@@ -116,7 +116,7 @@ class Speech():
             else:   
                 self.models = []
                 self.speakers = []
-                self.wav_sr = OUTPUT_SAMPLE_RATE
+                self.wav_sr = self.speaker_sample_rate
                 for lang in self.languages:
                     model, example_text = torch.hub.load(repo_or_dir='snakers4/silero-models', 
                                                             model='silero_tts', 
@@ -143,13 +143,12 @@ class Speech():
             self.recorded_audio[self.activity] = {}
 
     def save_recorded_audio(self):
-        if not IS_ROBOT:
-            if not os.path.exists(recorded_speech_path):
-                os.makedirs(recorded_speech_path)
-            json.dump(self.recorded_audio, open(recorded_speech_filename, "w+"))
+        if not os.path.exists(recorded_speech_path):
+            os.makedirs(recorded_speech_path)
+        json.dump(self.recorded_audio, open(recorded_speech_filename, "w+"))
 
-    def save_audio_file(self, file, data, samplerate=OUTPUT_SAMPLE_RATE):
-        sf.write(file, data, samplerate, subtype='PCM_16')
+    def save_audio_file(self, file, data):
+        sf.write(file, data, self.speaker_sample_rate, subtype='PCM_16')
         
         if self.child and IS_FFMPEG:
             ffmpeg_path = r"C:/Users/gorengor/AppData/Local/Microsoft/WinGet/Links/ffmpeg.exe"
@@ -174,22 +173,38 @@ class Speech():
         devices = sd.query_devices()
         for i, d in enumerate(devices):
             if d['max_output_channels'] > 0 and "USB" in d["name"]:
-                return i
-        # No USB speaker, find another one
+                # Return the ALSA "plughw" string instead of index
+                # return f"plughw:{i},0"
+                return i, int(d['default_samplerate'])
         for i, d in enumerate(devices):
             if d['max_output_channels'] > 0:
-                return i
+                return i, int(d['default_samplerate'])
+
+    # def get_usb_speaker(self):
+    #     devices = sd.query_devices()
+    #     for i, d in enumerate(devices):
+    #         if d['max_output_channels'] > 0 and "USB" in d["name"]:
+    #             print("Using USB speaker:", d["name"])
+    #             return i
+    #     # No USB speaker, find another one
+    #     for i, d in enumerate(devices):
+    #         if d['max_output_channels'] > 0:
+    #             return i
     
     def generate_speech_text(self, text=None, file=None):
         print("Generating speech ... ", text)
         # Synthesize speech
-        if IS_ROBOT:
-            return None
+        
+        # Added new TTS on the robot
+        # if IS_ROBOT:
+        #     return None
 
         if len(self.languages) == 1:
             if TTS_MODEL == "nix":
                 c, c_length, _ = self.model.tokenizer([text])
                 wav = self.model.vocalize(c, c_length)[0, 0].astype(np.float32)
+                # wav_resampled = librosa.resample(wav, orig_sr=TTS_SAMPLE_RATE, target_sr=self.speaker_sample_rate)
+                # wav = wav_resampled.astype(np.float32)
             elif TTS_MODEL == "silero" and not IS_ROBOT:
                 audio = self.model.apply_tts(text=text, 
                                             speaker=self.speaker, 
@@ -245,21 +260,21 @@ class Speech():
         if SOUND_OPTION == "sounddevice":
             if len(stereo_audio.shape) > 1:
                 stereo_audio = stereo_audio[:,0]
-            if self.wav_sr != OUTPUT_SAMPLE_RATE:
-                stereo_audio = librosa.resample(stereo_audio, orig_sr=self.wav_sr, target_sr=OUTPUT_SAMPLE_RATE)
-            self.save_audio_file(audio_file, stereo_audio, samplerate=OUTPUT_SAMPLE_RATE)
-            envelope = self.get_envelope(audio_file, y=wav, sr=OUTPUT_SAMPLE_RATE)
-            # envelope = self.get_envelope(audio_file, y=stereo_audio, sr=OUTPUT_SAMPLE_RATE)
+            if self.wav_sr != self.speaker_sample_rate:
+                stereo_audio = librosa.resample(stereo_audio, orig_sr=self.wav_sr, target_sr=self.speaker_sample_rate)
+            self.save_audio_file(audio_file, stereo_audio)
+            envelope = self.get_envelope(audio_file, y=wav, sr=self.speaker_sample_rate)
+            # envelope = self.get_envelope(audio_file, y=stereo_audio, sr=self.speaker_sample_rate)
             if self.keep_record:
                 np.save(env_file, envelope)
 
             self.audio_objects[audio_file] = {
                 "data": stereo_audio, 
-                "samplerate": OUTPUT_SAMPLE_RATE,
+                "samplerate": self.speaker_sample_rate,
                 "envelope": envelope
             }
         if SOUND_OPTION == "pygame":
-            sf.write(file=audio_file, data=stereo_audio, samplerate=OUTPUT_SAMPLE_RATE)
+            sf.write(file=audio_file, data=stereo_audio, samplerate=self.speaker_sample_rate)
             envelope = self.get_envelope(audio_file)
             if self.keep_record:
                 np.save(env_file, envelope)
@@ -286,10 +301,10 @@ class Speech():
         if len(data.shape) > 1:
             data = data[:,0]
         # then if required, resample
-        if samplerate != OUTPUT_SAMPLE_RATE:
-            data = librosa.resample(data, orig_sr=samplerate, target_sr=OUTPUT_SAMPLE_RATE)
+        if samplerate != self.speaker_sample_rate:
+            data = librosa.resample(data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
             # Save the resampled audio to a new file
-            self.save_audio_file(file, data, samplerate=OUTPUT_SAMPLE_RATE)
+            self.save_audio_file(file, data)
         envelope = self.get_envelope(file, y=data, sr=samplerate)
 
         if self.keep_record:
@@ -327,7 +342,6 @@ class Speech():
                     found = True
                     break
 
-        
         if text is not None:
             if file is None:
                 audio_file = self.generate_speech_text(text=text)
@@ -358,10 +372,10 @@ class Speech():
                         if len(data.shape) > 1:
                             data = data[:,0]
                         # then if required, resample
-                        if samplerate != OUTPUT_SAMPLE_RATE:
-                            data = librosa.resample(data, orig_sr=samplerate, target_sr=OUTPUT_SAMPLE_RATE)
+                        if samplerate != self.speaker_sample_rate:
+                            data = librosa.resample(data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
                             # Save the resampled audio to a new file
-                            self.save_audio_file(audio_file, data, samplerate=OUTPUT_SAMPLE_RATE)
+                            self.save_audio_file(audio_file, data)
 
                         if env_file is not None:
                             if os.path.exists(env_file):
@@ -387,6 +401,14 @@ class Speech():
                 audio_file = file
                 if SOUND_OPTION == "sounddevice":
                     data, samplerate = sf.read(file)
+                    if samplerate != self.speaker_sample_rate:
+                        data = librosa.resample(
+                            data.T,  # librosa expects shape (channels, samples)
+                            orig_sr=samplerate,
+                            target_sr=self.speaker_sample_rate
+                        ).T
+                        sf.write(file, data, self.speaker_sample_rate)
+         
                        
                 if os.path.exists(env_file):
                     envelope = np.load(env_file)
@@ -483,7 +505,11 @@ if __name__ == "__main__":
     speech.set_activity("test_speech")
     # speech.run_speech(text="ten we're going to build a Ferris wheel. Or in Spanish, we say. #la noria.# Do you know what a Ferris wheel is? Tell your friends.")
     # speech.run_speech(text="¡Hola, mundo dos!")
-    speech.run_speech(text="Hi everyone you goren. We are going to build a Ferris wheel. Four.")
+    # speech.run_speech(text="Hi everyone you goren. We are going to build a Ferris wheel. Four.")
     # speech.run_speech(file="../Assets/teacher/laugh.wav")
     # speech.run_speech(file="../Assets/audio/demo_01_greetings.wav")
-    # speech.run_speech(text="hi")
+    tts_text = sys.argv[1] if len(sys.argv) > 1 else None
+    if tts_text is not None:
+        speech.run_speech(text=tts_text)
+    else:
+        speech.run_speech(text="Test number one")

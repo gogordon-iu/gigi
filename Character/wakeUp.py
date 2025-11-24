@@ -41,12 +41,18 @@ class WakeUp(ScriptGraph) :
         self.graph.add_node("start", type=["speak", "move"], 
                             text="It's me again, Gigi.",
                             motors="wave_hello")
+
+        # ---- first show IP---
+        self.graph.add_edge("start", 
+                            "wakeup_05", 
+                            label="show wifi")
+
        
         self.graph.add_node("wakeup_01", type="speak",
                             text="What do you want to do?")
-        self.graph.add_edge("start", 
-                            "wakeup_01", 
-                            label="start speak")
+        # self.graph.add_edge("start", 
+        #                     "wakeup_01", 
+        #                     label="start speak")
 
         self.graph.add_node("wakeup_02", type="hear", 
                             words='["run script", "bye", "show wifi", "connect"]')

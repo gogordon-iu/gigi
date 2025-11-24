@@ -15,15 +15,15 @@ if IS_ROBOT:
     HAS_MOVEMENT = True
     HAS_CONVERSATION = False
 else:
-    HAS_FACE = False
+    HAS_FACE = True
     HAS_SPEECH = True
-    HAS_VISEME = False
+    HAS_VISEME = True
 
-    HAS_HEARING = False
-    HAS_VISION = False
+    HAS_HEARING = True
+    HAS_VISION = True
 
     HAS_MOVEMENT = False
-    HAS_CONVERSATION = False
+    HAS_CONVERSATION = True
 
 # Paths
 from pathlib import Path

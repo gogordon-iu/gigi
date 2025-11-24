@@ -5,7 +5,7 @@ from characterDefinitions import IS_ROBOT, base_assets_path
 if IS_ROBOT:
     from mpv import MPV
 import math
-IMAGE_OPTION = "pygame"
+IMAGE_OPTION = "cv"
 if IMAGE_OPTION == "pygame":
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1" 
     import pygame
@@ -13,8 +13,11 @@ elif IMAGE_OPTION == "cv":
     from screeninfo import get_monitors
     import cv2
     import numpy as np
+    import subprocess
+
 import time
 import threading
+
 
 class Face():
     def __init__(self, character="fuzzy", full_screen=True, activity=None):
@@ -26,27 +29,56 @@ class Face():
         # init screen options
         if IMAGE_OPTION == "pygame":
             pygame.init()
-
             # Set up the full-screen display
             self.infoObject = pygame.display.Info()
             if full_screen:
                 self.screen_size = (self.infoObject.current_w, self.infoObject.current_h)
-                self.screen = pygame.display.set_mode(self.screen_size, pygame.FULLSCREEN)
+                flags = pygame.NOFRAME | pygame.DOUBLEBUF | pygame.HWSURFACE
+                # flags = pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.HWSURFACE
+                self.screen = pygame.display.set_mode(self.screen_size, flags)
             else:
                 self.screen_size = (self.infoObject.current_w/2, self.infoObject.current_h/2)
                 self.screen = pygame.display.set_mode(self.screen_size)
         elif IMAGE_OPTION == "cv":
             screen = get_monitors()[0]
             screen_width, screen_height = screen.width, screen.height
+            self.win_name = "face_window"
             if full_screen:
-                cv2.namedWindow("Image Viewer", cv2.WND_PROP_FULLSCREEN)
+                cv2.namedWindow(self.win_name, cv2.WND_PROP_FULLSCREEN)
+                # cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
-            else:
-                cv2.namedWindow("Image Viewer", cv2.WINDOW_NORMAL)
-                self.screen_size = (int(screen_width / 2), int(screen_height / 2))
-            cv2.resizeWindow("Image Viewer", self.screen_size[0], self.screen_size[1])
+                
+                if IS_ROBOT:
+                    # show an initial frame so the window appears
+                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                    cv2.imshow(self.win_name, frame)
+                    cv2.waitKey(1)
 
+                    # give WM a tiny moment to map the window
+                    time.sleep(0.12)
+
+                    win = self.win_name
+
+                    subprocess.Popen(["wmctrl", "-a", self.win_name])  # bring to front
+                    subprocess.Popen(["wmctrl", "-r", self.win_name, "-b", "add,fullscreen"])
+                    subprocess.Popen([
+                        "xprop", "-name", self.win_name,
+                        "-f", "_MOTIF_WM_HINTS", "32c",
+                        "-set", "_MOTIF_WM_HINTS", "0x2, 0x0, 0x0, 0x0, 0x0"
+                    ])
+                    # Hide cursor (non-blocking)
+                    subprocess.Popen(["unclutter", "-grab", "-idle", "0"])
+            else:
+                cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL)
+                self.screen_size = (int(screen_width / 2), int(screen_height / 2))
+            cv2.resizeWindow(self.win_name, self.screen_size[0], self.screen_size[1])
         self.initialize_character(save=True)
+
+    def stop_face(self):
+        if IMAGE_OPTION == "pygame":
+            pygame.quit()
+        elif IMAGE_OPTION == "cv":
+            cv2.destroyAllWindows()
 
     def set_activity(self, activity_name):
         self.activity = activity_name
@@ -145,7 +177,8 @@ class Face():
             pygame.display.flip()
         elif IMAGE_OPTION == "cv":
             image_ = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)
-            cv2.imshow("Image Viewer", image_)
+            cv2.imshow(self.win_name, image_)
+            cv2.waitKey(1)
 
     def get_sequence_length(self, sequence):
         max_length = 0
@@ -210,21 +243,45 @@ class Face():
 
     def display_text(self, text=None):    
         if text:
-            # Create a blank image with white background
-            font = pygame.font.Font(None, 36)  # Default font with size 36
-            text_surface = font.render(text, True, (0, 0, 0))  # Black text
-            text_width, text_height = text_surface.get_size()
-            image_width, image_height = self.screen_size
-            background = pygame.Surface((image_width, image_height))
-            background.fill((255, 255, 255))  # White background
+            if IMAGE_OPTION == "pygame":
+                # Create a blank image with white background
+                font = pygame.font.Font(None, 36)  # Default font with size 36
+                text_surface = font.render(text, True, (0, 0, 0))  # Black text
+                text_width, text_height = text_surface.get_size()
+                image_width, image_height = self.screen_size
+                background = pygame.Surface((image_width, image_height))
+                background.fill((255, 255, 255))  # White background
 
-            # Center the text on the screen
-            text_x = (image_width - text_width) // 2
-            text_y = (image_height - text_height) // 2
-            background.blit(text_surface, (text_x, text_y))
+                # Center the text on the screen
+                text_x = (image_width - text_width) // 2
+                text_y = (image_height - text_height) // 2
+                background.blit(text_surface, (text_x, text_y))
 
-            self.show_face = False
-            self.display_face(background)            
+                self.show_face = False
+                self.display_face(background)
+            elif IMAGE_OPTION == "cv":
+                # Create a blank image with white background
+                image_width, image_height = self.screen_size
+                background = np.ones((image_height, image_width, 3), dtype=np.uint8) * 255  # White background
+
+                # Set font and scale
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 1.5
+                font_thickness = 2
+
+                # Get text size
+                (text_width, text_height), _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+
+                # Center the text on the screen
+                text_x = (image_width - text_width) // 2
+                text_y = (image_height + text_height) // 2
+
+                # Put the text on the image
+                cv2.putText(background, text, (text_x, text_y), font, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
+
+                self.show_face = False
+                self.display_face(background)
+
         else:
             self.show_face = True
 
@@ -238,14 +295,28 @@ class Face():
                 filename = image_folder_path + filename.split('/')[-1]
             print("FACE DEBUG: ", filename)
             if os.path.exists(filename):
-                print("FACE DEBUG FOUDN: ", filename)
+                print("FACE DEBUG FOUND: ", filename)
                 pil_image = Image.open(filename)
-                mode = pil_image.mode
-                size = pil_image.size
-                data = pil_image.tobytes()
+                if IMAGE_OPTION == "cv":
+                    # Convert PIL image to an OpenCV BGR numpy array, handling transparency by compositing onto white
+                    if pil_image.mode in ("RGBA", "LA") or (pil_image.mode == "P" and pil_image.info.get("transparency") is not None):
+                        rgba = pil_image.convert("RGBA")
+                        alpha = rgba.split()[-1]
+                        background = Image.new("RGB", rgba.size, (255, 255, 255))
+                        background.paste(rgba, mask=alpha)
+                        image = np.array(background)
+                    else:
+                        image = np.array(pil_image.convert("RGB"))
 
-                # Create a Pygame Surface from the PIL image data
-                image = pygame.image.fromstring(data, size, mode)
+                    # Convert RGB (PIL) to BGR (OpenCV)
+                    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                elif IMAGE_OPTION == "pygame":
+                    mode = pil_image.mode
+                    size = pil_image.size
+                    data = pil_image.tobytes()
+
+                    # Create a Pygame Surface from the PIL image data
+                    image = pygame.image.fromstring(data, size, mode)
                 self.show_face = False
                 self.display_face(image)
         else:
@@ -291,7 +362,7 @@ class Face():
             
 if __name__ == "__main__":
     face = Face()
-    # face.initialize_character()
+    face.initialize_character()
     # # face.generate_face(parts_selected=basic_sequences["blink"])
     # face.generate_face(parts_selected=basic_sequences["look_right"])
     # face.generate_face(parts_selected=basic_sequences["idle"])
@@ -299,5 +370,9 @@ if __name__ == "__main__":
     # face.generate_face(parts_selected=basic_sequences["smile"])
     # face.run_sequence()
 
-    c = face.combine_seuqences(sequences=[[0.1, basic_sequences["talk"]], [0.5, basic_sequences["look_left"]]])
-    print(c)
+    # c = face.combine_seuqences(sequences=[[0.1, basic_sequences["talk"]], [0.5, basic_sequences["look_left"]]])
+    # print(c)
+    face.set_activity(activity_name="Demo")
+    face.display_image_file(filename="../Assets/Demo/face/cobot.jpg")
+    face.display_text(text="Hello, I am Gigi!")
+    cv2.waitKey(2000)

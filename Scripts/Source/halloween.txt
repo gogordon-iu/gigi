@@ -2,13 +2,19 @@ Halloween Activity Script
 [name] Halloween
 [Character] female
 [Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
-[Speak] I will hide here quietly and scare people [move] arms_down
-[show] image: hide
+[Speak] Happy Halloween [move] look_from_side_to_side
 [find] what: motion [timeout] 60
-[edge] no [speak] hiding [goto] -1
-[edge] yes [audio] scream [show] image: scary [move] arms_up
-[Speak] Trick or treat [face] smile
-[Speak] Do you want me to do that again?
-[hear] words: yes, no
-[edge] yes [Speak] Okay [goto] -8
-[edge] no [Speak] That was fun. Happy Halloween
+[edge] no [speak] Hello [goto] -3
+[edge] yes [audio] scream [show] image: scary [move] scare
+[Speak] Hope I did not scare you too much
+[audio] laugh
+[Speak] I’m Gigi the robot! [move] wave_hello
+[Speak] You are welcome to take a treat [face] look_down [move] arms_down [pause] 10
+[Speak] Have a great Halloween 
+[Speak] Bye Bye [move] wave_hello [face] smile [pause] 30
+[find] what: motion [timeout] 60
+[edge] no [speak] Hello [goto] -3
+[edge] yes [audio] scream [show] image: scary [move] scare [goto] -8
+[Speak] Bye Bye
+
+fuzzy.lookat_calibration = None  # disable lookat calibration for script runs

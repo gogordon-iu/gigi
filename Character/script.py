@@ -15,7 +15,7 @@ sys.path.append('../Scripts')
 # 'speak': 'text': text
 # 'audio': 'audio': filename -- play a filename.wav
 # 'move': 'motors': 'name of sequence' / {'motor1': angle1, 'motor2': angle2}
-# 'show': 'text'/'image'/'video': filename -- shows filename on the screen
+# 'show': 'caption'/'image'/'video': filename -- shows filename on the screen
 # 'face': 'face': 'name of sequence'
 
 class Script:
@@ -69,14 +69,16 @@ class Script:
                 next_node = self.data['types'][current_data['type'][0]](current_node=current_node, current_data=current_data, data_=self.data)
             # First check if is sensory in nature, since they are unique
             elif "hear" in current_data['type']:
-                print("Hear, listening for one of the following: ", current_data["words"])
-                if not IS_ROBOT:
-                    break
                 if self.character:
                     # DEBUG
                     # self.character.lookat_face()
                     if self.character.hearing:
-                        self.character.hearing.words = current_data["words"]
+                        if "words" in current_data:
+                            print("Hear, listening for one of the following: ", current_data["words"])
+                            self.character.hearing.words = current_data["words"]
+                        elif "silence" in current_data:
+                            print("Hear, listening for silence...")
+                            self.character.hearing.words = None
                         if 'timeout' in current_data:
                             timeout = current_data['timeout']
                         else:
@@ -87,10 +89,14 @@ class Script:
                         else:
                             output = self.character.hearing.texts[-1]
                         print("hear output: ", output)
-                        for u, v, data in edges:
-                            if data['label'] == output:
-                                next_node = v
-                                break
+                    else:
+                        output = current_data["words"][0]
+                        print("Simulated hear output: ", output)
+                    next_node = list(edges)[0][1]   # default is to go to the next node (edge)                    
+                    for u, v, data in edges:        # only change if there is a matching edge
+                        if data['label'] == output:
+                            next_node = v
+                            break
             elif "find" in current_data['type']:
                 print("Looking for %s..." % current_data['what'])
                 if self.character:

@@ -25,7 +25,7 @@ class Vision:
         self.motion_detection_stage = "inactive" # inactive | acquire_background | active
         self.motion_detection_calibration = 0
         self.motion_detection_duration = 10
-        self.save_motion_frames = False
+        self.save_motion_frames = True
 
    
     def open_camera(self, port):
@@ -64,7 +64,7 @@ class Vision:
         # parameters
         blur_k = 21
         alpha = 0.02
-        thr = 25
+        thr = 120
         min_area = 1000
 
         # resize to reasonable width for speed (maintain aspect ratio)
@@ -130,16 +130,22 @@ class Vision:
                 x, y, w, h = cv2.boundingRect(cnt)
                 if self.save_motion_frames:
                     cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 180, 255), 2)
-                self.found['motion'][i] = {
+                motion_boxes.append({
                             "box": (x, y, w, h),
                             "center": ((x + w // 2), (y + h // 2)),
                             "offset": (((width // 2) - (x + w // 2)) / width, ((height // 2) - (y + h // 2)) / height)
-                            }
-            if self.save_motion_frames:
+                            })
+            if self.save_motion_frames and len(motion_boxes) > 0:
                 text = f"Motion boxes: {len(motion_boxes)} Stage {self.motion_detection_stage}"
                 cv2.putText(frame, text, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
                 filename = datetime.now().strftime("motion_%Y-%m-%d_%H-%M-%S.jpg")
                 cv2.imwrite(filename, frame)
+
+            if len(motion_boxes) > 0:
+                self.motion_detection_stage = "inactive"    # reset the motion detection
+
+            for i, m in enumerate(motion_boxes):
+                self.found['motion'][i] = m
 
     def look_for(self, what=None):
         print(f"Looking for {what} ...")

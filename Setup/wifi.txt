@@ -46,6 +46,7 @@ git clone ~/repos/gigi.git
 cd gigi
 chmod +x activate_environment.sh
 
+
 Then you can work on ~/Code/gigi with VSCode SSH.
 When you push to the bare repo, update your working copy manually or automate it with a hook:
 
@@ -55,6 +56,8 @@ nano post-receive
 Paste:
 #!/bin/bash
 GIT_WORK_TREE=/home/orangepi/Code/gigi git checkout -f
+cp /home/orangepi/Code/gigi/Character/motorData_calibrated_local.json /home/orangepi/Code/gigi/Character/motorData_calibrated.json
+
 
 Make it executable:
 chmod +x post-receive
