@@ -318,6 +318,7 @@ class Vision:
 
 if __name__ == "__main__":
     vision = Vision(camera_source=None)
+    vision.is_robot = False
     vision.set_processing_flags({'face_detection': 5.0, 'face_recognition': 5.0, 'emotion': 5.0, 'gesture': 5.0})
     vision.run_vision()
     found = vision.look_for(what={"name": "Stephanie"}, timeout=60)

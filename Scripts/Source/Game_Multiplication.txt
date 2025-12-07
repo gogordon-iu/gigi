@@ -1,0 +1,54 @@
+Game Multiplication Activity Script 
+[name] Game Multiplication
+[Character] female
+[Speak] Let us start with an easy one [move] home
+[generate] level: easy
+[Speak] % text [show] caption: % exercise
+[hear] conversation: % check_prompt
+[edge] NO [Speak] Nice try, Hadar. Let us try again. [goto] -2
+[edge] YES [speak] That was great.
+[Speak] % text_answer [show] caption: % exercise_answer
+[Speak] Now another one.
+[generate] level: medium
+[Speak] % text [show] caption: % exercise
+[hear] conversation: % check_prompt
+[edge] NO [Speak] Nice try, Hadar. Let us try again. [goto] -2
+[edge] YES [speak] That was great.
+[Speak] % text_answer [show] caption: % exercise_answer
+[Speak] Now another one.
+[generate] level: hard
+[Speak] % text [show] caption: % exercise
+[hear] conversation: % check_prompt
+[edge] NO [Speak] Nice try, Hadar. Let us try again. [goto] -2
+[edge] YES [speak] That was great.
+[Speak] % text_answer [show] caption: % exercise_answer
+[Speak] That is it for today.
+
+/*
+    def generate(self, current_node, current_data, data_):
+        from random import choice
+        edges = self.graph.out_edges(current_node, data=True)
+        next_node = list(edges)[0][1]
+
+        numbers = [1,2,3,4,5,6,7,8,9]
+        if 'level' in current_data:
+            if 'easy' in current_data['level']:
+                numbers = [1, 2, 3]
+            elif 'medium' in current_data['level']:
+                numbers = [2,3,4,5,6]
+            else:
+                numbers = [2,3,4,5,6,7,8,9]
+
+        first_number = choice(numbers)
+        second_number = choice(numbers)
+        answer = first_number * second_number
+
+        self.data['types']['text'] = f"How much is {first_number} times {second_number}?"
+        self.data['types']['exercise'] = f"{first_number} x {second_number} = ?"
+        self.data['types']['answer'] = f"[{answer}]"
+        self.data['types']['the_answer'] = f"{answer}"
+        self.data['types']['text_answer'] = f"{first_number} times {second_number} is equal to {answer}"
+        self.data['types']['exercise_answer'] = f"{first_number} x {second_number} = {answer}"
+        self.data['types']['check_prompt'] = f"You asked the user what is the answer to the math question whose correct answer is {answer}. The user said RESPONSE. Is the user correct? Answer only in YES or NO."
+        return next_node
+*/

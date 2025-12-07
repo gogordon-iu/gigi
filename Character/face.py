@@ -24,6 +24,8 @@ class Face():
         print("Initiliazing face ...")
         self.character = characters[character]
         self.show_face = True
+        self.guidance = None
+        self.guidance_images = {}
         self.set_activity(activity_name=activity)
         
         # init screen options
@@ -89,6 +91,19 @@ class Face():
         if not os.path.exists(self.activity_face_path):
             os.makedirs(self.activity_face_path)
 
+        # check if there are guidance images for this activity
+        guidance_path = self.activity_face_path + "guidance/"
+        if os.path.exists(guidance_path):
+            for file in os.listdir(guidance_path):
+                if file.endswith(('.png', '.jpg', '.jpeg')):
+                    guidance_name = file.split('.')[0]
+                    img = Image.open(guidance_path + file)
+                    if IMAGE_OPTION == "cv":
+                        img_array = np.array(img.convert("RGB"))
+                        img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+                    elif IMAGE_OPTION == "pygame":
+                        img_array = pygame.image.fromstring(img.tobytes(), img.size, img.mode)
+                    self.guidance_images[guidance_name] = img_array
 
     def initialize_character(self, save=False):
         self.characterfolder_path = image_folder_path + self.character["name"] + "/"
@@ -197,6 +212,16 @@ class Face():
                     if i < len(part_data[1]):
                         face[part] = (part_data[0], part_data[1][i])
                 face_image = self.set_face(face)
+                
+                if self.guidance in self.guidance_images:
+                    guidance_img = self.guidance_images[self.guidance]
+                    h, w = face_image.shape[:2]
+                    guidance_h, guidance_w = guidance_img.shape[:2]
+                    scale_w = int(w * 0.2)
+                    scale_h = int(guidance_h * scale_w / guidance_w)
+                    guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
+                    face_image[h - scale_h:h, 0:scale_w] = guidance_resized
+                    
                 self.display_face(face_image)
 
                 current_time = time.time() - start_time
@@ -360,6 +385,31 @@ class Face():
         else:
             self.show_face = True
             
+
+    def add_guidance(self, guidance=None):
+        if guidance and os.path.exists(guidance):
+            guidance_img = Image.open(guidance)
+            pil_image = Image.open(guidance)
+            
+            if IMAGE_OPTION == "cv":
+                if pil_image.mode in ("RGBA", "LA") or (pil_image.mode == "P" and pil_image.info.get("transparency") is not None):
+                    rgba = pil_image.convert("RGBA")
+                    alpha = rgba.split()[-1]
+                    background = Image.new("RGB", rgba.size, (255, 255, 255))
+                    background.paste(rgba, mask=alpha)
+                    guidance_array = np.array(background)
+                else:
+                    guidance_array = np.array(pil_image.convert("RGB"))
+                guidance_array = cv2.cvtColor(guidance_array, cv2.COLOR_RGB2BGR)
+            elif IMAGE_OPTION == "pygame":
+                guidance_array = pygame.image.fromstring(pil_image.tobytes(), pil_image.size, pil_image.mode)
+            
+            self.show_face = False
+            self.guidance_image = guidance_array
+            self.guidance_enabled = True
+        else:
+            self.guidance_enabled = False
+
 if __name__ == "__main__":
     face = Face()
     face.initialize_character()

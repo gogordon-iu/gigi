@@ -1,0 +1,12 @@
+Testing Activity Script 
+[name] Testing
+[Character] female
+[Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
+[Speak] We are going to have so much fun today.
+[audio] laugh
+
+[find] what: face [timeout] 4
+[edge] no [speak] What languages do you speak?
+[edge] yes [speak] What languages do you speak? 
+[face] guidance: speak [pause] 3
+[Speak] Bye!
