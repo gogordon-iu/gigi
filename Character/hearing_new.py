@@ -38,7 +38,8 @@ class Hearing():
             self.recognizer = sr.Recognizer()
         elif HEARING_OPTION == "whisper":
             # Optimized Faster Whisper model
-            self.model = WhisperModel("tiny", device="cpu", compute_type="int8", num_workers=1)
+            # [OPTIMIZATION] Use 'tiny.en' which is more accurate for English and just as fast
+            self.model = WhisperModel("tiny.en", device="cpu", compute_type="int8", num_workers=1)
             # Audio processor for optimized handling with resampling support
             self.audio_processor = WhisperAudioProcessor(
                 native_sample_rate=INPUT_SAMPLE_RATE,  # Your mic's native rate (48000)

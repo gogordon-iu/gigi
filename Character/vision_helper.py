@@ -152,7 +152,14 @@ def face_recognition_worker(face_queue, result_queue, stop_event, face_db):
                     
                 small_face = cv2.resize(face_crop, (0, 0), fx=0.5, fy=0.5)
                 face_crop_rgb = cv2.cvtColor(small_face, cv2.COLOR_BGR2RGB)
-                face_encodings = face_recognition.face_encodings(face_crop_rgb)
+                
+                # [OPTIMIZATION] Skip redundant face detection
+                # We already cropped the face, so we tell face_recognition the face covers the whole image
+                h, w = face_crop_rgb.shape[:2]
+                # format is (top, right, bottom, left)
+                known_face_locs = [(0, w, h, 0)]
+                
+                face_encodings = face_recognition.face_encodings(face_crop_rgb, known_face_locations=known_face_locs)
                 
                 if face_encodings:
                     encoding = face_encodings[0]

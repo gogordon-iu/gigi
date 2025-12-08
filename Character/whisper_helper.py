@@ -131,6 +131,12 @@ def resample_audio(audio_data, orig_sr, target_sr):
     if orig_sr == target_sr:
         return audio_data
     
+    # [OPTIMIZATION] Fast path for integer downsampling (e.g. 48k -> 16k)
+    # This avoids heavy FFT/filtering operations when a simple decimation is sufficient for speech
+    if orig_sr > target_sr and orig_sr % target_sr == 0:
+        step = orig_sr // target_sr
+        return audio_data[::step]
+        
     # Calculate number of samples in resampled audio
     num_samples = int(len(audio_data) * target_sr / orig_sr)
     
