@@ -73,6 +73,10 @@ class Script:
                     # DEBUG
                     # self.character.lookat_face()
                     if self.character.hearing:
+                        if 'face' in current_data:
+                            if 'guidance' in current_data['face']:
+                                self.character.face.guidance = current_data['face']['guidance']                
+
                         if "words" in current_data:                            
                             print("Hear, listening for one of the following: ", current_data["words"])
                             self.character.hearing.words = current_data["words"]
@@ -126,8 +130,9 @@ class Script:
                     timeout = -1
                     if 'timeout' in current_data:
                         timeout = current_data['timeout']
-                    if 'guidance' in current_data:
-                        self.character.face.guidance = current_data['guidance']                      
+                    if 'face' in current_data:
+                        if 'guidance' in current_data['face']:
+                            self.character.face.guidance = current_data['face']['guidance']                      
                     found_something = self.character.lookat_something(what=what, 
                                                                       timeout=timeout)
                     self.character.face.guidance = None

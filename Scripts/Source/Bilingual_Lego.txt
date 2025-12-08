@@ -39,21 +39,21 @@
 [Speak] Can you see? You have a bin with LEGO blocks and LEGO figures on the table. [move] arms_down [face] look_down
 [Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it. # Elijan una figura LEGO y decórenla. # [face] guidance: listen
 [Speak] Show your figure to your friends. When you are done, raise the black and white card you have in front of you. # Muestra tu figura a tus amigos. Cuando termines, levanta la tarjeta con la carita sonriente que tienes frente a ti. # [face] idle
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20 [face] guidance: show
 [edge] no [speak] I see you are having fun. Let me know when you are done by raising the card. [goto] -1
 [edge] yes [speak] Great!
-[Speak] Did you pick a boy or a girl? # ¿Escogiste a un niño o una niña? # [pause] 1
-[Speak] What kind of hair do they have? Curly? Straight? Short? Long? # ¿Qué tipo de cabello tiene? ¿Rizado? ¿Lacio? # [pause] 1 
-[Speak] What color is their shirt? # ¿De qué color es su camiseta?# [pause] 1
-[Speak] Look, I picked a girl with brown hair and a blue shirt. [show] image: blue_figure
+[Speak] Did you pick a boy or a girl? # ¿Escogiste a un niño o una niña? # [pause] 1 [face] guidance: speak
+[Speak] What kind of hair do they have? Curly? Straight? Short? Long? # ¿Qué tipo de cabello tiene? ¿Rizado? ¿Lacio? # [pause] 1 [face] guidance: speak
+[Speak] What color is their shirt? # ¿De qué color es su camiseta?# [pause] 1 [face] guidance: speak
+[Speak] Look, I picked a girl with brown hair and a blue shirt. [show] image: blue_figure [face] guidance: listen
 [Speak] Blue is my favorite color. #Mira, tiene cabello castaño y una camiseta azul. # 
-[Speak] Show your friends your figure and tell them what you picked.  [move] look_from_side_to_side [pause] 10
-[Speak] Does your figure have a name? Share it with your friends! ¿Tu figura tiene nombre? ¡Compártelo con tus amigos!. [move] look_from_side_to_side [pause] after: 10
+[Speak] Show your friends your figure and tell them what you picked.  [move] look_from_side_to_side [pause] 10 [face] guidance: speak
+[Speak] Does your figure have a name? Share it with your friends! ¿Tu figura tiene nombre? ¡Compártelo con tus amigos!. [move] look_from_side_to_side [pause] after: 10 [face] guidance: speak
 
 [Speak] Now, we’re ready to start! # ¡Vamos a empezar!#
 [Speak] Today we’re going to build a Ferris wheel. # Hoy vamos a construir una rueda de la fortuna.# [move] arms_up
 [Speak] Do you know what a Ferris wheel is? #¿Saben qué es?#
-[hear] words: yes, no
+[hear] words: yes, no [face] guidance: speak
 [edge] yes [speak] Ferris wheels are so much fun! I love going on them and spinning round and round. Or in Spanish, #gira#, round and round. [move] arms_circle
 [edge] no [speak] Who can tell us? What is a Ferris wheel? ¿Quién puede decirnos?¿Qué es una rueda de la fortuna?
 [edge] timeout [speak] Ferris wheels are so much fun! I love going on them and spinning round and round. Or in Spanish, #gira#, round and round. [move] arms_circle
@@ -67,13 +67,13 @@
 [find] what: face [timeout] 3
 [edge] no [speak] What about you?
 [edge] yes [speak] What about you?
-[Speak] How do you say “Ferris wheel” at home or in your family’s language? #¿Y ustedes? ¿Cómo lo dicen en su casa o en su idioma?# [pause] after: 5  
+[Speak] How do you say “Ferris wheel” at home or in your family’s language? #¿Y ustedes? ¿Cómo lo dicen en su casa o en su idioma?# [pause] after: 5  [face] guidance: speak
 [Speak] Wow, so many ways to say it! Isn’t it cool that we can learn from each other? #¡Qué bonito aprender diferentes palabras entre todos!# [move] arms_up
 
 [find] what: face [timeout] 3
 [edge] no [speak] Have you ever been on a Ferris wheel?
 [edge] yes [speak] Have you ever been on a Ferris wheel?
-[Speak] Tell your friends. ¿Alguna vez has subido a una rueda de la fortuna? Cuéntenle a sus amigos.# [pause] after: 10
+[Speak] Tell your friends. ¿Alguna vez has subido a una rueda de la fortuna? Cuéntenle a sus amigos.# [pause] after: 10 [face] guidance: speak
 [Speak] Today we’ll build a big Ferris wheel together for our LEGO friends!  # ¡Hoy construiremos una gran rueda de la fortuna para nuestros amigos LEGO juntos! # [move] home
 [speak] We can build together! Everyone will have an important role! [pause] 1
 
