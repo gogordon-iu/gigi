@@ -90,7 +90,7 @@ class Conversation:
                         "num_predict": 100
                     }
                 },
-                timeout=30
+                timeout=60
             )
             
             if response.status_code == 200:

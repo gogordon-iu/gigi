@@ -10,7 +10,7 @@ class FaceRegistrationDemo:
     def __init__(self, pause_vision_during_stt=True):
         # Initialize components
         self.vision = Vision(None, auto_start=False)
-        self.vision.is_robot = False
+        self.vision.is_robot = True  # Set to True to prevent blocking
         self.vision.set_processing_flags({
             'face_detection': 8.0,
             'face_recognition': 8.0,
@@ -37,7 +37,12 @@ class FaceRegistrationDemo:
         self.unknown_threshold = 5.0  # seconds to confirm it's a new face
         self.pause_vision_during_stt = pause_vision_during_stt  # Performance optimization
         
-        # Display control - NOT NEEDED, Vision class handles it
+        # Store captured face data
+        self.captured_face_crop = None
+        self.captured_face_encoding = None
+        self.registering_face_id = None
+        
+        # Display control
         self.demo_running = True
     
     def extract_name_from_speech(self, text):
@@ -107,7 +112,7 @@ class FaceRegistrationDemo:
                 'emotion': 0,
                 'gesture': 0
             })
-            # Smal):l delay to ensure processing stops
+            # Small delay to ensure processing stops
             time.sleep(0.2)
     
     def resume_vision_processing(self):
@@ -122,18 +127,77 @@ class FaceRegistrationDemo:
             })
             # Small delay to let processing restart
             time.sleep(0.2)
-
+    
+    def capture_face_crop(self, face_id):
+        """Capture face crop and encoding when unknown face is detected."""
+        print(f"\n=== Capturing face crop for face ID {face_id} ===")
+        
+        import cv2
+        import face_recognition
+        
+        try:
+            # Get current frame with the face
+            frame = self.vision.get_latest_frame()
+            if frame is None:
+                print("✗ No frame available")
+                return None
+            
+            # Get face data from cache
+            face_data = self.vision.face_cache.get_face_data(face_id)
+            
+            if not face_data or 'box' not in face_data:
+                print(f"✗ Face data not found in cache for ID: {face_id}")
+                return None
+            
+            # Extract face crop using the bounding box
+            x_min, y_min, x_max, y_max = face_data['box']
+            face_crop = frame[y_min:y_max, x_min:x_max]
+            
+            if face_crop.size == 0:
+                print("✗ Invalid face crop")
+                return None
+            
+            print(f"✓ Face crop captured: {face_crop.shape}")
+            
+            # Resize and convert for face_recognition
+            small_face = cv2.resize(face_crop, (0, 0), fx=0.5, fy=0.5)
+            face_crop_rgb = cv2.cvtColor(small_face, cv2.COLOR_BGR2RGB)
+            
+            # Extract face encoding
+            print("Extracting face encoding...")
+            face_encodings = face_recognition.face_encodings(face_crop_rgb)
+            
+            if not face_encodings:
+                print("✗ Could not extract face encoding")
+                return None
+            
+            print(f"✓ Face encoding extracted: {len(face_encodings[0])} dimensions")
+            
+            # Return both the crop and encoding
+            return {
+                'crop': face_crop,
+                'encoding': face_encodings[0],
+                'box': face_data['box']
+            }
+            
+        except Exception as e:
+            print(f"✗ Error capturing face crop: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
     def wait_for_unknown_face(self):
-        """Wait until we detect an unknown face for X seconds and capture the best crop during confirmation."""
+        """Wait until we detect an unknown face for X seconds and capture the face crop.
+        
+        Handles multiple unknown faces by tracking each separately and registering
+        the first one that reaches the confirmation threshold.
+        """
         print("\n=== Waiting for unknown face ===")
         print("Looking at camera to detect faces...")
         
-        unknown_start_time = None
-        unknown_face_id = None
+        # Track multiple unknown faces separately
+        unknown_faces_timers = {}  # {face_id: start_time}
         last_status = None
-        best_face_crop = None
-        best_face_box = None
-        best_crop_size = 0
         
         while self.demo_running:
             # Get data directly from face cache for more accurate info
@@ -146,88 +210,83 @@ class FaceRegistrationDemo:
                 print(f"\n{current_status}")
                 last_status = current_status
             
+            # Get current unknown face IDs
+            current_unknown_ids = set()
+            
             if all_faces:
                 for face_id, face_info in all_faces.items():
                     name = face_info.get('name', 'Unknown')
-                    print(f"  Face {face_id}: name='{name}', recognition_attempted={face_info.get('recognition_attempted', False)}", end='\r')
                     
-                    # Check if face is Unknown OR matches face_xxxx pattern
+                    # Check if face is Unknown OR matches face_xxxx pattern OR still being recognized
                     # A face is "unknown" if:
                     # 1. Name is explicitly "Unknown", OR
                     # 2. Name matches pattern "face_xxxx" (where xxxx is any 4-digit number), OR
                     # 3. Recognition was attempted and name is still "Recognizing..."
                     is_face_pattern = re.match(r'^face_\d{4}$', name) is not None
-                    is_unknown = (name == 'Unknown' or
-                                is_face_pattern or
-                                (name == 'Recognizing...' and face_info.get('recognition_attempted', False)))
+                    is_unknown = (name == 'Unknown' or 
+                                 is_face_pattern or
+                                 (name == 'Recognizing...' and face_info.get('recognition_attempted', False)))
                     
                     if is_unknown:
-                        if unknown_start_time is None:
-                            unknown_start_time = time.time()
-                            unknown_face_id = face_id
-                            print(f"\n\nUnknown face detected (ID: {face_id}, name: '{name}'), confirming...")
+                        current_unknown_ids.add(face_id)
                         
-                        elapsed = time.time() - unknown_start_time
+                        # Start timer for this face if not already tracking
+                        if face_id not in unknown_faces_timers:
+                            unknown_faces_timers[face_id] = time.time()
+                            print(f"\n\nUnknown face detected (ID: {face_id}, name: '{name}'), starting timer...")
                         
-                        # CAPTURE FACE CROPS CONTINUOUSLY DURING CONFIRMATION
-                        # Keep the best (largest) crop
-                        import cv2
-                        try:
-                            frame = self.vision.get_latest_frame()
-                            if frame is not None:
-                                face_data = self.vision.face_cache.get_face_data(face_id)
-                                if face_data and 'box' in face_data:
-                                    x_min, y_min, x_max, y_max = face_data['box']
-                                    face_crop = frame[y_min:y_max, x_min:x_max]
-                                    
-                                    if face_crop.size > 0:
-                                        # Calculate crop quality (based on size)
-                                        crop_area = face_crop.shape[0] * face_crop.shape[1]
-                                        
-                                        # Keep the largest crop (usually means face is closer/clearer)
-                                        if crop_area > best_crop_size:
-                                            best_face_crop = face_crop.copy()
-                                            best_face_box = (x_min, y_min, x_max, y_max)
-                                            best_crop_size = crop_area
-                                            print(f"\n📸 Captured better crop: {face_crop.shape} (area: {crop_area})", end='')
-                        except Exception as e:
-                            pass  # Continue even if crop fails
+                        # Check if this face has been confirmed long enough
+                        elapsed = time.time() - unknown_faces_timers[face_id]
                         
-                        print(f"\n  Confirming unknown face... {elapsed:.1f}s / {self.unknown_threshold}s", end='\r')
-                        
-                        if elapsed >= self.unknown_threshold:
-                            print(f"\n✓ Confirmed unknown face after {elapsed:.1f} seconds")
-                            
-                            # Store the best captured crop
-                            if best_face_crop is not None:
-                                self.captured_face_crop = best_face_crop
-                                self.captured_face_box = best_face_box
-                                print(f"✓ Best face crop stored: {best_face_crop.shape} (area: {best_crop_size})")
-                                return unknown_face_id
+                        # Show progress for all tracked faces
+                        if len(unknown_faces_timers) > 1:
+                            print(f"  Face {face_id}: {elapsed:.1f}s / {self.unknown_threshold}s", end='')
+                            if face_id != list(all_faces.keys())[-1]:
+                                print(" | ", end='')
                             else:
-                                print("✗ No valid face crop captured during confirmation, resetting...")
-                                unknown_start_time = None
-                                unknown_face_id = None
-                                best_crop_size = 0
-                                continue
+                                print("\r", end='')
+                        else:
+                            print(f"  Confirming unknown face {face_id}... {elapsed:.1f}s / {self.unknown_threshold}s", end='\r')
+                        
+                        # If this face reaches threshold, register it
+                        if elapsed >= self.unknown_threshold:
+                            print(f"\n✓ Confirmed unknown face {face_id} after {elapsed:.1f} seconds")
+                            
+                            if len(unknown_faces_timers) > 1:
+                                print(f"  Note: {len(unknown_faces_timers)} unknown faces detected, registering face {face_id} first")
+                            
+                            # Set this as the face being registered (for green box)
+                            self.registering_face_id = face_id
+                            
+                            # Capture face crop NOW while we have the detection
+                            face_crop_data = self.capture_face_crop(face_id)
+                            if face_crop_data:
+                                # Store for later use
+                                self.captured_face_crop = face_crop_data['crop']
+                                self.captured_face_encoding = face_crop_data['encoding']
+                                print("✓ Face crop and encoding stored for registration")
+                                return face_id
+                            else:
+                                print("✗ Failed to capture face crop, restarting timer for this face...")
+                                # Restart timer for this specific face
+                                unknown_faces_timers[face_id] = time.time()
+                                # Clear registering_face_id since capture failed
+                                self.registering_face_id = None
                     else:
-                        # Known face detected
-                        if unknown_start_time is not None:
-                            print(f"\n\nFace recognized as '{name}', resetting...")
-                        unknown_start_time = None
-                        unknown_face_id = None
-                        best_face_crop = None
-                        best_face_box = None
-                        best_crop_size = 0
-            else:
-                # No face detected
-                if unknown_start_time is not None:
-                    print("\n\nNo face detected, resetting...")
-                unknown_start_time = None
-                unknown_face_id = None
-                best_face_crop = None
-                best_face_box = None
-                best_crop_size = 0
+                        # Known face - if we were tracking it, remove it
+                        if face_id in unknown_faces_timers:
+                            print(f"\n\nFace {face_id} recognized as '{name}', removing from unknown list")
+                            del unknown_faces_timers[face_id]
+            
+            # Clean up timers for faces that are no longer visible
+            faces_to_remove = []
+            for tracked_id in unknown_faces_timers.keys():
+                if tracked_id not in current_unknown_ids:
+                    faces_to_remove.append(tracked_id)
+            
+            for face_id in faces_to_remove:
+                print(f"\n\nFace {face_id} no longer visible, removing from tracking")
+                del unknown_faces_timers[face_id]
             
             time.sleep(0.2)
         
@@ -322,63 +381,32 @@ class FaceRegistrationDemo:
         return None  # Return None for timeout to distinguish from False
     
     def add_face_to_database(self, face_id, name):
-        """Add the face to the database."""
+        """Add the face to the database using the pre-captured encoding."""
         print(f"\n=== Adding {name} to database ===")
         
-        import cv2
-        import face_recognition
-        
         try:
-            # Get current frame with the face
-            frame = self.vision.get_latest_frame()
-            if frame is None:
-                print("✗ No frame available")
-                self.speech.run_speech(text="Sorry, I can't see you right now. Let's try again.")
+            # Use the pre-captured face encoding
+            if self.captured_face_encoding is None:
+                print("✗ No face encoding was captured earlier!")
+                self.speech.run_speech(text="Sorry, I lost your face data. Let's try again.")
                 return False
             
-            # Get face data from cache - face_id is an integer
-            face_data = self.vision.face_cache.get_face_data(face_id)
-            
-            if not face_data or 'box' not in face_data:
-                print(f"✗ Face data not found in cache for ID: {face_id}")
-                print(f"Available faces: {list(self.vision.face_cache.faces.keys())}")
-                self.speech.run_speech(text="Sorry, I lost track of your face. Let's try again.")
-                return False
-            
-            # Extract face crop using the bounding box
-            x_min, y_min, x_max, y_max = face_data['box']
-            face_crop = frame[y_min:y_max, x_min:x_max]
-            
-            if face_crop.size == 0:
-                print("✗ Invalid face crop")
-                self.speech.run_speech(text="Sorry, I couldn't capture your face properly. Let's try again.")
-                return False
-            
-            print(f"Face crop size: {face_crop.shape}")
-            
-            # Resize and convert for face_recognition
-            small_face = cv2.resize(face_crop, (0, 0), fx=0.5, fy=0.5)
-            face_crop_rgb = cv2.cvtColor(small_face, cv2.COLOR_BGR2RGB)
-            
-            # Extract face encoding
-            print("Extracting face encoding...")
-            face_encodings = face_recognition.face_encodings(face_crop_rgb)
-            
-            if not face_encodings:
-                print("✗ Could not extract face encoding")
-                self.speech.run_speech(text="Sorry, I couldn't process your face. Let's try again.")
-                return False
-            
-            print(f"Face encoding extracted: {len(face_encodings[0])} dimensions")
+            print(f"Using pre-captured face encoding: {len(self.captured_face_encoding)} dimensions")
             
             # Add to database
             print(f"Saving {name} to database...")
-            self.vision.face_db.save_face_to_db(name, face_encodings[0])
+            self.vision.face_db.save_face_to_db(name, self.captured_face_encoding)
             
             print(f"✓ Successfully added {name} to database!")
             print(f"Database now has {len(self.vision.face_db.known_names)} faces")
             
             self.speech.run_speech(text=f"Great! I'll remember you, {name}!")
+            
+            # Clear the captured data
+            self.captured_face_crop = None
+            self.captured_face_encoding = None
+            self.registering_face_id = None
+            
             return True
             
         except Exception as e:
@@ -443,14 +471,21 @@ class FaceRegistrationDemo:
     
     def run_demo(self):
         """Run the complete face registration demo."""
+        print("\n" + "="*50)
+        print("FACE REGISTRATION DEMO (with LLM)")
+        print("="*50)
+        print("\nTIPS:")
+        print("- Make sure your face is clearly visible to the camera")
+        print("- Stay still while being detected")
+        print("- The system needs to confirm you're unknown for 5 seconds")
+        print("- Use thumbs up/down gesture to confirm your name")
+        print("- Press 'q' in the camera window to quit")
+        print("="*50)
         
         try:
-            # Start vision system (non-blocking since is_robot=False will handle display)
+            # Start vision system
             print("\nStarting vision system...")
-            
-            # Start vision in a separate thread so we can continue
-            vision_thread = threading.Thread(target=self.vision.run_vision, daemon=True)
-            vision_thread.start()
+            self.vision.run_vision()
             
             print("✓ Vision system started")
             
@@ -466,12 +501,17 @@ class FaceRegistrationDemo:
             else:
                 print("\n⚠ No camera frame yet, but continuing...")
             
+            # Start the display loop manually in a separate thread
+            print("Starting display window...")
+            display_thread = threading.Thread(target=self.vision._display_loop, daemon=True)
+            display_thread.start()
+            
             time.sleep(1)  # Extra buffer time
             
             print("\n✓ System ready! Show your face to the camera...")
             print("(The camera window will display - press 'q' there to quit)\n")
             
-            # Step 1: Wait for unknown face
+            # Step 1: Wait for unknown face (captures encoding during confirmation)
             face_id = self.wait_for_unknown_face()
             
             if not self.demo_running or face_id is None:
@@ -488,7 +528,7 @@ class FaceRegistrationDemo:
                 self.speech.run_speech(text="Sorry, I'm having trouble. Let's try again later.")
                 return
             
-            # Step 6: Add to database
+            # Step 6: Add to database (uses pre-captured encoding)
             if self.demo_running:
                 success = self.add_face_to_database(face_id, name)
                 
