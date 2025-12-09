@@ -1,10 +1,15 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import ollama
 import requests
+import subprocess
+import time
 
 class Conversation:
     def __init__(self, system_prompt=None):
-        print("Initiazling conversation ...")
+        print("Initiazling conversation (starting ollame server)...")
+
+        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(10)
 
         model_name = "EleutherAI/gpt-neo-125M"  # Replace with a smaller model if needed
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)

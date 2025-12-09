@@ -249,9 +249,15 @@ class Speech():
 <prosody pitch="low"><prosody rate="{rate}"> {part}</prosody></prosody>
 </speak>
 """
-                    audio_part = self.models[part_lang].apply_tts(
-                        ssml_text=ssml, speaker=self.speakers[part_lang], 
-                        sample_rate=self.wav_sr)
+                    try:
+                        audio_part = self.models[part_lang].apply_tts(
+                            ssml_text=ssml, speaker=self.speakers[part_lang], 
+                            sample_rate=self.wav_sr)
+                    except: # This deals with the issue of computer vs robot TTS and USB speakers
+                        audio_part = self.models[part_lang].apply_tts(
+                            ssml_text=ssml, speaker=self.speakers[part_lang], 
+                            sample_rate=TTS_SAMPLE_RATE)
+
                     if num_parts == 0:
                         audio = audio_part
                     else:
@@ -260,6 +266,7 @@ class Speech():
                         # audio = torch.cat((audio.unsqueeze(0) if audio.dim() == 1 else audio, 
                         #                    audio_part.unsqueeze(0) if audio_part.dim() == 1 else audio_part), dim=1)
                     num_parts += 1
+                wav = audio.numpy()
 
         
         # Increase the pitch of the audio

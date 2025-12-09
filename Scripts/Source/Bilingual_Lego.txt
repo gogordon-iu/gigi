@@ -2,15 +2,31 @@
 [name] Bilingual Lego
 [Character] female
 [Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
+[Speak] We are going to have so much fun today.
+[audio] laugh
+
+[Speak] To have a great time together, I want to show you something.
+[Speak] You see on my face a drawing? [face] guidance: listen [pause] 1
+[Speak] This drawing means that I am speaking, so you should probably listen. [face] guidance: listen [pause] 1
+[Speak] If you see this drawing, I probably asked you something and one of you should speak. [face] guidance: speak [pause] 2
+[Speak] We are going to build with LEGO together. Fun! [move] arms_up
+[Speak] If you see this drawing, it is time for you to build together [move] home [face] guidance: build [pause] 1
+[Speak] Finally, you see the cards in front of each one of you, with a colored stick? [face] look_down [move] look_from_side_to_side
+[Speak] If you see this drawing, I am waiting for you to finish what you are doing and raise your card towards me so I can see it [face] guidance: show [pause] 2
+[Speak] I am so excited! [move] arms_up_and_down
+[audio] laugh [move] home
+
 [Speak] I love building with LEGO and playing with my friends. [move] open_arms [pause] 1
 [Speak] I also love learning new languages! 
 [find] what: face [timeout] 4
-[edge] no [speak] What languages do you speak? [pause] 2
-[edge] yes [speak] What languages do you speak? [pause] 2
-[Speak] Would you like to play with me? #¿Quieren jugar conmigo? # [pause] 2
+[edge] no [speak] What languages do you speak?
+[edge] yes [speak] What languages do you speak? 
+[face] guidance: speak [pause] 3
+[Speak] That is great. Would you like to play with me? #¿Quieren jugar conmigo? #
+[face] guidance: speak [pause] 2
 [Speak] #¡Excelente!#
 [Speak] How do you say hello in Spanish?
-[move] look_from_side_to_side [puase] 3
+[move] look_from_side_to_side [face] guidance: speak [puase] 3
 [speak] That’s right. #hola# Let’s all waive our hands and say it together:#hola# [move] wave_hello [pause] after: 3  
 [Speak] If you want to play, raise your hands! # ¡Si quieren jugar, levanten las manos! #[move] arms_up [pause] after: 2  
 
@@ -21,7 +37,7 @@
 [audio] laugh [pause] after: 2 
  
 [Speak] Can you see? You have a bin with LEGO blocks and LEGO figures on the table. [move] arms_down [face] look_down
-[Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it. # Elijan una figura LEGO y decórenla. #
+[Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it. # Elijan una figura LEGO y decórenla. # [face] guidance: listen
 [Speak] Show your figure to your friends. When you are done, raise the black and white card you have in front of you. # Muestra tu figura a tus amigos. Cuando termines, levanta la tarjeta con la carita sonriente que tienes frente a ti. # [face] idle
 [find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
 [edge] no [speak] I see you are having fun. Let me know when you are done by raising the card. [goto] -1
