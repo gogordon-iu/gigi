@@ -9,39 +9,39 @@ class Vision:
         self.camera_source = camera_source
         self.cap = None
         self.is_robot = True
-        
+
         self.face_db = vh.FaceDatabase()
         self.emotion_detector = vh.EmotionDetector()
         self.face_cache = vh.ImprovedFaceCache()
-        
+
         self.timestamped_data = {}
         self.last_data = {}
-        
+
         self.face_mesh = None
         self.hands = None
-        
+
         self.face_queue = Queue(maxsize=vh.MAX_QUEUE_SIZE)
         self.emotion_queue = Queue(maxsize=vh.MAX_QUEUE_SIZE)
         self.gesture_queue = Queue(maxsize=vh.MAX_QUEUE_SIZE)
         self.result_queue = Queue()
-        
+
         self.stop_event = threading.Event()
         self.capture_thread = None
         self.vision_thread = None
         self.running = False
-        
+
         self.processing_flags = {'face_detection': 5, 'face_recognition': 5, 'emotion': 5, 'gesture': 5}
-        self.gesture_names = {0: "Unknown", 1: "Thumbs Up", 2: "Thumbs Down", 5: "Rock/Fist", 6: "Open Hand", 7: "Pointing"}
+        self.gesture_names = {0: "Unknown", 1: "Thumbs Up", 2: "Thumbs Down"}
         self.hand_gesture = "Unknown"
-        
+
         self.active_workers = {'face_recognition': False, 'emotion': False, 'gesture': False}
         self.last_process_time = {'face_detection': 0, 'face_recognition': 0, 'emotion': 0, 'gesture': 0}
-        
+
         self.threads = []
         self.latest_frame = None
         self.raw_frame = None
         self.frame_lock = threading.Lock()
-        
+
         if auto_start:
             self.run_vision()
     
@@ -71,7 +71,25 @@ class Vision:
         finally:
             if self.cap:
                 self.cap.release()
-    
+    def _display_loop(self):
+        """Internal display loop that runs in a thread"""
+        print("Display loop started. Press 'q' to quit...")
+        while not self.stop_event.is_set():
+            frame = self.get_latest_frame()
+            if frame is not None:
+                cv2.imshow('Camera Feed', frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    self.stop_event.set()
+                    break
+            time.sleep(0.01)
+        cv2.destroyAllWindows()
+
+    def display_loop(self):
+        """Public method to run display loop in main thread (for backwards compatibility)"""
+        if self.is_robot:
+            print("Display disabled (is_robot=True)")
+            return
+        self._display_loop()
     def _vision_loop(self):
         while not self.stop_event.is_set():
             with self.frame_lock:
@@ -79,15 +97,15 @@ class Vision:
             
             if frame is not None:
                 processed_frame, _ = self._process_frame(frame)
-                if not self.is_robot:
-                    cv2.imshow('Camera Feed', frame)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        self.stop_event.set()
                 with self.frame_lock:
                     self.latest_frame = processed_frame
+            
             time.sleep(0.001)
-    
+                
     def run_vision(self):
+        """
+        Start the vision system.
+        """
         if not self.running:
             self.stop_event.clear()
             self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
@@ -95,6 +113,12 @@ class Vision:
             self.capture_thread.start()
             self.vision_thread.start()
             self.running = True
+    
+            if not self.is_robot:
+                time.sleep(0.5)  # Give camera time to initialize
+                self._display_loop()
+            else:
+                print("Vision running in background (is_robot=True)")
     
     def stop_vision(self):
         if self.running:
@@ -317,18 +341,36 @@ class Vision:
         cv2.destroyAllWindows()
 
 if __name__ == "__main__":
+    # vision = Vision(camera_source=None)
+    # vision.is_robot = False
+    # vision.set_processing_flags({'face_detection': 8.0, 'face_recognition': 8.0, 'emotion': 8.0, 'gesture': 2.0})
+    # vision.run_vision()
+    # #found = vision.look_for(what={"name": "Stephanie"}, timeout=60)
+    # #print(f'Found: {found}')
+
+    # # try:
+    # #     while not vision.stop_event.is_set():
+    # #         # found = vision.look_for(what={"name": "Someone"}, timeout=10)
+    # #         # print(f'Found: {found}')
+
+    # #         time.sleep(0.1)
+    # # finally:
+    # #     vision.stop_vision()
+    # #     vision.cleanup()
+    
     vision = Vision(camera_source=None)
-    vision.set_processing_flags({'face_detection': 5.0, 'face_recognition': 5.0, 'emotion': 5.0, 'gesture': 5.0})
+    vision.is_robot = False
+    vision.set_processing_flags({
+        'face_detection': 8.0, 
+        'face_recognition': 8.0, 
+        'emotion': 8.0, 
+        'gesture': 2.0
+    })
     vision.run_vision()
-    found = vision.look_for(what={"name": "Stephanie"}, timeout=60)
-    print(f'Found: {found}')
-
-    # try:
-    #     while not vision.stop_event.is_set():
-    #         # found = vision.look_for(what={"name": "Someone"}, timeout=10)
-    #         # print(f'Found: {found}')
-
-    #         time.sleep(0.1)
-    # finally:
-    #     vision.stop_vision()
-    #     vision.cleanup()
+    
+    try:
+        vision.display_loop()  # This runs in main thread
+    except KeyboardInterrupt:
+        print("\nStopping...")
+    finally:
+        vision.cleanup()

@@ -1,3 +1,4 @@
+
 import librosa
 
 IS_FFMPEG = False
@@ -18,6 +19,7 @@ import time
 import shutil
 from characterDefinitions import IS_ROBOT, base_assets_path
 import sys
+import platform
 
 
 SOUND_OPTION = "sounddevice"
@@ -29,8 +31,24 @@ elif SOUND_OPTION == "sounddevice":
     import soundfile as sf
 
 TTS_MODEL = "nix"
+
+# eSpeak path configuration based on platform
+IS_WINDOWS = platform.system() == "Windows"
+if IS_WINDOWS:
+    ESPEAK_PATH = r"C:/Program Files/eSpeak NG/espeak-ng.exe"
+    ESPEAK_LIBRARY = r"C:/Program Files/eSpeak NG/libespeak-ng.dll"
+else:
+    # Linux/Unix paths
+    ESPEAK_PATH = "/usr/bin/espeak-ng"  # or "/usr/bin/espeak"
+    ESPEAK_LIBRARY = None  # Not needed on Linux
+
 if TTS_MODEL == "nix":
     sys.path.append('../Resources')
+
+    # Configure phonemizer to use eSpeak-NG
+    if IS_WINDOWS:
+        os.environ['PHONEMIZER_ESPEAK_LIBRARY'] = ESPEAK_LIBRARY
+    os.environ['PHONEMIZER_ESPEAK_PATH'] = ESPEAK_PATH
 
     from nix.models.TTS import NixTTSInference
     from nix.tokenizers.tokenizer_en import NixTokenizerEN

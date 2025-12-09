@@ -12,7 +12,7 @@ from queue import Queue, Empty
 import traceback
 import random
 
-DB_PATH = "../Resources/emoface.pkl"
+DB_PATH = "../Resources/emoface_2.pkl"
 TOLERANCE = 0.6
 MAX_QUEUE_SIZE = 2
 POSITION_MARGIN = 80
@@ -158,8 +158,8 @@ def face_recognition_worker(face_queue, result_queue, stop_event, face_db):
                     encoding = face_encodings[0]
                     name, is_new = face_db.recognize_face_once(encoding)
                     
-                    if is_new and name.startswith("face_"):
-                        face_db.save_face_to_db(name, encoding)
+                    # if is_new and name.startswith("face_"):
+                    #     face_db.save_face_to_db(name, encoding)
                     
                     result_queue.put(('recognition', face_id, name, is_new, position_key, timestamp))
                 else:
