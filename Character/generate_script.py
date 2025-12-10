@@ -7,21 +7,35 @@ def read_file_to_list(file_path):
     lines = []
     with open(file_path, 'r', encoding='utf-8') as file:
         lines = file.readlines()
-    return [line.strip() for line in lines]
+    return lines
 
 # Parse each line into a dictionary with tags as keys and substrings as values
 def parse_lines_to_dict(lines):
     parsed_list = []
+    added_code = {}
+    fun_name = None
+    add_code = False
     for line in lines:
-        parsed_dict = {}
-        if '[' not in line:
-            continue
-        parts = line.split('[')
-        for part in parts[1:]:
-            tag, value = part.split(']', 1)
-            parsed_dict[tag] = value.strip()
-        parsed_list.append(parsed_dict)
-    return parsed_list
+        if '*/' in line:
+            add_code = False
+        if add_code:
+            if 'def' in line:
+                fun_name = line.split('def')[1].split('(')[0].strip()
+                added_code[fun_name] = []
+            if fun_name:
+                added_code[fun_name].append(line)
+        if '/*' in line:
+            add_code = True
+        if not add_code:
+            parsed_dict = {}
+            if '[' not in line:
+                continue
+            parts = line.strip().split('[')
+            for part in parts[1:]:
+                tag, value = part.split(']', 1)
+                parsed_dict[tag] = value.strip()
+            parsed_list.append(parsed_dict)
+    return parsed_list, added_code
 
 script_header = """import sys
 sys.path.append('../Character')
@@ -35,7 +49,7 @@ import shutil
 from characterDefinitions import CHARACTER_FOLDER"""
 
 # Include the script header in the beginning of the generated Python files
-def create_files_with_header(parsed_lines, output_dir, header, child=False, languages=['en']):
+def create_files_with_header(parsed_lines, added_code, output_dir, header, child=False, languages=['en']):
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -88,7 +102,12 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
     else:
         start_node = f"Node_{{args.offset}}"
     sg = {class_name}()
-    sg.init_graph()
+    sg.init_graph()"""
+            for fun_name in added_code:
+                script_footer += f"""
+    sg.add_function("{fun_name}", sg.{fun_name})               
+"""
+            script_footer += f"""        
 
     fuzzy = Character(child={child}, gender='{the_gender}', activity='{the_name}', languages={languages})
     script = Script(graph=sg, character=fuzzy)
@@ -125,10 +144,26 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                         node_string += f"motors='{value.strip()}', "
                     elif key == "show": 
                         show_str = value.split(":")
-                        image_filename = show_str[1].strip()
-                        if not os.path.exists(image_filename):
-                            image_filename = f"../Assets/{class_name}/{image_filename}.png"
-                        node_string += f"{show_str[0].strip()}='{image_filename}', "
+                        show_type = show_str[0].strip().lower()
+                        if show_type == "caption":
+                            node_string += f"caption='{show_str[1].strip()}', "
+                        elif show_type == "video":
+                            video_filename = show_str[1].strip()
+                            if not os.path.exists(video_filename):
+                                video_filename = f"../Assets/{class_name}/{video_filename}.mp4"
+                            node_string += f"video='{video_filename}', "
+                        elif show_type == "image":
+                            image_filename = show_str[1].strip()
+                            # check if the file exists, if not, check in the Assets folder
+                            if not os.path.exists(image_filename):
+                                image_filename = f"../Assets/{class_name}/face/{image_filename}"
+                            # if still not exists, try adding .jpg
+                            if not os.path.exists(image_filename):
+                                image_filename = image_filename + ".jpg"
+                            # if still not exists, try adding .png
+                            if not os.path.exists(image_filename):
+                                image_filename = image_filename[:-4] + ".png"
+                            node_string += f"{show_str[0].strip()}='{image_filename}', "
                     elif key == "find":
                         find_str = value.split(":")
                         node_string += f"{find_str[0].strip()}='{find_str[1].strip()}', "
@@ -140,11 +175,17 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                         split_node = node_label
                     elif key == "hear":
                         hear_str = value.split(":")
-                        words = [f"'{word.strip()}'" for word in hear_str[1].split(",")]
-                        hear_string = f"{hear_str[0].strip()}='["
-                        for w in words:
-                            hear_string += ('"%s", ' % w).replace("'", "")
-                        hear_string = hear_string.rstrip(", ") + ", \"[unk]\"]', "
+                        hear_type = hear_str[0].strip()
+                        if hear_type == "words":
+                            words = [f"'{word.strip()}'" for word in hear_str[1].split(",")]
+                            hear_string = f"{hear_str[0].strip()}='["
+                            for w in words:
+                                hear_string += ('"%s", ' % w).replace("'", "")
+                            hear_string = hear_string.rstrip(", ") + ", \"[unk]\"]', "
+                        elif hear_type == "silence":
+                            hear_string = f"timeout={hear_str[1].strip()}, "
+                        elif hear_type == 'conversation':
+                            hear_string = f"conversation=\"{hear_str[1].strip()}\", "
                         node_string += hear_string
 
                         if 'timeout' in parsed_line:
@@ -159,13 +200,20 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                     elif key == "audio":
                         node_string += f"audio='{value.strip()}.wav', "
                     elif key == "face":
-                        node_string += f"face=basic_sequences['{value.strip()}'], "
+                        if ':' in value:
+                            face_data = value.split(':')
+                            node_string += f"face={{'{face_data[0].strip()}': '{face_data[1].strip()}'}}, "
+                        else:
+                            node_string += f"face=basic_sequences['{value.strip()}'], "
                     elif key == "hear":
                         node_string += f"words=[{', '.join([f'\'{word.strip()}\'' for word in value.split(',')])}], "
                     elif key == "data" or key == "timeout" or key == "edge" or key == "goto" or key == "end":
                         pass
                     else:
                         print(key, value)
+                        if ':' in value:
+                            params = value.split(':')
+                            node_string += f"{params[0].strip()}='{params[1].strip()}', "
                 node_string = node_string.rstrip(", ") + ")\n"
                 if 'edge' in parsed_line:
                     node_string += f"        self.graph.add_edge('{split_node}', 'Node_{node_counter}', label='{parsed_line['edge']}')\n"
@@ -182,7 +230,9 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                                     break
                         if not found_next_node:
                             node_string += f"        self.graph.add_edge('Node_{node_counter}', 'Node_{node_counter + 1}', label='Node_{node_counter}_{node_counter + 1}')\n"
-                elif 'find' in parsed_line or 'hear' in parsed_line or 'end' in parsed_line:
+                elif 'find' in parsed_line or 'end' in parsed_line:
+                    pass
+                elif 'hear' in parsed_line and 'words' in parsed_line:
                     pass
                 else:
                     found_next_node = False
@@ -199,6 +249,9 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
                 node_counter += 1
 
             file.write("\n\n")
+            for fun_name, fun_code in added_code.items():
+                for code_lines in fun_code:
+                    file.write(code_lines)
             file.write(script_footer)
             file.write("\n\n")
     return file_path, activity_name
@@ -211,8 +264,15 @@ def create_files_with_header(parsed_lines, output_dir, header, child=False, lang
 # file_path = '../Scripts/Source/Bilingual_Lego.txt'  # Replace with your file path
 # languages = ['en', 'es']
 
-file_path = '../Scripts/Source/halloween.txt'  # Replace with your file path
-languages = ['en']
+# file_path = '../Scripts/Source/demo.txt'  # Replace with your file path
+# languages = ['en']
+
+# file_path = '../Scripts/Source/Game_Multiplication.txt'  # Replace with your file path
+# languages = ['en']
+
+file_path = '../Scripts/Source/test.txt'  # Replace with your file path
+languages = ['en', 'es']
+
 
 FORCE_GENERATE_AUDIO = True
 
@@ -220,12 +280,14 @@ lines_list = read_file_to_list(file_path)
 print('=== lines list ===')
 print(lines_list)
 
-parsed_lines = parse_lines_to_dict(lines_list)
+parsed_lines, added_code = parse_lines_to_dict(lines_list)
 print('=== parsed lines ===')
 print(parsed_lines)
+print('=== Added Code ===')
+print(added_code)
 
 output_directory = '../Scripts'  # Replace with your desired output directory
-activity_file, activity_name = create_files_with_header(parsed_lines, output_directory, header=script_header, languages=languages)
+activity_file, activity_name = create_files_with_header(parsed_lines, added_code, output_directory, header=script_header, languages=languages)
 
 # FORCE generating audio
 if FORCE_GENERATE_AUDIO:
@@ -241,7 +303,7 @@ if FORCE_GENERATE_AUDIO:
             file_path = os.path.join(speech_folder, filename)
             if os.path.isfile(file_path):
                 os.remove(file_path)
-
+    fuzzy.stop_character()
 
 # Run the generated Python file
 if activity_file:

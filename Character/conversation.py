@@ -1,14 +1,37 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
-
+import ollama
+import requests
+import subprocess
+import time
 
 class Conversation:
-    def __init__(self):
-        print("Initiazling conversation ...")
+    def __init__(self, system_prompt=None):
+        print("Initiazling conversation (starting ollame server)...")
+
+        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(10)
 
         model_name = "EleutherAI/gpt-neo-125M"  # Replace with a smaller model if needed
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(model_name)
+        self.ollama_url = "http://localhost:11434"
+        self.ollama_model = "llama3.2:1b-instruct-q4_K_M"
+        self.conversation_history = []
+        if system_prompt:
+            self.conversation_history.append({
+                "role": "system",
+                "content": system_prompt
+            })
+        else:
+            self.conversation_history.append({
+                "role": "system",
+                "content": "Your name is Gigi, a social robot teaching assistant. " +
+                 "You are going to interact with children in a friendly and engaging manner. You are perky, curious and generally happy." +
+                 "Keep your responses concise and appropriate for children." + 
+                 "DO NOT include any movements, or facial expressions. Respond only with the speech content."
+            })
 
+        self.max_history = 5 
         # Assign eos_token as pad_token
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
@@ -33,8 +56,65 @@ class Conversation:
         # Decode and print the output
         print(self.tokenizer.decode(output[0], skip_special_tokens=True))
         self.text.append(self.tokenizer.decode(output[0], skip_special_tokens=True))
+    
+    def get_response_with_tts_sync(self, text):
+        """Get LLM response with conversation memory"""
+        if not text:
+            return "I didn't understand that."
+        
+        try:
+            # Add user message to history
+            self.conversation_history.append({
+                "role": "user",
+                "content": text
+            })
+            
+            # Trim history to keep memory usage low
+            # Keep system message + last N exchanges
+            if len(self.conversation_history) > (self.max_history * 2):
+                # Keep first message if it's a system message, otherwise start fresh
+                if self.conversation_history[0].get("role") == "system":
+                    self.conversation_history = [self.conversation_history[0]] + self.conversation_history[-(self.max_history * 2):]
+                else:
+                    self.conversation_history = self.conversation_history[-(self.max_history * 2):]
+            
+            # Use /api/chat endpoint for conversation support
+            response = requests.post(
+                f"{self.ollama_url}/api/chat",
+                json={
+                    "model": self.ollama_model,
+                    "messages": self.conversation_history,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.7,
+                        "num_predict": 100
+                    }
+                },
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                assistant_message = response.json()["message"]["content"].strip()
+                
+                # Add assistant response to history
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": assistant_message
+                })
+                
+                print(f"🤖 AI: {assistant_message}")
+                print(f"💾 History: {len(self.conversation_history)} messages")
+                return assistant_message
+            else:
+                error_msg = "Sorry, having trouble responding."
+                return error_msg
+                
+        except Exception as e:
+            print(f"❌ LLM error: {e}")
+            error_msg = "Connection issue."
+            return error_msg
         
 if __name__ == "__main__":
     conv = Conversation()
-    conv.response()
-    print(conv.text[-1])
+    resp=conv.get_response_with_tts_sync("Hello, how are you?")
+    print(resp)

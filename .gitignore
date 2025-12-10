@@ -178,3 +178,6 @@ cython_debug/
 motorData_calibrated.json
 ./Character/motorData_calibrated.json
 
+#vscode settings
+.vscode/
+

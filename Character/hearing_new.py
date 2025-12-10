@@ -12,7 +12,7 @@ elif HEARING_OPTION == "whisper":
     import numpy as np
     import queue
     import time
-    from hearingDefinitions import NATIVE_SAMPLE_RATE, TARGET_SAMPLE_RATE, SILENCE_DURATION
+    from hearingDefinitions import INPUT_SAMPLE_RATE, TARGET_SAMPLE_RATE, SILENCE_DURATION
     from whisper_helper import WhisperAudioProcessor, transcribe_optimized, calibrate_energy_threshold
 elif HEARING_OPTION == "vosk":
     from vosk import Model, KaldiRecognizer
@@ -31,6 +31,7 @@ class Hearing():
         print("Initializing hearing ...")
         self.verbose = verbose
         self.recognizer = None
+        self.words = None
         self.texts = []
         self.mic_index = self.get_usb_microphone()
         if HEARING_OPTION == "sr":
@@ -40,7 +41,7 @@ class Hearing():
             self.model = WhisperModel("tiny", device="cpu", compute_type="int8", num_workers=1)
             # Audio processor for optimized handling with resampling support
             self.audio_processor = WhisperAudioProcessor(
-                native_sample_rate=NATIVE_SAMPLE_RATE,  # Your mic's native rate (48000)
+                native_sample_rate=INPUT_SAMPLE_RATE,  # Your mic's native rate (48000)
                 target_sample_rate=TARGET_SAMPLE_RATE,  # Whisper requires 16000
                 energy_threshold=300,  # Lower threshold for better detection
                 buffer_duration=2.0,   # Shorter buffer to reduce lag
@@ -158,7 +159,9 @@ class Hearing():
             self.audio_queue = queue.Queue()
             text = ""
 
-            with sd.InputStream(samplerate=NATIVE_SAMPLE_RATE, channels=1, 
+            silence_times = None
+
+            with sd.InputStream(samplerate=INPUT_SAMPLE_RATE, channels=1, 
                                 device=self.mic_index, callback=self.audio_callback_optimized, 
                                 blocksize=8192, dtype='int16'):
                 print("Listening... Speak into the microphone.")
@@ -195,7 +198,16 @@ class Hearing():
                     if transcription:
                         print(f"Transcription: {transcription}")
                         text += transcription + " "
-                
+
+                    if silence_times is None:
+                        silence_times = time.time()
+                    silence_duration = time.time() - silence_times
+                    print(f'text length: {len(text)}, silence duration: {silence_duration}')
+                    if len(text) > 10 and silence_duration > SILENCE_DURATION:
+                        print("Silence detected. Stopping transcription.")
+                        break                
+                    silence_times = time.time()
+
                 if text.strip():
                     self.texts.append(text.strip())
                     

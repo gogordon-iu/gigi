@@ -20,6 +20,7 @@ class Movement:
             self.current_positions = {m: self.motor_map[m]['center'] for m in self.motor_map.keys() if self.motor_map[m]['calibrated']}
         else:
             self.motor_map = {}
+        self.home_position()
 
     def move_single_motor(self, motor, angle):
         if motor in self.motor_map.keys():

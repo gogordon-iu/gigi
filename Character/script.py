@@ -15,7 +15,7 @@ sys.path.append('../Scripts')
 # 'speak': 'text': text
 # 'audio': 'audio': filename -- play a filename.wav
 # 'move': 'motors': 'name of sequence' / {'motor1': angle1, 'motor2': angle2}
-# 'show': 'text'/'image'/'video': filename -- shows filename on the screen
+# 'show': 'caption'/'image'/'video': filename -- shows filename on the screen
 # 'face': 'face': 'name of sequence'
 
 class Script:
@@ -69,14 +69,19 @@ class Script:
                 next_node = self.data['types'][current_data['type'][0]](current_node=current_node, current_data=current_data, data_=self.data)
             # First check if is sensory in nature, since they are unique
             elif "hear" in current_data['type']:
-                print("Hear, listening for one of the following: ", current_data["words"])
-                if not IS_ROBOT:
-                    break
                 if self.character:
                     # DEBUG
                     # self.character.lookat_face()
                     if self.character.hearing:
-                        self.character.hearing.words = current_data["words"]
+                        if "words" in current_data:                            
+                            print("Hear, listening for one of the following: ", current_data["words"])
+                            self.character.hearing.words = current_data["words"]
+                        elif "silence" in current_data:
+                            print("Hear, listening for silence...")
+                            self.character.hearing.words = None
+                        elif "conversation" in current_data:
+                            print("Hear, listening for response ...")
+                            self.character.hearing.words = None
                         if 'timeout' in current_data:
                             timeout = current_data['timeout']
                         else:
@@ -87,7 +92,30 @@ class Script:
                         else:
                             output = self.character.hearing.texts[-1]
                         print("hear output: ", output)
-                        for u, v, data in edges:
+                    else:
+                        output = current_data["words"][0]
+                        print("Simulated hear output: ", output)
+
+                    is_conversation = False
+                    response = None
+                    if "conversation" in current_data:  # run prompt
+                        if '%' in current_data['conversation']:
+                            local_var = current_data['conversation'].split('%')[-1].strip()
+                            print(f'local_var: {local_var}')
+                            if local_var in self.data['types']:
+                                print(f'prompt: {self.data['types'][local_var]}')
+                                prompt_data = self.data['types'][local_var].replace("RESPONSE", output)
+                                print(f'prompt data: {prompt_data}')
+                                response = self.character.conv.get_response_with_tts_sync(prompt_data)
+                                print(f'response: {response}')
+                                is_conversation = True
+                    next_node = list(edges)[0][1]   # default is to go to the next node (edge)                    
+                    for u, v, data in edges:        # only change if there is a matching edge
+                        if is_conversation:
+                            if data['label'] in response:
+                                next_node = v
+                                break
+                        else:
                             if data['label'] == output:
                                 next_node = v
                                 break
@@ -97,9 +125,12 @@ class Script:
                     what = current_data['what']
                     timeout = -1
                     if 'timeout' in current_data:
-                        timeout = current_data['timeout']                      
+                        timeout = current_data['timeout']
+                    if 'guidance' in current_data:
+                        self.character.face.guidance = current_data['guidance']                      
                     found_something = self.character.lookat_something(what=what, 
                                                                       timeout=timeout)
+                    self.character.face.guidance = None
                     print(f"Found something: {found_something}, details: {self.character.vision.found[what]}")
                     for u, v, data in edges:
                         if found_something and data['label'] == 'yes':
@@ -128,7 +159,15 @@ class Script:
                     # DEBUG
                     # self.character.lookat_face()
                     # self.character.viseme.run_viseme(current_data['text'])
-                    node_data['viseme'] = {'text': current_data['text'], 'file': None}
+                    if '%' in current_data['text']:     # real time text was generated
+                        local_var = current_data['text'].split('%')[-1].strip()
+                        if local_var in self.data['types']:
+                            text_data = self.data['types'][local_var]
+                        else:
+                            text_data = ""
+                    else:
+                        text_data = current_data['text']
+                    node_data['viseme'] = {'text': text_data, 'file': None}
                 if "audio" in current_data['type']:
                     print("Audio: ", current_data['audio'])
                     # DEBUG
@@ -141,8 +180,16 @@ class Script:
                     # self.character.movement.move_motors(current_data['motors'])
                 if "show" in current_data['type']:
                     if 'caption' in current_data:
-                        print("Show caption: ", current_data['caption'])
-                        node_data['caption'] = {"caption": current_data['caption']}
+                        if '%' in current_data['caption']:
+                            local_var = current_data['caption'].split('%')[-1].strip()
+                            if local_var in self.data['types']:
+                                caption_data = self.data['types'][local_var]
+                            else:
+                                caption_data = ""
+                        else:
+                            caption_data = current_data['caption']
+                        print("Show caption: ", caption_data)
+                        node_data['caption'] = {"caption": caption_data}
                     elif 'image' in current_data:
                         print("Show image: ", current_data['image'])
                         node_data['image'] = {"filename": current_data['image']}
@@ -154,6 +201,8 @@ class Script:
                     print("Show face: ", current_data['face'])
                     if isinstance(current_data['face'], str):
                         node_data['face'] = {'sequence': current_data['face']}
+                    elif isinstance(current_data['face'], dict):
+                        node_data['face'] = current_data['face']
                     else:
                         node_data['face'] = {'parts': current_data['face']}
                     # self.character.face.display_image_file(current_data['image'])
@@ -192,7 +241,8 @@ class Script:
         script_texts = [attr.get('text') for node, attr in self.graph.nodes(data=True) if attr.get('text')]
         for text in script_texts:
             print("Generating text: ", text)
-            self.character.speech.update_audio_objects(text=text)
+            if '%' not in text:
+                self.character.speech.update_audio_objects(text=text)
 
         script_audio = [attr.get('audio') for node, attr in self.graph.nodes(data=True) if attr.get('audio')]
         for audio in script_audio:

@@ -10,9 +10,15 @@ git config --global user.email "gigi@iu.edu"
 sudo apt update
 sudo apt install python3 python3-venv python3-pip -y
 
+# remote access
+sudo apt install wget ca-certificates tar -y
+
 # audio
 sudo apt install pocketsphinx python3-pocketsphinx -y
 sudo apt install portaudio19-dev -y
+sudo apt install espeak -y
+sudo apt install cmake -y
+
 
 # motors
 sudo apt-get install -y i2c-tools gpiod libgpiod-dev
@@ -36,6 +42,8 @@ sudo apt install mpv
 #if False:
 
 # screen
+sudo apt install -y wmctrl xdotool unclutter
+# Set up the LCD screen
 sudo rm -rf LCD-show
 cd
 git clone https://github.com/goodtft/LCD-show.git
