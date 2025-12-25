@@ -11,9 +11,9 @@ class Conversation:
         subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(10)
 
-        model_name = "EleutherAI/gpt-neo-125M"  # Replace with a smaller model if needed
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(model_name)
+        #model_name = "EleutherAI/gpt-neo-125M"  # Replace with a smaller model if needed
+        #self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        #self.model = AutoModelForCausalLM.from_pretrained(model_name)
         self.ollama_url = "http://localhost:11434"
         self.ollama_model = "llama3.2:1b-instruct-q4_K_M"
         self.conversation_history = []
@@ -33,29 +33,29 @@ class Conversation:
 
         self.max_history = 5 
         # Assign eos_token as pad_token
-        self.tokenizer.pad_token = self.tokenizer.eos_token
+        #self.tokenizer.pad_token = self.tokenizer.eos_token
 
         self.text = []
 
-    def response(self, input_text=None):
-        if input_text is None:
-            input_text = "What is the meaning of life?"
-        inputs = self.tokenizer(input_text, return_tensors="pt", padding=True)
+    # def response(self, input_text=None):
+    #     if input_text is None:
+    #         input_text = "What is the meaning of life?"
+    #     inputs = self.tokenizer(input_text, return_tensors="pt", padding=True)
 
-        # Pass attention_mask during generation
-        output = self.model.generate(
-            inputs.input_ids,
-            attention_mask=inputs.attention_mask,
-            max_length=50,
-            pad_token_id=self.tokenizer.eos_token_id,  # Set padding token ID explicitly
-            do_sample=True,
-            temperature=0.5,  # Add some randomness
-            top_p=0.9,        # Focus on the top 90% of probable tokens
-        )
+    #     # Pass attention_mask during generation
+    #     output = self.model.generate(
+    #         inputs.input_ids,
+    #         attention_mask=inputs.attention_mask,
+    #         max_length=50,
+    #         pad_token_id=self.tokenizer.eos_token_id,  # Set padding token ID explicitly
+    #         do_sample=True,
+    #         temperature=0.5,  # Add some randomness
+    #         top_p=0.9,        # Focus on the top 90% of probable tokens
+    #     )
 
-        # Decode and print the output
-        print(self.tokenizer.decode(output[0], skip_special_tokens=True))
-        self.text.append(self.tokenizer.decode(output[0], skip_special_tokens=True))
+    #     # Decode and print the output
+    #     print(self.tokenizer.decode(output[0], skip_special_tokens=True))
+    #     self.text.append(self.tokenizer.decode(output[0], skip_special_tokens=True))
     
     def get_response_with_tts_sync(self, text):
         """Get LLM response with conversation memory"""
