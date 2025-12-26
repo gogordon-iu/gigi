@@ -35,6 +35,9 @@ class Hearing():
         self.texts = []
         self.mic_index = self.get_usb_microphone()
         
+        # NEW: Buffer to store raw audio for speaker recognition
+        self.raw_audio_buffer = []
+        
         if HEARING_OPTION == "sr":
             self.recognizer = sr.Recognizer()
         elif HEARING_OPTION == "whisper":
@@ -312,6 +315,9 @@ class Hearing():
                         if self.audio_processor.should_process_buffer():
                             buffered = self.audio_processor.get_buffered_audio()
                             if buffered is not None:
+                                # NEW: Store audio chunk for speaker recognition
+                                self.raw_audio_buffer.append(buffered)
+                                
                                 # Use enhanced transcription with deduplication
                                 transcription = self.transcribe_with_dedup(buffered, language="en")
                                 if transcription:
@@ -324,6 +330,9 @@ class Hearing():
                                 break
                         continue
 
+                    # NEW: Store audio chunk for speaker recognition
+                    self.raw_audio_buffer.append(audio_float)
+                    
                     # Transcribe with enhanced method
                     transcription = self.transcribe_with_dedup(audio_float, language="en")
                     
@@ -468,6 +477,23 @@ class Hearing():
         avg_amplitude = np.abs(audio_chunk).mean()
         return avg_amplitude
 
+    # NEW METHODS FOR SPEAKER RECOGNITION
+    def get_full_audio(self):
+        """
+        Return all captured audio as single numpy array at 16kHz.
+        Perfect for speaker recognition with resemblyzer.
+        
+        Returns:
+            numpy array of float32 audio samples, or None if no audio
+        """
+        if self.raw_audio_buffer:
+            return np.concatenate(self.raw_audio_buffer)
+        return None
+    
+    def clear_audio_buffer(self):
+        """Clear the raw audio buffer for next recording session."""
+        self.raw_audio_buffer = []
+
     def hearing_thread(self, stop_event=None):
         if stop_event is None:
             stop_event = threading.Event()
@@ -475,6 +501,8 @@ class Hearing():
         return t
     
     def run_hearing(self):
+        # Clear buffer before starting new recording
+        self.clear_audio_buffer()
         hearing_thread = self.hearing_thread()
         hearing_thread.start()
         hearing_thread.join()

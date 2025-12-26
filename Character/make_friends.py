@@ -1,10 +1,78 @@
 import time
 import re
 import threading
+import numpy as np
+import pickle
+import os
 from newvision import Vision
 from speech import Speech
 from hearing_new2 import Hearing
 from conversation import Conversation
+from resemblyzer import VoiceEncoder, preprocess_wav
+from scipy.spatial.distance import cosine
+
+class SpeakerDatabase:
+    """Simple database to store speaker embeddings alongside names."""
+    def __init__(self, db_path="../Resources/speaker_db.pkl"):
+        self.db_path = db_path
+        self.speaker_data = {}  # {name: embedding}
+        self.load_database()
+    
+    def load_database(self):
+        """Load speaker database from disk."""
+        if os.path.exists(self.db_path):
+            try:
+                with open(self.db_path, 'rb') as f:
+                    self.speaker_data = pickle.load(f)
+                print(f"✓ Loaded {len(self.speaker_data)} speaker profiles from {self.db_path}")
+            except Exception as e:
+                print(f"⚠ Error loading speaker database: {e}")
+                self.speaker_data = {}
+        else:
+            print(f"No existing speaker database found at {self.db_path}")
+    
+    def save_database(self):
+        """Save speaker database to disk."""
+        try:
+            with open(self.db_path, 'wb') as f:
+                pickle.dump(self.speaker_data, f)
+            print(f"✓ Saved speaker database to {self.db_path}")
+        except Exception as e:
+            print(f"✗ Error saving speaker database: {e}")
+    
+    def add_speaker(self, name, embedding):
+        """Add or update a speaker embedding."""
+        self.speaker_data[name] = embedding
+        self.save_database()
+    
+    def identify_speaker(self, embedding, threshold=0.75):
+        """
+        Identify speaker from embedding.
+        
+        Args:
+            embedding: Speaker embedding to identify
+            threshold: Similarity threshold (0-1, higher = stricter)
+            
+        Returns:
+            (name, similarity) or (None, 0) if no match
+        """
+        if not self.speaker_data:
+            return None, 0
+        
+        best_match = None
+        best_similarity = 0
+        
+        for name, stored_embedding in self.speaker_data.items():
+            similarity = 1 - cosine(embedding, stored_embedding)
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_match = name
+        
+        if best_similarity >= threshold:
+            return best_match, best_similarity
+        else:
+            return None, best_similarity
+
 
 class FaceRegistrationDemo:
     def __init__(self, pause_vision_during_stt=True):
@@ -33,6 +101,12 @@ class FaceRegistrationDemo:
         )
         self.llm = Conversation(system_prompt=name_extraction_prompt)
         
+        # NEW: Initialize speaker recognition
+        print("Loading speaker recognition model...")
+        self.voice_encoder = VoiceEncoder()
+        self.speaker_db = SpeakerDatabase()
+        print("✓ Speaker recognition ready")
+        
         # Demo parameters
         self.unknown_threshold = 5.0  # seconds to confirm it's a new face
         self.pause_vision_during_stt = pause_vision_during_stt  # Performance optimization
@@ -42,8 +116,43 @@ class FaceRegistrationDemo:
         self.captured_face_encoding = None
         self.registering_face_id = None
         
+        # NEW: Store captured speaker data
+        self.captured_speaker_embedding = None
+        
         # Display control
         self.demo_running = True
+    
+    def extract_speaker_embedding(self, audio_array):
+        """
+        Extract speaker embedding from audio using resemblyzer.
+        
+        Args:
+            audio_array: numpy array of float32 audio at 16kHz
+            
+        Returns:
+            Speaker embedding (256-dimensional vector) or None
+        """
+        try:
+            if audio_array is None or len(audio_array) < 16000:  # Need at least 1 second
+                print("✗ Audio too short for speaker recognition (need 1+ seconds)")
+                return None
+            
+            print(f"Extracting speaker embedding from {len(audio_array)/16000:.1f}s of audio...")
+            
+            # Preprocess audio for resemblyzer (handles normalization)
+            wav = preprocess_wav(audio_array)
+            
+            # Extract embedding
+            embedding = self.voice_encoder.embed_utterance(wav)
+            
+            print(f"✓ Speaker embedding extracted: {len(embedding)} dimensions")
+            return embedding
+            
+        except Exception as e:
+            print(f"✗ Error extracting speaker embedding: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     def extract_name_from_speech(self, text):
         """Extract name from speech text using LLM with fallback to pattern matching."""
@@ -293,7 +402,7 @@ class FaceRegistrationDemo:
         return None
     
     def ask_for_name(self):
-        """Ask for the person's name and get response."""
+        """Ask for the person's name and get response with speaker embedding."""
         print("\n=== Asking for name ===")
         self.speech.run_speech(text="Hi! I'm Gigi. What's your name?")
         
@@ -307,13 +416,7 @@ class FaceRegistrationDemo:
         print("Listening for name...")
         self.hearing.texts = []  # Clear previous texts
         self.hearing.run_hearing()
-        
-        # Give some time for hearing to capture the response
-        time.sleep(3)
-        
-        # Resume vision processing
-        self.resume_vision_processing()
-        
+         
         if len(self.hearing.texts) > 0:
             response = self.hearing.texts[-1]
             print(f"Heard: '{response}'")
@@ -380,12 +483,64 @@ class FaceRegistrationDemo:
         print("\nTimeout waiting for gesture")
         return None  # Return None for timeout to distinguish from False
     
+
+    def capture_voice_enrollment(self, name):
+        """Capture a voice sample for speaker recognition (records until silence)."""
+        print(f"\n=== Capturing voice enrollment for {name} ===")
+        
+        script = "The quick brown fox jumps over the lazy dog"
+        
+        self.speech.run_speech(
+            text=f"Great, {name}! Now, please repeat after me to register your voice: {script}"
+        )
+        
+        # Wait for speech to complete
+        time.sleep(3)
+        
+        # Pause vision processing to free up resources
+        self.pause_vision_processing()
+        
+        # Listen for the repeated phrase (will record until silence detected)
+        print(f"Listening for: '{script}'")
+        print("(Recording will stop automatically after detecting silence)")
+        self.hearing.texts = []  # Clear previous texts
+        self.hearing.run_hearing()  # Records until silence threshold is reached
+        
+        # Resume vision processing
+        self.resume_vision_processing()
+        
+        # Extract speaker embedding from ALL the recorded audio
+        raw_audio = self.hearing.get_full_audio()
+        speaker_embedding = None
+        
+        if raw_audio is not None:
+            audio_duration = len(raw_audio) / 16000
+            print(f"Audio captured: {audio_duration:.1f} seconds")
+            
+            if audio_duration >= 1.0:  # At least 1 second minimum to avoid errors
+                # Use ALL the captured audio for embedding (not just first X seconds)
+                speaker_embedding = self.extract_speaker_embedding(raw_audio)
+                if speaker_embedding is not None:
+                    print(f"✓ Voice enrollment successful using {audio_duration:.1f}s of audio")
+                    return speaker_embedding
+                else:
+                    print("✗ Failed to extract speaker embedding")
+                    self.speech.run_speech(text="Sorry, I couldn't process your voice. Let's try again.")
+            else:
+                print(f"⚠ Audio too short ({audio_duration:.1f}s), need at least 1 second")
+                self.speech.run_speech(text="That was too short. Please speak the phrase clearly.")
+        else:
+            print("✗ No audio captured")
+            self.speech.run_speech(text="I didn't hear anything. Let's try again.")
+        
+        return None
+        
     def add_face_to_database(self, face_id, name):
-        """Add the face to the database using the pre-captured encoding."""
-        print(f"\n=== Adding {name} to database ===")
+        """Add the face and speaker to databases using pre-captured encodings."""
+        print(f"\n=== Adding {name} to databases ===")
         
         try:
-            # Use the pre-captured face encoding
+            # Check face encoding
             if self.captured_face_encoding is None:
                 print("✗ No face encoding was captured earlier!")
                 self.speech.run_speech(text="Sorry, I lost your face data. Let's try again.")
@@ -393,24 +548,31 @@ class FaceRegistrationDemo:
             
             print(f"Using pre-captured face encoding: {len(self.captured_face_encoding)} dimensions")
             
-            # Add to database
-            print(f"Saving {name} to database...")
+            # Add face to database
+            print(f"Saving {name}'s face to database...")
             self.vision.face_db.save_face_to_db(name, self.captured_face_encoding)
+            print(f"✓ Face saved! Database now has {len(self.vision.face_db.known_names)} faces")
             
-            print(f"✓ Successfully added {name} to database!")
-            print(f"Database now has {len(self.vision.face_db.known_names)} faces")
+            # NEW: Add speaker to database
+            if self.captured_speaker_embedding is not None:
+                print(f"Saving {name}'s voice to database...")
+                self.speaker_db.add_speaker(name, self.captured_speaker_embedding)
+                print(f"✓ Voice saved! Database now has {len(self.speaker_db.speaker_data)} speakers")
+            else:
+                print("⚠ No speaker embedding captured - only face was saved")
             
-            self.speech.run_speech(text=f"Great! I'll remember you, {name}!")
+            self.speech.run_speech(text=f"Great! I'll remember your face and voice, {name}!")
             
             # Clear the captured data
             self.captured_face_crop = None
             self.captured_face_encoding = None
+            self.captured_speaker_embedding = None
             self.registering_face_id = None
             
             return True
             
         except Exception as e:
-            print(f"✗ Error adding face to database: {e}")
+            print(f"✗ Error adding to databases: {e}")
             import traceback
             traceback.print_exc()
             self.speech.run_speech(text="Sorry, something went wrong. Let's try again.")
@@ -434,6 +596,9 @@ class FaceRegistrationDemo:
                 continue
             
             print(f"✓ Extracted name: {name}")
+
+            # Resume vision processing
+            self.resume_vision_processing()
             
             # Try to confirm the name multiple times
             for confirm_attempt in range(max_confirm_attempts):
@@ -472,12 +637,13 @@ class FaceRegistrationDemo:
     def run_demo(self):
         """Run the complete face registration demo."""
         print("\n" + "="*50)
-        print("FACE REGISTRATION DEMO (with LLM)")
+        print("FACE & SPEAKER REGISTRATION DEMO")
         print("="*50)
         print("\nTIPS:")
         print("- Make sure your face is clearly visible to the camera")
         print("- Stay still while being detected")
         print("- The system needs to confirm you're unknown for 5 seconds")
+        print("- Speak clearly when saying your name")
         print("- Use thumbs up/down gesture to confirm your name")
         print("- Press 'q' in the camera window to quit")
         print("="*50)
@@ -520,7 +686,7 @@ class FaceRegistrationDemo:
             
             print(f"\n✓ Proceeding with face ID: {face_id}")
             
-            # Steps 2-5: Get name and confirm with retries
+            # Steps 2-5: Get name and confirm with retries (also captures speaker embedding)
             name, success = self.get_and_confirm_name(max_name_attempts=3, max_confirm_attempts=3)
             
             if not success or not name:
@@ -528,7 +694,19 @@ class FaceRegistrationDemo:
                 self.speech.run_speech(text="Sorry, I'm having trouble. Let's try again later.")
                 return
             
-            # Step 6: Add to database (uses pre-captured encoding)
+            # NEW STEP: Capture voice enrollment
+            print(f"\n✓ Name confirmed: {name}")
+            speaker_embedding = self.capture_voice_enrollment(name)
+            
+            if speaker_embedding is not None:
+                self.captured_speaker_embedding = speaker_embedding
+                print("✓ Voice enrollment captured")
+            else:
+                print("⚠ Voice enrollment failed, will only save face")
+                # You can decide: continue anyway or retry
+                # For now, we'll continue with just face
+            
+            # Step 6: Add to databases (uses pre-captured face and speaker encodings)
             if self.demo_running:
                 success = self.add_face_to_database(face_id, name)
                 
@@ -538,7 +716,7 @@ class FaceRegistrationDemo:
                     print("="*50)
                 else:
                     print("\n" + "="*50)
-                    print("✗✗✗ FAILED to register face ✗✗✗")
+                    print("✗✗✗ FAILED to register ✗✗✗")
                     print("="*50)
         
         except KeyboardInterrupt:
@@ -556,6 +734,7 @@ class FaceRegistrationDemo:
             self.vision.stop_vision()
             self.vision.cleanup()
             print("Demo complete!")
+
 
 if __name__ == "__main__":
     # Set pause_vision_during_stt=True for better speech-to-text performance
