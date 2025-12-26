@@ -229,10 +229,10 @@ class FaceRegistrationDemo:
         print("▶ Resuming vision processing...")
         if self.pause_vision_during_stt:
             self.vision.set_processing_flags({
-                'face_detection': 8.0,
-                'face_recognition': 8.0,
+                'face_detection': 0.0,
+                'face_recognition': 0.0,
                 'emotion': 0,
-                'gesture': 8.0
+                'gesture': 15.0
             })
             # Small delay to let processing restart
             time.sleep(0.2)

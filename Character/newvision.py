@@ -74,6 +74,12 @@ class Vision:
     def _display_loop(self):
         """Internal display loop that runs in a thread"""
         print("Display loop started. Press 'q' to quit...")
+
+        # Create the window first
+        cv2.namedWindow('Camera Feed', cv2.WINDOW_NORMAL)
+        # Set it to fullscreen
+        cv2.setWindowProperty('Camera Feed', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        
         while not self.stop_event.is_set():
             frame = self.get_latest_frame()
             if frame is not None:
