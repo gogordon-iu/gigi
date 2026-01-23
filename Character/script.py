@@ -101,13 +101,13 @@ class Script:
                     if "conversation" in current_data:  # run prompt
                         if '%' in current_data['conversation']:
                             local_var = current_data['conversation'].split('%')[-1].strip()
-                            print(f'local_var: {local_var}')
+                            print(f"local_var: {local_var}")
                             if local_var in self.data['types']:
-                                print(f'prompt: {self.data['types'][local_var]}')
+                                print(f"prompt: {self.data['types'][local_var]}")
                                 prompt_data = self.data['types'][local_var].replace("RESPONSE", output)
-                                print(f'prompt data: {prompt_data}')
+                                print(f"prompt data: {prompt_data}")
                                 response = self.character.conv.get_response_with_tts_sync(prompt_data)
-                                print(f'response: {response}')
+                                print(f"response: {response}")
                                 is_conversation = True
                     next_node = list(edges)[0][1]   # default is to go to the next node (edge)                    
                     for u, v, data in edges:        # only change if there is a matching edge
