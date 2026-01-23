@@ -157,6 +157,9 @@ class Character():
                 self.vision.stop_vision()
         if self.face:
             self.face.stop_face()
+        if self.movement:
+            self.movement.release()
+        
 
     def lookat_coordinate(self, offset=0.0):
         if self.lookat_calibration:
