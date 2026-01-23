@@ -2,15 +2,10 @@ Jorge Activity Script
 [name] Jorge
 [Character] female
 [Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
-[Speak] We are going to have so much fun today.
-[audio] laugh
-
-[Speak] I want to show you what I can do.
-[Speak] I can move my arms in a circle [move] arms_circle
-[Speak] I can clap [move] clap
-
-[Speak] Goren can teach me to do almost anything with my body, so just ask him.
-[audio] laugh
-[Speak] Hope we will have lots of fun dancing together.
+[find] what: gesture [data] fist, Thumbs Up, Thumbs Down [timeout] 10
+[edge] no [Speak] Did not find gesture [goto] -1
+[edge] fist [Speak] I found a fist
+[edge] Thumbs Up [Speak] I found a Thumbs Up
+[edge] Thumbs Down [Speak] I found a Thumbs Down
 
 [Speak] Bye for now [move] wave_hello

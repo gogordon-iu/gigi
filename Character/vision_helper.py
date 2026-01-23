@@ -580,6 +580,7 @@ class VisionHelpers:
     
     @staticmethod
     def look_for_worker(what, timeout, result_container, stop_event, get_data_func):
+        print(f"DEUBG, look_for_worker: {what}")
         start_time = time.time()
         while not stop_event.is_set():
             if time.time() - start_time > timeout:
@@ -589,6 +590,7 @@ class VisionHelpers:
                 return
             
             data = get_data_func()
+            print(f"DEUBG, look_for_worker: {data}")
             
             for face_id, face_info in data.items():
                 match = True
@@ -597,13 +599,20 @@ class VisionHelpers:
                     match = False
                 if 'emotion' in what and face_info.get('emotion', 'Unknown') != what['emotion']:
                     match = False
-                if 'gesture' in what and face_info.get('gesture', 'Unknown') != what['gesture']:
+                if 'gesture' in what and face_info.get('gesture', 'Unknown') not in what['gesture']:
                     match = False
                 
                 if match:
                     result_container['found'] = True
-                    result_container['data'] = {face_id: face_info}
+                    result_container['data'] = face_id # default to face_id
+                    if 'name' in what:
+                        result_container['data'] = face_info['name']
+                    if 'emotion' in what:
+                        result_container['data'] = face_info['emotion']
+                    if 'gesture' in what:
+                        result_container['data'] = face_info['gesture']  
                     result_container['done'] = True
+                    print(f"DEBUG: FOUND!!!! {result_container['data']}")
                     return
             
             time.sleep(0.1)

@@ -15,7 +15,7 @@ if HAS_VISEME:
     from viseme import Viseme
 if HAS_VISION:
     print('Importing Vision module')
-    from vision import Vision
+    from newvision import Vision
     # from newvision import Vision
 if HAS_MOVEMENT:
     print('Importing Movement module')
@@ -56,6 +56,14 @@ class Character():
             self.hearing = None
         if HAS_VISION:
             self.vision = Vision()
+            self.vision.is_robot = True
+            self.vision.set_processing_flags({
+                    'face_detection': 8.0, 
+                    'face_recognition': 8.0, 
+                    'emotion': 8.0, 
+                    'gesture': 2.0
+                })
+            self.vision.run_vision()
         else:
             self.vision = None
 
@@ -254,8 +262,8 @@ class Character():
                         print("Looking again ...")
                         return self.lookat_something(what=what, timeout=remaining_timeout)
             else:                           # if not calibrated, just report if found something
-                self.vision.look_and_stop(what=what, timeout=timeout)
-                return len(self.vision.found[what]) > 0
+                results = self.vision.look_and_stop(what=what, timeout=timeout)
+                return results
         return False
 
     def conversational_turn(self, file):

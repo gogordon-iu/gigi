@@ -127,20 +127,21 @@ class Script:
                     if 'timeout' in current_data:
                         timeout = current_data['timeout']
                     if 'guidance' in current_data:
-                        self.character.face.guidance = current_data['guidance']                      
-                    found_something = self.character.lookat_something(what=what, 
+                        self.character.face.guidance = current_data['guidance']
+                    look_what = {what: current_data['data']}
+                    found_something = self.character.lookat_something(what=look_what, 
                                                                       timeout=timeout)
                     self.character.face.guidance = None
-                    print(f"Found something: {found_something}, details: {self.character.vision.found[what]}")
+                    print(f"Found something: {found_something}, details: {found_something['data']}")
                     for u, v, data in edges:
-                        if found_something and data['label'] == 'yes':
+                        if found_something['found'] and data['label'] == 'yes':
                             next_node = v
-                            self.graph.nodes[v]['found'] = self.character.vision.found[what]
+                            self.graph.nodes[v]['found'] = found_something['data']
                             break
-                        if not found_something and data['label'] == 'no':
+                        if not found_something['found'] and data['label'] == 'no':
                             next_node = v
                             break
-                        if found_something and data['label'] in self.character.vision.found[what].keys():
+                        if found_something['found'] and data['label'] == found_something['data']:
                             next_node = v
                             break
             elif "script" in current_data['type']:
