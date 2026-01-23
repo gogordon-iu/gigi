@@ -1,0 +1,16 @@
+Jorge Activity Script 
+[name] Jorge
+[Character] female
+[Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
+[Speak] We are going to have so much fun today.
+[audio] laugh
+
+[Speak] I want to show you what I can do.
+[Speak] I can move my arms in a circle [move] arms_circle
+[Speak] I can clap [move] clap
+
+[Speak] Goren can teach me to do almost anything with my body, so just ask him.
+[audio] laugh
+[Speak] Hope we will have lots of fun dancing together.
+
+[Speak] Bye for now [move] wave_hello

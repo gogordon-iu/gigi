@@ -20,10 +20,8 @@
 [Speak] I also love learning new languages! 
 [find] what: face [timeout] 4
 [edge] no [speak] What languages do you speak?
-[edge] yes [speak] What languages do you speak? 
-[face] guidance: speak [pause] 3
-[Speak] That is great. Would you like to play with me? #¿Quieren jugar conmigo? #
-[face] guidance: speak [pause] 2
+[edge] yes [speak] What languages do you speak? [face] guidance: speak [pause] 3
+[Speak] That is great. Would you like to play with me? #¿Quieren jugar conmigo? # [face] guidance: speak [pause] 2
 [Speak] #¡Excelente!#
 [Speak] How do you say hello in Spanish?
 [move] look_from_side_to_side [face] guidance: speak [puase] 3
@@ -39,23 +37,23 @@
 [Speak] Can you see? You have a bin with LEGO blocks and LEGO figures on the table. [move] arms_down [face] look_down
 [Speak] Can you find a LEGO figure that you like? Everyone can choose one LEGO figure and decorate it. # Elijan una figura LEGO y decórenla. # [face] guidance: listen
 [Speak] Show your figure to your friends. When you are done, raise the black and white card you have in front of you. # Muestra tu figura a tus amigos. Cuando termines, levanta la tarjeta con la carita sonriente que tienes frente a ti. # [face] idle
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20 [face] guidance: show
 [edge] no [speak] I see you are having fun. Let me know when you are done by raising the card. [goto] -1
 [edge] yes [speak] Great!
-[Speak] Did you pick a boy or a girl? # ¿Escogiste a un niño o una niña? # [pause] 1
-[Speak] What kind of hair do they have? Curly? Straight? Short? Long? # ¿Qué tipo de cabello tiene? ¿Rizado? ¿Lacio? # [pause] 1 
-[Speak] What color is their shirt? # ¿De qué color es su camiseta?# [pause] 1
+[Speak] Did you pick a boy or a girl? # ¿Escogiste a un niño o una niña? # [face] guidance: speak [pause] 2
+[Speak] What kind of hair do they have? Curly? Straight? Short? Long? # ¿Qué tipo de cabello tiene? ¿Rizado? ¿Lacio? # [face] guidance: speak [pause] 2 
+[Speak] What color is their shirt? # ¿De qué color es su camiseta?# [face] guidance: speak [pause] 2
 [Speak] Look, I picked a girl with brown hair and a blue shirt. [show] image: blue_figure
 [Speak] Blue is my favorite color. #Mira, tiene cabello castaño y una camiseta azul. # 
 [Speak] Show your friends your figure and tell them what you picked.  [move] look_from_side_to_side [pause] 10
-[Speak] Does your figure have a name? Share it with your friends! ¿Tu figura tiene nombre? ¡Compártelo con tus amigos!. [move] look_from_side_to_side [pause] after: 10
+[Speak] Does your figure have a name? Share it with your friends! ¿Tu figura tiene nombre? ¡Compártelo con tus amigos!. [move] look_from_side_to_side [face] guidance: speak [pause] 10
 
 [Speak] Now, we’re ready to start! # ¡Vamos a empezar!#
 [Speak] Today we’re going to build a Ferris wheel. # Hoy vamos a construir una rueda de la fortuna.# [move] arms_up
-[Speak] Do you know what a Ferris wheel is? #¿Saben qué es?#
+[Speak] Do you know what a Ferris wheel is? #¿Saben qué es?# [face] guidance: speak [pause] 2
 [hear] words: yes, no
 [edge] yes [speak] Ferris wheels are so much fun! I love going on them and spinning round and round. Or in Spanish, #gira#, round and round. [move] arms_circle
-[edge] no [speak] Who can tell us? What is a Ferris wheel? ¿Quién puede decirnos?¿Qué es una rueda de la fortuna?
+[edge] no [speak] Who can tell us? What is a Ferris wheel? ¿Quién puede decirnos?¿Qué es una rueda de la fortuna? [face] guidance: speak [pause] 2
 [edge] timeout [speak] Ferris wheels are so much fun! I love going on them and spinning round and round. Or in Spanish, #gira#, round and round. [move] arms_circle
 [speak] You can find Ferris wheels in carnivals! I love them! ¡Las puedes encontrar en ferias! ¡Me encantan!# 
 [audio] laugh
@@ -67,29 +65,29 @@
 [find] what: face [timeout] 3
 [edge] no [speak] What about you?
 [edge] yes [speak] What about you?
-[Speak] How do you say “Ferris wheel” at home or in your family’s language? #¿Y ustedes? ¿Cómo lo dicen en su casa o en su idioma?# [pause] after: 5  
+[Speak] How do you say “Ferris wheel” at home or in your family’s language? #¿Y ustedes? ¿Cómo lo dicen en su casa o en su idioma?# [face] guidance: speak [pause] 5
 [Speak] Wow, so many ways to say it! Isn’t it cool that we can learn from each other? #¡Qué bonito aprender diferentes palabras entre todos!# [move] arms_up
 
 [find] what: face [timeout] 3
-[edge] no [speak] Have you ever been on a Ferris wheel?
-[edge] yes [speak] Have you ever been on a Ferris wheel?
+[edge] no [speak] Have you ever been on a Ferris wheel? [face] guidance: speak [pause] 2
+[edge] yes [speak] Have you ever been on a Ferris wheel? [face] guidance: speak [pause] 2
 [Speak] Tell your friends. ¿Alguna vez has subido a una rueda de la fortuna? Cuéntenle a sus amigos.# [pause] after: 10
 [Speak] Today we’ll build a big Ferris wheel together for our LEGO friends!  # ¡Hoy construiremos una gran rueda de la fortuna para nuestros amigos LEGO juntos! # [move] home
 [speak] We can build together! Everyone will have an important role! [pause] 1
 
 [Speak] Look at the bin at the center of your table! It has all the pieces. [move] arms_down [face] look_down
 [Speak] So let`s get started! # Miren la caja en el centro de la mesa. ¡Tiene todas las piezas que necesitamos! #
-[Speak] Are you ready? # ¿Listos?# [pause] 3
+[Speak] Are you ready? # ¿Listos?# [face] guidance: speak [pause] 3
 [speak] Great! # ¡Muy bien! 
 
 Step 1: Find the Controller and Pins
-[Speak] Who wants to be the finder in this step?, #¿Quién quiere ser el buscador o la buscadora en este paso?# [move] look_from_side_to_side
+[Speak] For this step, the child who has the yellow stick will be the finder. #En este paso, quien tenga el palito amarillo será quien busca.# [move] look_from_side_to_side
 [speak] Can you find the yellow controller block #el bloque controlador amarillo# and four green pins #y cuatro clavijas verdes#? [show] image: ferris_step_01
 [Speak] When you are done, raise your cards. #Cuando terminen, levanten sus tarjetas.# [show] image: ferris_step_01
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20 [face] guidance: show
 [edge] no [speak] Still searching? Take your time. [show] image: ferris_step_01 [goto] -1
 [edge] yes [speak] Great! That’s our yellow controller! 
-[speak] Do you remember how to say yellow in Spanish? [pause] 4
+[speak] Do you remember how to say yellow in Spanish? [pause] 4 [face] guidance: speak
 [speak] It is #amarillo#, yellow. 
 [speak] Let’s say it together: #amarillo#, yellow! [pause] 2
 [audio] laugh
@@ -98,16 +96,16 @@ ________________
 
 
 Step 2: Add Controller to Base
-[Speak] Now, we need a builder for this step. #Ahora necesitamos un constructor o una constructora#. [move] look_from_side_to_side
-[speak] Who will it be? Remember, we will switch roles so everyone gets a chance to play all the roles! #Recuerden, vamos a cambiar los roles para que todos tengan la oportunidad de jugar todos los roles.# [pause] 3
+[Speak] Now, the child who has the blue stick will be the builder for this step. #Ahora, quien tenga el palito azul será quien construye en este paso.# [move] look_from_side_to_side
+[speak] Remember, we will switch roles so everyone gets a chance! #Recuerden, vamos a cambiar los roles para que todos tengan una oportunidad.# [pause] 3
 [speak] Now connect the controller to the gray rectangular LEGO plate #constructor, conecta el controlador a la placa. Es gris y rectangular.#. the base. [show] image: ferris_step_02
 [Speak] Now we need an assistant. 
 [find] what: face [timeout] 5
-[edge] no [speak] Who can hold the base while the builder clicks the controller in?
-[edge] yes [speak] Who can hold the base while the builder clicks the controller in?
+[edge] no [speak] The child with the green stick will be the holder, helping keep the base steady while the builder clicks the controller in. #Quien tenga el palito verde será quien sostiene la base y ayuda a mantenerla firme mientras quien construye encaja el controlador.#
+[edge] yes [speak] Who can hold the base while the builder clicks the controller in? [face] guidance: speak [pause] 2
 [Speak] #Una persona sostiene la base mientras la otra encaja el controlador.# [pause] 3
 [Speak] Raise your card when you are ready. #Levanta tu tarjeta cuando estés listo.# [show] image: ferris_step_02
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20 [face] guidance: show
 [edge] no [speak] Not quite done? I will wait. # ¿Todavía no? Aquí espero.# [goto] -1 
 [edge] yes [speak] Excellent teamwork! # ¡Buen trabajo en equipo!#
 [Speak] Oh, do you remember how to say gray in Spanish? [pause] 4
@@ -120,19 +118,19 @@ ________________
 
 Step 3-5: Build One Tower
 [Speak] This tower is very important. In Spanish we say: #un torre#, a tower. This tower is 3 blocks high!
-[Speak] Who can remind me how we count to three in Spanish? [pause] 5
+[Speak] Who can remind me how we count to three in Spanish? [face] guidance: speak [pause] 5
 [speak] #uno, dos, tres.# One, two, three. 
 [Speak] Let’s show what a tower looks like with our hands! Reach up tall like a tower, #como una torre!# [move] arms_up  
 [find] what: face [timeout] 5
-[edge] no [speak] How do you say “tower” in your language?
-[edge] yes [speak] How do you say “tower” in your language?
-[Speak] # ¿Cómo se dice “tower” en tu idioma?#  Can you teach your friends? # ¿Quieres enseñarle a tus amigos?# [move] arms_down [pause] 5
+[edge] no [speak] How do you say “tower” in your language? [face] guidance: speak [pause] 2
+[edge] yes [speak] How do you say “tower” in your language? [face] guidance: speak [pause] 2
+[Speak] # ¿Cómo se dice “tower” en tu idioma?#  Can you teach your friends? # ¿Quieres enseñarle a tus amigos?# [move] arms_down [face] guidance: speak [pause] 5
 [Speak] Now, stack three bricks to build a tower. First put the yellow part #coloca la parte amarilla# on the gray base #sobre la base gris#. #[show] image: ferris_step_03 [pause] 5
 [Speak] Then stack one red brick #un ladrillo rojo# as base and three bricks #tres ladrillos verdes#, one on top of the other #uno encima del otro#. [show] image: ferris_step_05
 [Speak] You can take turns: one stacks, the other one counts. Then switch!  #Pueden turnarse: uno apila y el otro cuenta.# [pause] 3
 
 [Speak] When it’s done, raise your cards. # Cuando terminen, levanten sus tarjetas. #[show] image: ferris_step_05
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 30
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 30 [face] guidance: show
 [edge] no [speak] Not quite done? I will wait. # ¿Todavía no? Aquí espero.# [goto] -1 
 [edge] yes [speak] Excellent teamwork! # ¡Buen trabajo!#
 [audio] laugh
@@ -142,16 +140,16 @@ ________________
 
 Step 6-8: Build and Add the Second Tower 
 [Speak] Time to add the second tower! [move] arms_up_and_down
-[speak] What parts do we need to build the tower? Who wants to be the finder? #El buscador o la buscadora?# [pause] 3
+[speak] What parts do we need to build the tower? For this step, the child with the yellow stick will be the finder. #En este paso, quien tenga el palito amarillo será quien busca..# [pause] 3
 [speak] Great! Find the yellow plate and these two orange yellow pieces. #la segunda torre amarilla, la placa amarilla y dos piezas pequeñas naranjas #. [show] image: ferris_step_08
 [Speka] Raise your card when you’re done! [show] image: ferris_step_08
-[Speak] Are we ready to build? Who will be the builder this time? El constructor o la constructora? [move] look_from_side_to_side [pause] 3
+[Speak] Are we ready to build? This time, the child who has the blue stick will be the builder.  #Esta vez, quien tenga el palito azul será quien construye. [move] look_from_side_to_side [pause] 3
 [speak] Put the tower together! The builder can hold the base plate while the assistant presses the tower down. #El constructor puede sostener la base mientras el assistente presiona la torre hacia abajo# [show] image: ferris_step_08
 [speak] Let’s check and see: does the tower look right? Is it the same as in the picture? ¿La torre se parece a la que está en la foto? Raise your cards.  # ¿¿Está conectado? Levanten sus tarjetas. # [show] image: ferris_step_08
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20 [face] guidance: show
 [edge] no [speak] Still building? I will wait. ¿Todavía no? Aquí espero.# [goto] -1
 [edge] yes [speak] Great! # ¡Muy bien! #
-[Speak] By the way, do you remember how to say yellow in Spanish? [pause] 3
+[Speak] By the way, do you remember how to say yellow in Spanish? [face] guidance: speak [pause] 3
 [speak] It’s #amarillo#, yellow. 
 [speak] The second tower is ready. Great job. # la ¡Una torre está lista! Muy buen trabajo.#
 [audio] laugh
@@ -159,19 +157,19 @@ ________________
 
 
 Step 9-10: Attach the light
-[Speak] Who wants to be the finder now? What pieces do we need to build the light? Take a look! [show] image: ferris_step_09 [pause] 5
-[Speak] Do we have everything we need? #¿Tenemos todo lo que necesitamos?#
-[Speak] Now, whose turn is it to be the builder? Attach the parts and put the light together! [move] look_from_side_to_side
+[Speak] For this step, the child with the yellow stick will be the finder. What pieces do we need to build the light? Take a look! [show] image: ferris_step_09 [pause] 5
+[Speak] Do we have everything we need? #¿Tenemos todo lo que necesitamos?# [face] guidance: speak [pause] 2
+[Speak] Now, the child with the blue stick will be the builder  Attach the parts and put the light together! [move] look_from_side_to_side
 [Speak] Find the light piece #la pieza de luz# and connect the green pieces to it #conecta las piezas verdes#, similar to the controller. #igual que con el motor.# [show] image: ferris_step_09 [pause] after: 5
-[Speak] Remember how to say green in Spanish? [pause] 4
+[Speak] Remember how to say green in Spanish? [face] guidance: speak [pause] 4
 [speak] Great! # ¡Muy bien! # It’s #verde#, green. 
 
 [Speak] Time to check! Does the light look like in the picture? ¿La luz se ve como en la foto? Raise your cards if you think it’s correct. [show] image: ferris_step_09
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 10
-[edge] no [speak] oh uh! Let’s check again! Is there a mistake? Who can help fix it? ¿Algo anda mal? ¿Quién puede ayudar a arreglarlo?
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 10 [face] guidance: show
+[edge] no [speak] oh uh! Let’s check again! Is there a mistake? Who can help fix it? ¿Algo anda mal? ¿Quién puede ayudar a arreglarlo? [face] guidance: speak [pause] 2
 [edge] yes [speak] Good work! It’s so important to check our work at each step so we can catch our mistakes on time! .[Speak] Is the light attached to the base? Like in this picture? ¿La luz se ve como en la foto?
 [Speak] When the light is attached to the base, hold up your cards. # ¿Cuando esté listo, levanten sus tarjetas. # [show] image: ferris_step_10
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 10
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 10 [face] guidance: show
 [edge] no [speak] Take your time. I will wait here until the light piece is attached. [show] image: ferris_step_10 [goto] -1
 [edge] yes [speak] That was great teamwork!  
 [speak] Awesome!  # ¡Muy bien! #
@@ -180,16 +178,18 @@ ________________
 
 Step 11-12: Add the Motor
 [Speak] Now let’s find the motor and attach green pins to it. #Ahora, encuentra el motor y colócale los pasadores verdes.# [show] image: ferris_step_11 [pause] after: 5
-[Speak] Who wants to be the finder now? Raise your card! ¿Quién quiere ser el buscador ahora? ¡Levanta tu tarjeta! [move] look_from_side_to_side [pause] 6
+[Speak] For this step, the child with the green stick will be the finder. Raise your card! #En este paso, quien tenga el palito verde será quien busca. ¡Levanta tu tarjeta!# move] look_from_side_to_side  [pause] 6
 [Speak] Oh! Two friends want to be finders. I love it when we collaborate! You can work together to find all the pieces we need to build the motor!
 
 [Speak] Great! find the motor, attach green pins to it. [show] image: ferris_step_11 [pause] after: 5 
-[speak] Now, who wants to attach the motor to the tower?  #¿Quien quierre adjuntar el motor al torre?# Make sure it is attached in the correct spot! [show] image: ferris_step_12
+[speak] Now, the child with the red stick will attach the motor, making sure it is in the correct spot!
+ #Ahora, quien tenga el palito rojo colocará el motor, asegurándose de que esté en el lugar correcto.#
+ [show] image: ferris_step_12
 [Speak] Let’s check together! If you think the motor is attached the right way, raise your cards! [show] image: ferris_step_12
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 10
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 10 [face] guidance: show
 [edge] no [speak] Let me know when it is attached. I will wait! #Espero aqui# [goto] -1
 [edge] yes [speak] That was great teamwork! #¡Eso fue un gran trabajo en equipo!#
-[Speak] By the way, do you know how to say “motor" in Spanish?
+[Speak] By the way, do you know how to say “motor" in Spanish? [face] guidance: speak [pause] 2
 [hear] words: yes, motor, no
 [edge] yes [speak] That’s right!  It’s the same word. Just the way it is said is a bit different! #El motor#
 [edge] motor [speak] That’s right!  It’s the same word. Just the way it is said is a bit different! #El motor#
@@ -203,25 +203,29 @@ ________________
 Step 13-14: Build the stairs
 [Speak] The wheel is really coming together! [pause] 2
 [Speak] Now, your figures need a way to reach the ferris wheel. #Tus figuras necesitan llegar a la rueda de la fortuna.# 
-[Speak] Who has an idea? 
+[Speak] Who has an idea? [face] guidance: speak [pause] 2 
 [find] what: face [timeout] 5
-[edge] no [speak] Tell your friends!! #¿Tienes una idea? ¡Dísela a tus amigos!# [pause] after: 5
-[edge] yes [speak] Tell your friends!! #¿Tienes una idea? ¡Dísela a tus amigos!# [pause] after: 5
-[Speak] How about building stairs? ¿Qué tal si construyen unas escaleras?" [pause] 2
-[Speak] Who’s turn is it to be the finder? [move] look_from_side_to_side
+[edge] no [speak] Tell your friends!! #¿Tienes una idea? ¡Dísela a tus amigos!# [pause] after: 5 [face] guidance: speak [pause] 2
+[edge] yes [speak] Tell your friends!! #¿Tienes una idea? ¡Dísela a tus amigos!# [pause] after: 5 [face] guidance: speak [pause] 2
+[Speak] How about building stairs? ¿Qué tal si construyen unas escaleras?" [face] guidance: speak [pause] 2
+[Speak] For this step, the child with the yellow stick will be the finder.
+ #En este paso, quien tenga el palito amarillo será quien busca.#
+ [move] look_from_side_to_side
 [Speak] Find the yellow brick # el ladrillo amarillo# and the blue tiles #y las piezas azules# in the picture! Raise your card when you’re done! [show] image: ferris_step_13
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20 [face] guidance: show
 [edge] no [speak] Let me know when you find it. I will wait! #Espero aqui# [goto] -1
 [edge] yes [speak] That was great teamwork! #¡Eso fue un gran trabajo en equipo!#
-[Speak] Now, let’s build the stairs! Who’s turn is it to be the builder? #¿Quien es el constructor or la constructora?# [pause] 3
+[Speak] Now let’s build the stairs! The child who has the blue stick will be the builder.
+ #Quien tenga el palito azul será quien construye.#
+ [pause] 3
 [speak] Connect the yellow brick #el ladrillo amarillo# and the blue tiles #y las piezas azules# [pause] after: 5
 
 [Speak] Then connect two more blue tiles. #Conecten dos piezas azules más.#
 [Speak] When they’re all connected, raise your card. #  ¿Cuando esté listo, levanten sus tarjetas. #[show] image: ferris_step_14
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20 [face] guidance: show
 [edge] no [speak] Still fixing the stairs? I will wait until you are done. [goto] -1
 [edge] yes [speak] You built the blue stairs #escaleras#! What a super team! 
-[Speak] I love the color blue. Remember how to say blue in Spanish? [pause] 4
+[Speak] I love the color blue. Remember how to say blue in Spanish? [face] guidance: speak [pause] 4
 [speak] It’s #azul#, blue. My favorite color!
 [audio] laugh
 
@@ -230,51 +234,60 @@ Step 15:
 [Speak] Okay, now find the rod #encuentra la varilla# and put it in the motor #y colócala en el motor#. [show] image: ferris_step_15
 [Speak] That will make the ferris wheel turn. #Eso hará que la rueda de la fortuna gire.#[show] image: ferris_step_15 [pause] after: 15
 [Speak] Can you make your hands spin like a wheel?  [move] arms_circle [pause] after: 5
-[Speak] How do you say “spin” in Spanish? [pause] 4
+[Speak] How do you say “spin” in Spanish? [face] guidance: speak [pause] 4
 [speak] Yes! #Girar#, spin! Great! # ¡Muy bien! #
 
 [Speak] Nice! Now we build the arms of the ferris wheel. #Los brazos de la rueda# 
-[Speaker] For this step we’ll need a builder and an assistant. Who wants to be the builder? And the assistant? [pause] 3
+[Speaker] For this step, we’ll need a builder and an assistant.
+ The child with the blue stick will be the builder, and
+ the child with the green stick will be the assistant.
+ #Quien tenga el palito azul será quien construye, y quien tenga el palito verde será quien ayuda..#
+ [pause] 3
 [Speak] Remember we are always switching roles so everyone gets a chance to help! [pause] 5
 [Speaker] First, start with the main structure. [show] image: ferris_step_16 [pause] after: 15 [pause] 10
 
 [Speak] Now, connect the green pieces #las piezas verdes# to the round wheel center #al centro redondo de la rueda# to form an X. [show] image: ferris_step_17
 [Speak] Holder, you can now hold the wheel while your friend adds the arms #mientras su compañero agrega los brazos#. When they’re all connected, raise your cards. #Cuando todo esté conectado, levanten sus tarjetas.# [show] image: ferris_step_17
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 20 [face] guidance: show
 [edge] no [speak] Need more time? I will wait until you are done. #¿Todavía no? Aquí espero.# [show] image: ferris_step_17 [goto] -1
 [edge] yes [speak] You made an X! What a super team!
 
 
 [Speak] Now let’s complete the ferris wheel! [move] arms_up [pause] 1
-[Speak] Let’s look at the instructions together? What is the part we need for this step? Everyone can look together now! [move] home [show] image: ferris_step_18
-[Speak] Put one more purple circle. #un círculo morado.# Choose who builds this step! #¡Elijan quién construye este paso!# [show] image: ferris_step_18
+[Speak] Let’s look at the instructions together? What is the part we need for this step? Everyone can look together now! [move] home [show] image: ferris_step_18 [face] guidance: speak [pause] 2
+[Speak] Put one more purple circle. #Un círculo morado.#
+ The child with the blue stick will be the builder in this step.
+ #En este paso, quien tenga el palito azul será quien construye.#
+ [show] image: ferris_step_18
 [Speak] Builder, raise your card when you’re done! #¡Constructor, levanta tu tarjeta cuando termines!# [show] image: ferris_step_18 [pause] after: 10
 [Speak] Then four white pieces #cuatro piezas blancas#. Work together. #Trabajen juntos.# [show] image: ferris_step_19 [pause] after: 10
 [Speak] Then a green round piece. #una pieza redonda verde.# [show] image: ferris_step_20 [pause] after: 5
 [Speak] And an orange cone. #un cono naranja.# [show] image: ferris_step_21 [pause] after: 10
 [Speak] Our wheel is done! [move] arms_circle [pause] 1
 [Speka] Now let’s build nice seats so your figures can enjoy the ride! [pause] 2
-[Speak] I forgot; how do you say ‘seat’ in Spanish again? # Me olvidé. ¿Cómo se dice “seat” en espanol?  # [pause] 4
+[Speak] I forgot; how do you say ‘seat’ in Spanish again? # Me olvidé. ¿Cómo se dice “seat” en espanol?  # [face] guidance: speak [pause] 4
 [speak] #asiento#
 [Speak] Oh, that’s right. Now, you need to build four seats, # quatro asientos #. [show] image: ferris_step_22 
 [Speak] One seat for each arm of the wheel and for each lego figure! Let’s work together! 
 [Speak] Each friend can pick a seat to build! #¡Cada amigo puede elegir un asiento para construir!# Help each other! #¡Ayúdense entre sí!# [show] image: ferris_step_22
 [Speak] Let me know when you are done. [show] image: ferris_step_22
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 60 [face] guidance: show
 [edge] no [speak] Still finalizing those seats? I will wait until you are done. # ¿Todavía terminando esos asientos? Espero aqui #  [show] image: ferris_step_22 [goto] -1
 [edge] yes [speak] You have the wheel! What a great team!
 [edge] timeout [speak] You have the wheel! What a great team!
 
 Attach the Wheel to the Axle
 [Speak] Finally, we are ready to put the wheel on the axle.
-[Speak] Who will be the builder now? And who can be the holder? #¿Ahora quién será el constructor? ¿Y quién puede ser el que sostiene?# 
+[Speak] For this step, the child with the blue stick will be the builder, and
+ the child with the green stick will be the holder.
+ #En este paso, el niño o la niña con el palito azul será el constructor, y quien tenga el palito verde será quien sostiene.# 
 [find] what: face [timeout] 5
 [edge] no [speak] Now gently slide the wheel onto the axle.
 [edge] yes [speak] Now gently slide the wheel onto the axle.
 [Speak] #deslicen suavemente la rueda en el eje.# Be very careful!. #¡Tengan cuidado!# One of you can hold the axle, while the other pushes the wheel. #Trabajen juntos! Uno puede sostener el eje, el otro empuja la rueda.# Be very careful! [show] image: ferris_step_23 [pause] after:10
 [Speak] Now, let`s test it!  If it spins nicely, raise your card. #Ahora, vamos a probarlo! Si gira bien, levanten sus tarjetas.#
-[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 15
-[edge] no [speak] What can be the problem? #¿Cuál puede ser el problema?# Who can help the wheel turn around?. [goto] -1
+[find] what: qr [data] child number 1, child number 2, child number 3, child number 4 [timeout] 15 [face] guidance: show
+[edge] no [speak] What can be the problem? #¿Cuál puede ser el problema?# Who can help the wheel turn around?. [face] guidance: speak [pause] 2 [goto] -1
 [edge] yes [speak] You did it! 
 [edge] timeout [speak] #¡Excelente!#
 [audio] laugh [move] arms_up

@@ -270,8 +270,11 @@ def create_files_with_header(parsed_lines, added_code, output_dir, header, child
 # file_path = '../Scripts/Source/Game_Multiplication.txt'  # Replace with your file path
 # languages = ['en']
 
-file_path = '../Scripts/Source/test.txt'  # Replace with your file path
-languages = ['en', 'es']
+# file_path = '../Scripts/Source/test.txt'  # Replace with your file path
+# languages = ['en', 'es']
+
+file_path = '../Scripts/Source/jorge.txt'  # Replace with your file path
+languages = ['en']
 
 
 FORCE_GENERATE_AUDIO = True
