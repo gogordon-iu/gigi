@@ -1,0 +1,33 @@
+some security measures implemented
+
+1) installed fail2ban
+sudo apt install fail2ban
+
+2) installed firewall
+sudo apt install firewall
+
+3) set firewall to default allow outgoing and deny incoming
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+4) Allowed only the ssh port 
+sudo ufw allow 22/tcp
+
+5) Did a nmap scan and identified two ports open
+Port 5555 (ADB - Android Debug Bridge)
+Port 3389 (RDP/Remote Desktop) 
+
+6) denied these ports
+sudo systemctl stop xrdp
+sudo systemctl disable xrdp
+sudo ufw deny 3389
+sudo ufw deny 5555
+
+7) set bluetooth to non-discoverable
+sudo systemctl disable bluetooth
+
+Some additional security measures thinking to implement
+
+1) set a low-previliged access to users
+2) encrypt disk
+3) set up ssh key and disable pasword access

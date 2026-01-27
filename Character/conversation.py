@@ -15,7 +15,7 @@ class Conversation:
         #self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         #self.model = AutoModelForCausalLM.from_pretrained(model_name)
         self.ollama_url = "http://localhost:11434"
-        self.ollama_model = "llama3.2:1b-instruct-q4_K_M"
+        self.ollama_model = "hf.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M"
         self.conversation_history = []
         if system_prompt:
             self.conversation_history.append({
