@@ -1,33 +1,50 @@
 import cv2
-from pyzbar.pyzbar import decode
+import time
 import threading
-import sys
-from datetime import datetime
-from time import sleep, time
+from queue import Queue, Empty
+import vision_helper as vh
 
 class Vision:
-    def __init__(self, port=None, verbose=False):
-        print("Initializing vision ...")
-        self.verbose = verbose
-        self.cap = self.open_camera(port)
-        self.found = {
-            "qr": {},
-            "face": {},
-            "motion": {}
-        }
-        # Load the Haar cascade for face detection
-        cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        self.face_cascade = cv2.CascadeClassifier(cascade_path)
+    def __init__(self, camera_source=None, auto_start=False):
+        self.camera_source = camera_source
+        self.cap = None
+        self.is_robot = True
 
-        self.thread = None
-        self.stop_event = None
+        self.face_db = vh.FaceDatabase()
+        self.emotion_detector = vh.EmotionDetector()
+        self.face_cache = vh.ImprovedFaceCache()
 
-        self.motion_detection_stage = "inactive" # inactive | acquire_background | active
-        self.motion_detection_calibration = 0
-        self.motion_detection_duration = 10
-        self.save_motion_frames = True
+        self.timestamped_data = {}
+        self.last_data = {}
 
-   
+        self.face_mesh = None
+        self.hands = None
+
+        self.face_queue = Queue(maxsize=vh.MAX_QUEUE_SIZE)
+        self.emotion_queue = Queue(maxsize=vh.MAX_QUEUE_SIZE)
+        self.gesture_queue = Queue(maxsize=vh.MAX_QUEUE_SIZE)
+        self.result_queue = Queue()
+
+        self.stop_event = threading.Event()
+        self.capture_thread = None
+        self.vision_thread = None
+        self.running = False
+
+        self.processing_flags = {'face_detection': 5, 'face_recognition': 5, 'emotion': 5, 'gesture': 5}
+        self.gesture_names = {0: "Unknown", 1: "Thumbs Up", 2: "Thumbs Down"}
+        self.hand_gesture = "Unknown"
+
+        self.active_workers = {'face_recognition': False, 'emotion': False, 'gesture': False}
+        self.last_process_time = {'face_detection': 0, 'face_recognition': 0, 'emotion': 0, 'gesture': 0}
+
+        self.threads = []
+        self.latest_frame = None
+        self.raw_frame = None
+        self.frame_lock = threading.Lock()
+
+        if auto_start:
+            self.run_vision()
+    
     def open_camera(self, port):
         if port is None:
             ports = range(10)
@@ -40,209 +57,326 @@ class Vision:
                 return cap
         print(f"Unable to open camera!")
         return None
-    
 
-    def detect_qr(self, frame):
-        height, width = frame.shape[:2]
-        decoded_objects = decode(frame)
-        if decoded_objects:
-            for obj in decoded_objects:
-                qr_data = obj.data.decode('utf-8')
-                self.found["qr"][qr_data] = {
-                    "box": obj.rect,
-                    "center": (obj.rect.left + obj.rect.width // 2, obj.rect.top + obj.rect.height // 2),
-                    "offset": (((width // 2) - (obj.rect.left + obj.rect.width // 2)) / width, ((height // 2) - (obj.rect.top + obj.rect.height // 2)) / height)
-                }
-            if self.verbose:
-                print(f"QR Code detected: {qr_data}")
-                # stop_event.set()  # DEBUG
-                # return    # DEBUG        
+    def _capture_loop(self):
+        self.cap = self.open_camera(self.camera_source) # cv2.VideoCapture(0)
+        try:
+            while not self.stop_event.is_set():
+                ret, frame = self.cap.read()
+                if not ret:
+                    break
+                with self.frame_lock:
+                    self.raw_frame = frame.copy()
+                time.sleep(0.01)
+        finally:
+            if self.cap:
+                self.cap.release()
+    def _display_loop(self):
+        """Internal display loop that runs in a thread"""
+        print("Display loop started. Press 'q' to quit...")
 
-    def detect_motion(self, frame):
-        height, width = frame.shape[:2]
-
-        # parameters
-        blur_k = 21
-        alpha = 0.02
-        thr = 120
-        min_area = 1000
-
-        # resize to reasonable width for speed (maintain aspect ratio)
-        max_width = 800
+        # Create the window first
+        cv2.namedWindow('Camera Feed', cv2.WINDOW_NORMAL)
+        # Set it to fullscreen
+        cv2.setWindowProperty('Camera Feed', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         
-        scale = 1.0
-        if width > max_width:
-            scale = max_width / float(width)
-
-        def resize_frame(f):
-            if scale != 1.0:
-                return cv2.resize(f, (int(f.shape[1]*scale), int(f.shape[0]*scale)))
-            return f
-
-        if self.motion_detection_stage == "inactive":
-            self.motion_detection_stage = "acquire_background"
-            frame = resize_frame(frame)
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray = cv2.GaussianBlur(gray, (blur_k, blur_k), 0).astype("float32")
-
-            self.background = gray.copy()  # float32 background model
-
-        height, width = frame.shape[:2]
-        max_area = height * width / 4
-
-        frame = resize_frame(frame)
-        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frame_blur = cv2.GaussianBlur(frame_gray, (blur_k, blur_k), 0)
-
-        # Update running average background (float32)
-        cv2.accumulateWeighted(frame_blur.astype("float32"), self.background, alpha)
-
-        if self.motion_detection_stage == "acquire_background":
-            self.motion_detection_calibration += 1
-            if self.motion_detection_calibration > self.motion_detection_duration:
-                self.motion_detection_stage = "active"
-                self.motion_detection_calibration = 0
-
-        print(f"Stage {self.motion_detection_stage}, Calibration {self.motion_detection_calibration}")
-
-        if self.motion_detection_stage == "active":
-
-            # Compute absolute difference between background and current frame
-            background_uint8 = cv2.convertScaleAbs(self.background)  # convert to uint8 for absdiff
-            diff = cv2.absdiff(background_uint8, frame_blur)
-
-            # Threshold to get motion regions
-            _, motion_mask = cv2.threshold(diff, thr, 255, cv2.THRESH_BINARY)
-
-            # Morphological ops to reduce noise
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
-            motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_OPEN, kernel, iterations=1)
-            motion_mask = cv2.dilate(motion_mask, kernel, iterations=2)
-
-            # Find contours on mask
-            contours, _ = cv2.findContours(motion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            motion_boxes = []
-            for i, cnt in enumerate(contours):
-                area = cv2.contourArea(cnt)
-                if area < min_area or area > max_area:
-                    continue
-                x, y, w, h = cv2.boundingRect(cnt)
-                if self.save_motion_frames:
-                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 180, 255), 2)
-                motion_boxes.append({
-                            "box": (x, y, w, h),
-                            "center": ((x + w // 2), (y + h // 2)),
-                            "offset": (((width // 2) - (x + w // 2)) / width, ((height // 2) - (y + h // 2)) / height)
-                            })
-            if self.save_motion_frames and len(motion_boxes) > 0:
-                text = f"Motion boxes: {len(motion_boxes)} Stage {self.motion_detection_stage}"
-                cv2.putText(frame, text, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
-                filename = datetime.now().strftime("motion_%Y-%m-%d_%H-%M-%S.jpg")
-                cv2.imwrite(filename, frame)
-
-            if len(motion_boxes) > 0:
-                self.motion_detection_stage = "inactive"    # reset the motion detection
-
-            for i, m in enumerate(motion_boxes):
-                self.found['motion'][i] = m
-
-    def look_for(self, what=None):
-        print(f"Looking for {what} ...")
-        if what is None:
-            what = self.found.keys()
-        debug = 0
-        print(f"Looking for {what} ...")
         while not self.stop_event.is_set():
-            debug += 1
+            frame = self.get_latest_frame()
+            if frame is not None:
+                cv2.imshow('Camera Feed', frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    self.stop_event.set()
+                    break
+            time.sleep(0.01)
+        cv2.destroyAllWindows()
 
-            ret, frame = self.cap.read()
-            if not ret:
-                print("Failed to capture frame. Exiting.")
-                self.stop_event.set()
-                return
-            height, width = frame.shape[:2]
-
-            if "qr" in what:
-                self.detect_qr(frame)
-
-            if "face" in what:
-                gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-                # Detect faces
-                faces = self.face_cascade.detectMultiScale(gray_image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-                for iface, (x, y, w, h) in enumerate(faces):
-                    self.found["face"][iface] = {
-                        "box": (x, y, w, h),
-                        "center": ((x + w // 2), (y + h // 2)),
-                        "offset": (((width // 2) - (x + w // 2)) / width, ((height // 2) - (y + h // 2)) / height)
-                    }
-                if len(self.found["face"]) > 0:
-                    if self.verbose:
-                        print(self.found["face"])
-                        filename = datetime.now().strftime("face_%Y-%m-%d_%H-%M-%S.jpg")
-                        cv2.imwrite(filename, frame)
-                        for (x, y, w, h) in faces:
-                            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                        filename = datetime.now().strftime("detected_face_%Y-%m-%d_%H-%M-%S.jpg")
-                        cv2.imwrite(filename, frame)
-                    # stop_event.set()  # DEBUG
-                    # return # DEBUG
-                else:
-                    if self.verbose:
-                        print("Face not detected...")
-            # if debug > 1000:
-            #     return
-
-            if "motion" in what:
-                self.detect_motion(frame)
-
-    def vision_thread(self, what=None, stop_event=None):
-        if stop_event is None:
-            self.stop_event = threading.Event()
-        else:
-            self.stop_event = stop_event
-        t = threading.Thread(target=self.look_for, args=[what])
-        return t
-
-    def run_vision(self, what=None):
-        if not self.thread:
-            self.thread = self.vision_thread(what=what)
-            self.thread.start()
-            sleep(2)
-
+    def display_loop(self):
+        """Public method to run display loop in main thread (for backwards compatibility)"""
+        if self.is_robot:
+            print("Display disabled (is_robot=True)")
+            return
+        self._display_loop()
+    def _vision_loop(self):
+        while not self.stop_event.is_set():
+            with self.frame_lock:
+                frame = self.raw_frame.copy() if self.raw_frame is not None else None
+            
+            if frame is not None:
+                processed_frame, _ = self._process_frame(frame)
+                with self.frame_lock:
+                    self.latest_frame = processed_frame
+            
+            time.sleep(0.001)
+                
+    def run_vision(self):
+        """
+        Start the vision system.
+        """
+        if not self.running:
+            self.stop_event.clear()
+            self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
+            self.vision_thread = threading.Thread(target=self._vision_loop, daemon=True)
+            self.capture_thread.start()
+            self.vision_thread.start()
+            self.running = True
+    
+            if not self.is_robot:
+                time.sleep(0.5)  # Give camera time to initialize
+                self._display_loop()
+            else:
+                print("Vision running in background (is_robot=True)")
+    
     def stop_vision(self):
-        if self.stop_event:            
+        if self.running:
             self.stop_event.set()
-            if self.thread:
-                self.thread.join()
-                self.thread = None
+            if self.capture_thread:
+                self.capture_thread.join(timeout=2.0)
+            if self.vision_thread:
+                self.vision_thread.join(timeout=2.0)
+            self.running = False
+    
+    def set_processing_flags(self, flags):
+        for key, value in flags.items():
+            if key in self.processing_flags:
+                self.processing_flags[key] = value
+    
+    def get_latest_frame(self):
+        with self.frame_lock:
+            return self.latest_frame.copy() if self.latest_frame is not None else None
+    
+    def get_last_data(self):
+        return self.last_data.copy()
+    
+    def get_timestamped_data(self):
+        return self.timestamped_data.copy()
+    
+    def look_and_stop(self, what, timeout=5.0):
+        result = self.look_for(what, timeout)
+        
+        return result
 
-    def look_and_stop(self, what=None, timeout=-1):
-        self.found[what] = {}
-
-        self.run_vision(what=what)
-        if timeout < 0:
-            timeout = 2
-
-        start_time = time()
-        remaining_timeout = timeout
-        while remaining_timeout > 0 and len(self.found[what]) == 0:
-            sleep(0.1)
-            remaining_timeout = timeout - (time() - start_time)
-        if len(self.found[what]) > 0:
-            self.stop_vision()
-        if self.verbose:
-            print(f"Found {what}: {self.found[what]}")
-
+    def look_for(self, what, timeout=5.0):
+        result_container = {'found': False, 'data': None, 'done': False}
+        stop_event = threading.Event()
+        search_thread = threading.Thread(target=vh.VisionHelpers.look_for_worker,
+                                        args=(what, timeout, result_container, stop_event, self.get_last_data),
+                                        daemon=True)
+        search_thread.start()
+        while not result_container['done']:
+            time.sleep(0.01)
+        return {'found': result_container['found'], 'data': result_container['data']}
+    
+    def should_process(self, feature, fps):
+        if fps <= 0:
+            return False
+        current_time = time.time()
+        time_per_frame = 1.0 / fps
+        if current_time - self.last_process_time[feature] >= time_per_frame:
+            self.last_process_time[feature] = current_time
+            return True
+        return False
+    
+    def start_worker_if_needed(self, worker_type):
+        if self.active_workers[worker_type]:
+            return
+        
+        if worker_type == 'face_recognition':
+            t = threading.Thread(target=vh.face_recognition_worker, 
+                               args=(self.face_queue, self.result_queue, self.stop_event, self.face_db), daemon=True)
+        elif worker_type == 'emotion':
+            t = threading.Thread(target=vh.emotion_detection_worker, 
+                               args=(self.emotion_queue, self.result_queue, self.stop_event, self.emotion_detector), daemon=True)
+        elif worker_type == 'gesture':
+            t = threading.Thread(target=vh.gesture_recognition_worker,
+                               args=(self.gesture_queue, self.result_queue, self.stop_event, self.gesture_names), daemon=True)
+        else:
+            return
+        
+        t.start()
+        self.threads.append(t)
+        self.active_workers[worker_type] = True
+    
+    def initialize_face_detection(self):
+        if self.face_mesh is None:
+            self.face_mesh = vh.MediaPipeInitializers.initialize_face_mesh()
+    
+    def initialize_gesture_detection(self):
+        if self.hands is None:
+            self.hands = vh.MediaPipeInitializers.initialize_hands()
+    
+    def process_results(self):
+        while True:
+            try:
+                result = self.result_queue.get_nowait()
+                if result[0] == 'recognition':
+                    _, face_id, name, is_new, position_key, timestamp = result
+                    self.face_cache.update_face_name(face_id, name, position_key)
+                elif result[0] == 'emotion':
+                    _, face_id, emotion, timestamp = result
+                    self.face_cache.update_face(face_id, 'emotion', emotion)
+                elif result[0] == 'gesture':
+                    _, hand_type, gesture_name, timestamp = result
+                    self.hand_gesture = gesture_name
+            except Empty:
+                break
+            except:
+                break
+    
+    def _process_frame(self, frame):
+        try:
+            current_time = time.time()
+            h, w = frame.shape[:2]
+            
+            face_detection = self.should_process('face_detection', self.processing_flags['face_detection'])
+            emotion = self.should_process('emotion', self.processing_flags['emotion'])
+            gesture = self.should_process('gesture', self.processing_flags['gesture'])
+            face_recognition = self.should_process('face_recognition', self.processing_flags['face_recognition'])
+            
+            self.process_results()
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            if face_detection:
+                self.initialize_face_detection()
+                
+                # Start face recognition worker if needed
+                if face_recognition:
+                    self.start_worker_if_needed('face_recognition')
+                
+                try:
+                    face_results = self.face_mesh.process(rgb)
+                    if face_results.multi_face_landmarks:
+                        for face_landmarks in face_results.multi_face_landmarks:
+                            x_coords = [lm.x * w for lm in face_landmarks.landmark]
+                            y_coords = [lm.y * h for lm in face_landmarks.landmark]
+                            
+                            x_min = max(int(min(x_coords)) - 30, 0)
+                            x_max = min(int(max(x_coords)) + 30, w)
+                            y_min = max(int(min(y_coords)) - 30, 0)
+                            y_max = min(int(max(y_coords)) + 30, h)
+                            
+                            if x_max <= x_min or y_max <= y_min:
+                                continue
+                            
+                            x_center = (x_min + x_max) // 2
+                            y_center = (y_min + y_max) // 2
+                            box = (x_min, y_min, x_max, y_max)
+                            
+                            face_id = self.face_cache.get_face_id(x_center, y_center, box)
+                            face_data = self.face_cache.get_face_data(face_id)
+                            face_crop = frame[y_min:y_max, x_min:x_max]
+                            
+                            if face_crop.size > 0:
+                                if face_recognition and self.face_cache.needs_recognition(face_id) and not self.face_queue.full():
+                                    try:
+                                        position_key = self.face_cache.get_position_key(x_center, y_center)
+                                        self.face_queue.put_nowait((face_id, face_crop.copy(), position_key, current_time))
+                                    except:
+                                        pass
+                                
+                                if emotion:
+                                    self.start_worker_if_needed('emotion')
+                                    if current_time - face_data.get('last_emotion', 0) > 5.0 and not self.emotion_queue.full():
+                                        try:
+                                            self.emotion_queue.put_nowait((face_id, face_crop.copy(), current_time))
+                                        except:
+                                            pass
+                            
+                            face_data = self.face_cache.get_face_data(face_id)
+                            vh.VisionHelpers.draw_face_info(frame, x_min, y_min, x_max, y_max, face_data)
+                except:
+                    pass
+            
+            if gesture:
+                self.initialize_gesture_detection()
+                self.start_worker_if_needed('gesture')
+                
+                try:
+                    hand_results = self.hands.process(rgb)
+                    if hand_results.multi_hand_landmarks and hand_results.multi_handedness:
+                        for hand_landmarks, handedness in zip(hand_results.multi_hand_landmarks, hand_results.multi_handedness):
+                            hand_type = handedness.classification[0].label
+                            wrist = hand_landmarks.landmark[0]
+                            hand_x = wrist.x
+                            hand_y = wrist.y
+                            
+                            for idx in [4, 8, 12, 16, 20, 0]:
+                                landmark = hand_landmarks.landmark[idx]
+                                cx, cy = int(landmark.x * w), int(landmark.y * h)
+                                cv2.circle(frame, (cx, cy), 5, (0, 255, 0), -1)
+                            
+                            if not self.gesture_queue.full():
+                                try:
+                                    self.gesture_queue.put_nowait((hand_landmarks.landmark, hand_type, current_time))
+                                except:
+                                    pass
+                            
+                            all_faces = self.face_cache.get_all_faces()
+                            closest_face_id = vh.VisionHelpers.associate_gesture_to_face(hand_x, hand_y, w, h, all_faces)
+                            if closest_face_id is not None and self.hand_gesture != "Unknown":
+                                self.face_cache.update_face(closest_face_id, 'gesture', self.hand_gesture)
+                except:
+                    pass
+            
+            if face_detection and current_time % 30 == 0:
+                self.face_cache.cleanup_old_faces()
+            
+            vh.VisionHelpers.update_data_structure(self.face_cache, self.last_data, self.timestamped_data)
+            return frame, self.get_last_data()
+        except:
+            return frame, self.get_last_data()
+        
+        
+    
+    def cleanup(self):
+        self.stop_vision()
+        for q in [self.face_queue, self.emotion_queue, self.gesture_queue]:
+            while not q.empty():
+                try:
+                    q.get_nowait()
+                except:
+                    break
+        for _ in range(len(self.threads)):
+            try:
+                self.face_queue.put(None, timeout=0.1)
+                self.emotion_queue.put(None, timeout=0.1)
+                self.gesture_queue.put(None, timeout=0.1)
+            except:
+                pass
+        for thread in self.threads:
+            thread.join(timeout=1.0)
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        what = sys.argv[1]
-    else:
-        what = "face"
-    vision = Vision(verbose=True)
-    vision.look_and_stop(what=what, timeout=10)
-    # vision.run_vision(what=what)
-    # sleep(30)
-    # vision.stop_vision()
+    # vision = Vision(camera_source=None)
+    # vision.is_robot = False
+    # vision.set_processing_flags({'face_detection': 8.0, 'face_recognition': 8.0, 'emotion': 8.0, 'gesture': 2.0})
+    # vision.run_vision()
+    # #found = vision.look_for(what={"name": "Stephanie"}, timeout=60)
+    # #print(f'Found: {found}')
+
+    # # try:
+    # #     while not vision.stop_event.is_set():
+    # #         # found = vision.look_for(what={"name": "Someone"}, timeout=10)
+    # #         # print(f'Found: {found}')
+
+    # #         time.sleep(0.1)
+    # # finally:
+    # #     vision.stop_vision()
+    # #     vision.cleanup()
+    
+    vision = Vision(camera_source=None)
+    vision.is_robot = False
+    vision.set_processing_flags({
+        'face_detection': 8.0, 
+        'face_recognition': 8.0, 
+        'emotion': 8.0, 
+        'gesture': 2.0
+    })
+    vision.run_vision()
+    
+    try:
+        vision.display_loop()  # This runs in main thread
+    except KeyboardInterrupt:
+        print("\nStopping...")
+    finally:
+        vision.cleanup()

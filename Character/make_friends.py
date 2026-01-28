@@ -4,9 +4,9 @@ import threading
 import numpy as np
 import pickle
 import os
-from newvision import Vision
+from Character.vision import Vision
 from speech import Speech
-from hearing_new2 import Hearing
+from Character.hearing import Hearing
 from conversation import Conversation
 from resemblyzer import VoiceEncoder, preprocess_wav
 from scipy.spatial.distance import cosine

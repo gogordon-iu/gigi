@@ -2,6 +2,8 @@ from hearingDefinitions import *
 import sounddevice as sd
 import threading
 import json
+import webrtcvad
+import numpy as np
 
 language_models = None
 HEARING_OPTION = "whisper"
@@ -22,8 +24,6 @@ elif HEARING_OPTION == "vosk":
         "en": "../Resources/vosk-model-small-en-us-0.15",
         "es": "../Resources/vosk-model-small-es-0.42"
     }
-    
-
 
 
 class Hearing():
@@ -31,13 +31,19 @@ class Hearing():
         print("Initializing hearing ...")
         self.verbose = verbose
         self.recognizer = None
+        self.words = None
         self.texts = []
         self.mic_index = self.get_usb_microphone()
+        
+        # NEW: Buffer to store raw audio for speaker recognition
+        self.raw_audio_buffer = []
+        
         if HEARING_OPTION == "sr":
             self.recognizer = sr.Recognizer()
         elif HEARING_OPTION == "whisper":
             # Optimized Faster Whisper model
             self.model = WhisperModel("tiny", device="cpu", compute_type="int8", num_workers=1)
+            
             # Audio processor for optimized handling with resampling support
             self.audio_processor = WhisperAudioProcessor(
                 native_sample_rate=INPUT_SAMPLE_RATE,  # Your mic's native rate (48000)
@@ -48,8 +54,19 @@ class Hearing():
                 silence_duration=SILENCE_DURATION,
                 debug=verbose
             )
+            
+            # WebRTC VAD configuration (enhanced from verifySTT.py)
+            self.vad = webrtcvad.Vad(1)  # Aggressiveness level 1 (0-3)
+            self.vad_frame_duration = 30  # ms (10, 20, or 30)
+            self.vad_frame_size = int(TARGET_SAMPLE_RATE * self.vad_frame_duration / 1000)
+            self.speech_threshold = 0.15  # Lowered threshold to be more sensitive
+            
+            # Word-level deduplication (from verifySTT.py)
+            self.last_segment_words = []  # Store last few words to avoid duplicates
+            
             # Queue to hold audio chunks
             self.audio_queue = queue.Queue(maxsize=5)
+            
         elif HEARING_OPTION == "vosk":
             self.languages = []
             if isinstance(languages, str):
@@ -64,11 +81,10 @@ class Hearing():
                         self.model[lang] = Model(language_models[lang])
             self.words = '["yes", "no", "[unk]"]'
             self.p = pyaudio.PyAudio()
-            self.stream = self.p.open(input_device_index=self.mic_index,format=pyaudio.paInt16, 
+            self.stream = self.p.open(input_device_index=self.mic_index, format=pyaudio.paInt16, 
                                  channels=1, rate=INPUT_SAMPLE_RATE, 
                                  input=True, frames_per_buffer=int(INPUT_SAMPLE_RATE/4))
 
-        
     def get_usb_microphone(self):
         devices = sd.query_devices()
         usb_devices = [
@@ -79,6 +95,130 @@ class Hearing():
             return usb_device
         else:
             return None
+
+    def contains_speech(self, audio_data):
+        """
+        Check if audio chunk contains speech using WebRTC VAD
+        Enhanced version from verifySTT.py
+        
+        Args:
+            audio_data: numpy array of audio samples (int16) at TARGET_SAMPLE_RATE
+            
+        Returns:
+            bool: True if speech is detected, False otherwise
+        """
+        # Convert to bytes for VAD
+        audio_bytes = audio_data.astype(np.int16).tobytes()
+        
+        # Split audio into VAD frames
+        speech_frames = 0
+        total_frames = 0
+        
+        for i in range(0, len(audio_bytes), self.vad_frame_size * 2):  # *2 for 16-bit samples
+            frame = audio_bytes[i:i + self.vad_frame_size * 2]
+            
+            # Skip incomplete frames
+            if len(frame) < self.vad_frame_size * 2:
+                continue
+                
+            # Check if frame contains speech
+            try:
+                if self.vad.is_speech(frame, TARGET_SAMPLE_RATE):
+                    speech_frames += 1
+                total_frames += 1
+            except:
+                continue
+        
+        # Calculate speech ratio
+        if total_frames == 0:
+            return False
+            
+        speech_ratio = speech_frames / total_frames
+        return speech_ratio >= self.speech_threshold
+
+    def remove_duplicate_words(self, current_words):
+        """
+        Remove duplicate words from overlapping transcription chunks
+        Enhanced version from verifySTT.py
+        
+        Args:
+            current_words: List of words from current transcription
+            
+        Returns:
+            List of unique words (duplicates removed)
+        """
+        if not current_words:
+            return []
+        
+        # Remove duplicate words from overlap
+        if self.last_segment_words:
+            # Find overlap between last segment and current segment
+            overlap_length = 0
+            for i in range(1, min(len(self.last_segment_words), len(current_words)) + 1):
+                if self.last_segment_words[-i:] == current_words[:i]:
+                    overlap_length = i
+            
+            # Remove overlapping words from current segment
+            unique_words = current_words[overlap_length:]
+        else:
+            unique_words = current_words
+        
+        # Update last segment words (keep last 10 words for next comparison)
+        self.last_segment_words = current_words[-10:] if len(current_words) > 10 else current_words
+        
+        return unique_words
+
+    def transcribe_with_dedup(self, audio_float, language="en"):
+        """
+        Transcribe audio with enhanced parameters and word-level deduplication
+        Based on verifySTT.py approach
+        
+        Args:
+            audio_float: Audio data as float32 numpy array
+            language: Language code
+            
+        Returns:
+            Deduplicated transcription text
+        """
+        if len(audio_float) < 8000:  # Skip very short clips (< 0.5s at 16kHz)
+            return ""
+        
+        try:
+            # Transcribe using enhanced parameters from verifySTT.py
+            segments, info = self.model.transcribe(
+                audio_float, 
+                beam_size=2,              # More thorough than beam_size=1
+                best_of=2,                # Consider multiple candidates
+                language=language,
+                condition_on_previous_text=False,
+                word_timestamps=True,     # Enable for better accuracy
+                vad_filter=False,         # We handle VAD ourselves
+                no_speech_threshold=0.4,  # Lower threshold to catch more speech
+                compression_ratio_threshold=2.4,
+                temperature=0.0           # Deterministic output
+            )
+            
+            # Extract words from segments
+            current_words = []
+            for segment in segments:
+                words = segment.text.strip().split()
+                current_words.extend(words)
+            
+            if not current_words:
+                return ""
+            
+            # Remove duplicates using word-level deduplication
+            unique_words = self.remove_duplicate_words(current_words)
+            
+            if unique_words:
+                return " ".join(unique_words)
+            else:
+                return ""
+                
+        except Exception as e:
+            if self.verbose:
+                print(f"Transcription error: {e}")
+            return ""
 
     def merge_confidence_generic(self, all_words, min_interval=0.01):
         """
@@ -132,8 +272,6 @@ class Hearing():
                         unique_words[phrase] -= phrase2_words
             # print("unique_words: ", unique_words)                            
 
-
-
         if HEARING_OPTION == "sr":
             with sr.Microphone(device_index=self.mic_index) as source:
                 print("Adjusting for ambient noise... Please wait.")
@@ -154,9 +292,14 @@ class Hearing():
                     print("Speech was unclear or not recognized.")
                 except sr.RequestError as e:
                     print(f"Error with the speech recognition engine: {e}")
+                    
         elif HEARING_OPTION == "whisper":
             self.audio_queue = queue.Queue()
             text = ""
+            silence_times = None
+            
+            # Reset deduplication state for new listening session
+            self.last_segment_words = []
 
             with sd.InputStream(samplerate=INPUT_SAMPLE_RATE, channels=1, 
                                 device=self.mic_index, callback=self.audio_callback_optimized, 
@@ -168,14 +311,15 @@ class Hearing():
                     try:
                         audio_float = self.audio_queue.get(timeout=0.5)
                     except queue.Empty:
-                        # Check if we should stop due to silence
+                        # Check if we should process buffered audio
                         if self.audio_processor.should_process_buffer():
                             buffered = self.audio_processor.get_buffered_audio()
                             if buffered is not None:
-                                transcription = transcribe_optimized(
-                                    self.model, buffered, 
-                                    language="en", debug=False
-                                )
+                                # NEW: Store audio chunk for speaker recognition
+                                self.raw_audio_buffer.append(buffered)
+                                
+                                # Use enhanced transcription with deduplication
+                                transcription = self.transcribe_with_dedup(buffered, language="en")
                                 if transcription:
                                     print(f"Transcription: {transcription}")
                                     text += transcription + " "
@@ -186,16 +330,28 @@ class Hearing():
                                 break
                         continue
 
-                    # Transcribe the audio chunk using optimized faster_whisper
-                    transcription = transcribe_optimized(
-                        self.model, audio_float, 
-                        language="en", debug=False
-                    )
+                    # NEW: Store audio chunk for speaker recognition
+                    self.raw_audio_buffer.append(audio_float)
+                    
+                    # Transcribe with enhanced method
+                    transcription = self.transcribe_with_dedup(audio_float, language="en")
                     
                     if transcription:
                         print(f"Transcription: {transcription}")
                         text += transcription + " "
-                
+
+                    if silence_times is None:
+                        silence_times = time.time()
+                    silence_duration = time.time() - silence_times
+                    
+                    if self.verbose:
+                        print(f'text length: {len(text)}, silence duration: {silence_duration}')
+                    
+                    if len(text) > 10 and silence_duration > SILENCE_DURATION:
+                        print("Silence detected. Stopping transcription.")
+                        break                
+                    silence_times = time.time()
+
                 if text.strip():
                     self.texts.append(text.strip())
                     
@@ -211,7 +367,7 @@ class Hearing():
                     rec = KaldiRecognizer(model, INPUT_SAMPLE_RATE)
                 rec.SetWords(True)
                 recognizers[lang] = rec
-            print("Start listtening ...")
+            print("Start listening ...")
             
             self.stream.start_stream()
             self.stream.read(self.stream.get_read_available(), exception_on_overflow=False)
@@ -234,8 +390,6 @@ class Hearing():
                     except Exception as e:
                         print(f"Error parsing partial result for {lang}: {e}")
                 words_detected = self.detect_words(unique_words=unique_words, words_heard=words_heard)
-                # if any(r.AcceptWaveform(data) for r in recognizers.values()):
-                #     break
                 if words_detected:
                     break
             # stop mic
@@ -253,7 +407,7 @@ class Hearing():
 
             if len(all_words) == 0:     # got enough information from partial results, don't need final results
                 for wd in words_detected:
-                    self.texts.append(phrase)
+                    self.texts.append(wd)
             # merge and store
             merged = self.merge_confidence_generic(all_words)
             words = " ".join(f"{w['word']}" for w in merged)
@@ -267,7 +421,6 @@ class Hearing():
                             unique_words[phrase] -= phrase2_words
                 for w in merged:
                     for phrase, phrase_words in unique_words.items():
-                        # print("phrase: ", phrase, "phrase_words: ", phrase_words, "== w['word']: ", w['word'])
                         if w['word'] in phrase_words:
                             if phrase not in self.texts:
                                 self.texts.append(phrase)
@@ -279,47 +432,67 @@ class Hearing():
             if stop_event is not None:
                 stop_event.set()
 
-    # Optimized audio callback for Whisper
     def audio_callback_optimized(self, indata, frames, time_info, status):
-        """Optimized callback function with buffering and energy detection."""
-        # Silently handle overflow - it's normal for slow systems
-        
+        """
+        Enhanced audio callback with WebRTC VAD and buffering
+        Maintains original interface while adding verifySTT.py features
+        """
         # Convert to numpy array and validate
         audio_data = indata.flatten().copy()
         
         if len(audio_data) == 0:
             return
         
-        # Add to processor buffer
+        # Add to processor buffer (handles resampling from 48kHz to 16kHz)
         self.audio_processor.add_to_buffer(audio_data)
         
         # Check if we should process (do this outside callback to avoid blocking)
         if self.audio_processor.should_process_buffer():
             audio_float = self.audio_processor.get_buffered_audio()
+            
             if audio_float is not None and len(audio_float) > 0:
-                # Add to queue if not full
-                try:
-                    self.audio_queue.put_nowait(audio_float)
-                except queue.Full:
-                    # Drop oldest and add new
+                # Convert to int16 for VAD check
+                audio_int16 = (audio_float * 32768.0).astype(np.int16)
+                
+                # Use WebRTC VAD to filter non-speech (like verifySTT.py)
+                if self.contains_speech(audio_int16):
+                    # Add to queue if not full
                     try:
-                        self.audio_queue.get_nowait()
                         self.audio_queue.put_nowait(audio_float)
-                    except:
-                        pass
+                    except queue.Full:
+                        # Drop oldest and add new
+                        try:
+                            self.audio_queue.get_nowait()
+                            self.audio_queue.put_nowait(audio_float)
+                        except:
+                            pass
+                # If no speech detected, chunk is silently discarded
 
-    # Function to check if audio is silent
     def is_silent(self, audio):
         """Detect if audio chunk is silent."""
         return np.abs(audio).mean() < SILENCE_THRESHOLD
 
-    # Function to check audio levels
     def check_audio_levels(self, audio_chunk):
         """Display the average audio amplitude to verify microphone input."""
         avg_amplitude = np.abs(audio_chunk).mean()
-        # print(f"Average amplitude: {avg_amplitude:.6f}")
         return avg_amplitude
 
+    # NEW METHODS FOR SPEAKER RECOGNITION
+    def get_full_audio(self):
+        """
+        Return all captured audio as single numpy array at 16kHz.
+        Perfect for speaker recognition with resemblyzer.
+        
+        Returns:
+            numpy array of float32 audio samples, or None if no audio
+        """
+        if self.raw_audio_buffer:
+            return np.concatenate(self.raw_audio_buffer)
+        return None
+    
+    def clear_audio_buffer(self):
+        """Clear the raw audio buffer for next recording session."""
+        self.raw_audio_buffer = []
 
     def hearing_thread(self, stop_event=None):
         if stop_event is None:
@@ -328,13 +501,15 @@ class Hearing():
         return t
     
     def run_hearing(self):
+        # Clear buffer before starting new recording
+        self.clear_audio_buffer()
         hearing_thread = self.hearing_thread()
         hearing_thread.start()
         hearing_thread.join()
 
 
 if __name__ == "__main__":
-    hearing = Hearing(verbose=True) #, languages=["en", "es"])
+    hearing = Hearing(verbose=True)
     hearing.words = '["show group one", "show group two", "show group three", "done gigi"]'
     hearing.run_hearing()
     print(hearing.texts)
