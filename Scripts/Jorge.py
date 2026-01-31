@@ -24,12 +24,12 @@ class Jorge(ScriptGraph) :
         self.graph.add_edge('start', 'Node_2', label='start_2')
         self.graph.add_node('Node_2', type=['speak'], text='Hi! I am ready to dance')
         self.graph.add_edge('Node_2', 'Node_3', label='Node_2_3')
-        self.graph.add_node('Node_3', type=['find'], what='gesture', timeout=10, data=['fist'])
+        self.graph.add_node('Node_3', type=['find'], what='gesture', timeout=10, data=['Fist'])
         self.graph.add_node('Node_4', type=[])
         self.graph.add_edge('Node_3', 'Node_4', label='no')
         self.graph.add_edge('Node_4', 'Node_3', label='Node_4_3')
         self.graph.add_node('Node_5', type=['move'], motors='jorge_yellow_dance', pause={'after': 10})
-        self.graph.add_edge('Node_3', 'Node_5', label='fist')
+        self.graph.add_edge('Node_3', 'Node_5', label='Fist')
         self.graph.add_edge('Node_5', 'Node_6', label='Node_5_6')
 
 
