@@ -30,7 +30,7 @@ elif SOUND_OPTION == "sounddevice":
     import sounddevice as sd
     import soundfile as sf
 
-TTS_MODEL = "nix"
+TTS_MODEL = "silero"
 
 # eSpeak path configuration based on platform
 IS_WINDOWS = platform.system() == "Windows"
