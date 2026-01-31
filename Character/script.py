@@ -89,10 +89,20 @@ class Script:
                         else:
                             timeout = 10
                         self.character.listen_backchannel(timeout=timeout)
-                        if len(self.character.hearing.texts) == 0:
-                            output = 'timeout'
+                        # default is timeout
+                        output = 'timeout'
+                        # if looking for words, check if any of the words are heard
+                        if "words" in current_data:
+                            # current_data["words"] is a string of words separated by commas
+                            for word in json.loads(current_data["words"]):
+                                if word in self.character.hearing.texts[-1]:
+                                    output = word
+                                    break
                         else:
-                            output = self.character.hearing.texts[-1]
+                            if len(self.character.hearing.texts) == 0:
+                                output = 'timeout'
+                            else:
+                                output = self.character.hearing.texts[-1]
                         print("hear output: ", output)
                     else:
                         output = current_data["words"][0]

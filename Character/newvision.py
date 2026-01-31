@@ -274,9 +274,7 @@ class Vision:
                                             self.emotion_queue.put_nowait((face_id, face_crop.copy(), current_time))
                                         except:
                                             pass
-                            print(f"DEBUG: face_id {face_id}")
                             face_data = self.face_cache.get_face_data(face_id)
-                            print(f"DEBUG: face_data {face_data}")
                             vh.VisionHelpers.draw_face_info(frame, x_min, y_min, x_max, y_max, face_data)
                 except:
                     pass
