@@ -31,7 +31,7 @@ class Vision:
         self.running = False
 
         self.processing_flags = {'face_detection': 5, 'face_recognition': 5, 'emotion': 5, 'gesture': 5}
-        self.gesture_names = {0: "Unknown", 1: "Thumbs Up", 2: "Thumbs Down"}
+        self.gesture_names = {0: "Unknown", 1: "Thumbs Up", 2: "Thumbs Down", 5: "Fist", 6: "OpenHand"}
         self.hand_gesture = "Unknown"
 
         self.active_workers = {'face_recognition': False, 'emotion': False, 'gesture': False}
