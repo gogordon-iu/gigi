@@ -35,12 +35,14 @@ class Jorge_Blue(ScriptGraph) :
         self.graph.add_node('Node_6', type=['speak'], text='A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community.', pause={'after': 10})
         self.graph.add_edge('Node_3', 'Node_6', label='yes')
         self.graph.add_edge('Node_6', 'Node_7', label='Node_6_7')
-        self.graph.add_node('Node_7', type=['speak'], text='I don`t know any other ways to relate to water Angel, you are the one that programmed us. You`ll have to figure this out by yourself. I`m sorry.', pause={'after': 30})
+        self.graph.add_node('Node_7', type=['speak'], text='I do not know any other ways to relate to water, Angel.')
         self.graph.add_edge('Node_7', 'Node_8', label='Node_7_8')
-        self.graph.add_node('Node_8', type=['speak'], text='The most sophisticated technology you can think of, has been right in front of you all this time, disguised in plain sight.', pause={'after': 30})
+        self.graph.add_node('Node_8', type=['speak'], text='You are the one that programmed us. You will have to figure this out by yourself. I am sorry.', pause={'after': 30})
         self.graph.add_edge('Node_8', 'Node_9', label='Node_8_9')
-        self.graph.add_node('Node_9', type=['speak'], text='The future is already here, it has been here…', pause={'after': 30})
+        self.graph.add_node('Node_9', type=['speak'], text='The most sophisticated technology you can think of, has been right in front of you all this time, disguised in plain sight.', pause={'after': 30})
         self.graph.add_edge('Node_9', 'Node_10', label='Node_9_10')
+        self.graph.add_node('Node_10', type=['speak'], text='The future is already here, it has been here…', pause={'after': 30})
+        self.graph.add_edge('Node_10', 'Node_11', label='Node_10_11')
 
 
 if __name__ == "__main__":
