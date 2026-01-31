@@ -274,8 +274,8 @@ class Vision:
                                             self.emotion_queue.put_nowait((face_id, face_crop.copy(), current_time))
                                         except:
                                             pass
-                            
                             face_data = self.face_cache.get_face_data(face_id)
+                            face_data['gesture'] = self.hand_gesture
                             vh.VisionHelpers.draw_face_info(frame, x_min, y_min, x_max, y_max, face_data)
                 except:
                     pass

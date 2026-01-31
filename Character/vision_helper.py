@@ -211,7 +211,6 @@ def gesture_recognition_worker(gesture_queue, result_queue, stop_event, gesture_
             try:
                 gesture_id = GestureRecognizer.recognize_gesture_fast(landmarks)
                 gesture_name = gesture_names[gesture_id]
-                print(f"DEBUG: gesture_id {gesture_id}, gesture_name {gesture_name}")
                 result_queue.put(('gesture', hand_type, gesture_name, timestamp))
             except:
                 result_queue.put(('gesture', hand_type, "Unknown", timestamp))
@@ -228,7 +227,6 @@ class GestureRecognizer:
     def recognize_gesture_fast(landmarks):
         try:
             finger_pattern = GestureRecognizer.get_finger_states_fast(landmarks)
-            print(f"DEBUG: finger_pattern {finger_pattern}")
             
             # Count extended fingers
             extended_count = sum(finger_pattern)
@@ -465,7 +463,6 @@ class MediaPipeInitializers:
 class VisionHelpers:
     @staticmethod
     def draw_face_info(frame, x_min, y_min, x_max, y_max, face_data):
-        print(f"DEBUG: face_data {face_data}")
         try:
             cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 255), 2)
             
@@ -482,7 +479,6 @@ class VisionHelpers:
             name = face_data.get('name', 'Recognizing...')
             emotion = face_data.get('emotion', 'Unknown')
             gesture = face_data.get('gesture', 'Unknown')
-            print(f"DEBUG: gesture {gesture}")
             
             label = f"{name}"
             if emotion != 'Unknown':
