@@ -237,33 +237,36 @@ class Character():
     def lookat_something(self, what="face", timeout=-1):
         # timeout - how long (seconds) to look for a face if one is not found
         start_time = time.time()
-        if self.vision:            
-            if self.lookat_calibration:     # if calibrated, look at something
-                results = self.vision.look_and_stop(what=what, timeout=timeout)
-                print("DEBUG: ", what, results)                
-                if len(results[what]) > 0:
-                    self.vision.stop_vision()
-                    offset = next(iter(results[what].values()))["offset"][0]     # the x-offset of the first face
-                    head_coor = self.lookat_coordinate(offset=offset)
-                    # DEBUG
-                    self.lookat_behavior(target_coor=head_coor)
-                    print("Found something!")
-                    return True
-                else:   # did not see a face
-                    if timeout < 0:
-                        print("Timed out")
-                        return False
-                    else:       # select a random side a look for that
-                        head_coor = random.choice([1, 0, -1]) * FOLLOW_TORSO_OFFSET * 1.01
-                        # DEBUG
-                        self.lookat_behavior(target_coor=head_coor)
-                        duration = time.time() - start_time
-                        remaining_timeout = timeout - duration
-                        print("Looking again ...")
-                        return self.lookat_something(what=what, timeout=remaining_timeout)
-            else:                           # if not calibrated, just report if found something
-                results = self.vision.look_and_stop(what=what, timeout=timeout)
-                return results
+        if self.vision:
+            results = self.vision.look_and_stop(what=what, timeout=timeout)
+            return results            
+            # DEBUG: no look at
+            # if self.lookat_calibration:     # if calibrated, look at something
+            #     results = self.vision.look_and_stop(what=what, timeout=timeout)
+            #     print("DEBUG: ", what, results)                
+            #     if len(results[what]) > 0:
+            #         self.vision.stop_vision()
+            #         offset = next(iter(results[what].values()))["offset"][0]     # the x-offset of the first face
+            #         head_coor = self.lookat_coordinate(offset=offset)
+            #         # DEBUG
+            #         self.lookat_behavior(target_coor=head_coor)
+            #         print("Found something!")
+            #         return True
+            #     else:   # did not see a face
+            #         if timeout < 0:
+            #             print("Timed out")
+            #             return False
+            #         else:       # select a random side a look for that
+            #             head_coor = random.choice([1, 0, -1]) * FOLLOW_TORSO_OFFSET * 1.01
+            #             # DEBUG
+            #             self.lookat_behavior(target_coor=head_coor)
+            #             duration = time.time() - start_time
+            #             remaining_timeout = timeout - duration
+            #             print("Looking again ...")
+            #             return self.lookat_something(what=what, timeout=remaining_timeout)
+            # else:                           # if not calibrated, just report if found something
+            #     results = self.vision.look_and_stop(what=what, timeout=timeout)
+            #     return results
         return False
 
     def conversational_turn(self, file):
