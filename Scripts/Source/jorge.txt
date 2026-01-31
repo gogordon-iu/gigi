@@ -1,11 +1,7 @@
 Jorge Activity Script 
 [name] Jorge
 [Character] female
-[Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
-[find] what: gesture [data] fist, Thumbs Up, Thumbs Down [timeout] 10
-[edge] no [Speak] Did not find gesture [goto] -1
-[edge] fist [Speak] I found a fist
-[edge] Thumbs Up [Speak] I found a Thumbs Up
-[edge] Thumbs Down [Speak] I found a Thumbs Down
-
-[Speak] Bye for now [move] wave_hello
+[Speak] Hi! I am ready to dance
+[find] what: gesture [data] fist [timeout] 10
+[edge] no [goto] -1
+[edge] fist [move] jorge_yellow_dance [pause] after: 10

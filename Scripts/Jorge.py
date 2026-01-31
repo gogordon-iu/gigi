@@ -22,23 +22,15 @@ class Jorge(ScriptGraph) :
 
         self.graph.add_node('start', type=['character'])
         self.graph.add_edge('start', 'Node_2', label='start_2')
-        self.graph.add_node('Node_2', type=['speak', 'move'], text='Hello friends! I`m Gigi the robot!', motors='wave_hello')
+        self.graph.add_node('Node_2', type=['speak'], text='Hi! I am ready to dance')
         self.graph.add_edge('Node_2', 'Node_3', label='Node_2_3')
-        self.graph.add_node('Node_3', type=['find'], what='gesture', timeout=10, data=['fist', 'Thumbs Up', 'Thumbs Down'])
-        self.graph.add_node('Node_4', type=['speak'], text='Did not find gesture')
+        self.graph.add_node('Node_3', type=['find'], what='gesture', timeout=10, data=['fist'])
+        self.graph.add_node('Node_4', type=[])
         self.graph.add_edge('Node_3', 'Node_4', label='no')
         self.graph.add_edge('Node_4', 'Node_3', label='Node_4_3')
-        self.graph.add_node('Node_5', type=['speak'], text='I found a fist')
+        self.graph.add_node('Node_5', type=['move'], motors='jorge_yellow_dance', pause={'after': 10})
         self.graph.add_edge('Node_3', 'Node_5', label='fist')
-        self.graph.add_edge('Node_5', 'Node_8', label='Node_5_8')
-        self.graph.add_node('Node_6', type=['speak'], text='I found a Thumbs Up')
-        self.graph.add_edge('Node_3', 'Node_6', label='Thumbs Up')
-        self.graph.add_edge('Node_6', 'Node_8', label='Node_6_8')
-        self.graph.add_node('Node_7', type=['speak'], text='I found a Thumbs Down')
-        self.graph.add_edge('Node_3', 'Node_7', label='Thumbs Down')
-        self.graph.add_edge('Node_7', 'Node_8', label='Node_7_8')
-        self.graph.add_node('Node_8', type=['speak', 'move'], text='Bye for now', motors='wave_hello')
-        self.graph.add_edge('Node_8', 'Node_9', label='Node_8_9')
+        self.graph.add_edge('Node_5', 'Node_6', label='Node_5_6')
 
 
 if __name__ == "__main__":
