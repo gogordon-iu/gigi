@@ -308,13 +308,13 @@ basic_sequences["jorge_yellow_dance"] = [
         "time": 3.0,
         'motors': {'right_elbow': 0.0,
                 'left_elbow': 0.0,
-                'right_shoulder': 0.8,
-                'left_shoulder': -0.8},
+                'right_shoulder': 1.0,
+                'left_shoulder': -1.0},
     },
     {
         "time": 8,
         "motors": {
-            "torso": 0.8,
+            "torso": 1.0,
         }
     },
     {
@@ -326,7 +326,7 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 16,
         "motors": {
-            "torso": 0.8
+            "torso": 1.0
         }
     },
     {
@@ -338,13 +338,13 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 22,
         "motors": {
-            "torso": 0.8
+            "torso": 1.0
         }
     },
     {
         "time": 30,
         "motors": {
-            'right_shoulder': -0.8,
+            'right_shoulder': -1.0,
             'left_shoulder': 0.5,
         }
     },
@@ -352,13 +352,13 @@ basic_sequences["jorge_yellow_dance"] = [
         "time": 31,
         "motors": {
             'right_shoulder': -0.6,
-            'left_shoulder': 0.8,
+            'left_shoulder': 1.0,
         }
     },
     {
         "time": 35,
         "motors": {
-            'right_shoulder': 0.8,
+            'right_shoulder': 1.0,
             'left_shoulder': -0.5,
         }
     },
@@ -366,7 +366,7 @@ basic_sequences["jorge_yellow_dance"] = [
         "time": 36,
         "motors": {
             'right_shoulder': 0.6,
-            'left_shoulder': -0.8,
+            'left_shoulder': -1.0,
         }
     },
     {
@@ -387,7 +387,7 @@ basic_sequences["jorge_yellow_dance"] = [
         "time": 40,
         "motors": {
             'right_shoulder': 0.7,
-            'left_shoulder': -0.8,
+            'left_shoulder': -1.0,
         }
     },
     {
@@ -400,7 +400,7 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 42,
         "motors": {
-            'right_shoulder': -0.8,
+            'right_shoulder': -1.0,
         }
     },
     {
@@ -431,14 +431,14 @@ basic_sequences["jorge_yellow_dance"] = [
         "motors": {
             'right_shoulder': 0.0,
             'left_shoulder': 0.0,
-            'right_elbow': 0.8,
-            'left_elbow': -0.8,
+            'right_elbow': 1.0,
+            'left_elbow': -1.0,
         }
     },
     {
         "time": 53,
         "motors": {
-            'neck': 0.8,
+            'neck': 1.0,
         }
     },
     {
@@ -450,7 +450,7 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 58,
         "motors": {
-            'neck': 0.8,
+            'neck': 1.0,
         }
     },
     {
@@ -462,14 +462,14 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 63,
         "motors": {
-            'neck': 0.8,
+            'neck': 1.0,
         }
     },
     {
         "time": 66,
         "motors": {
-            'right_shoulder': -0.8,
-            'left_shoulder': -0.8,
+            'right_shoulder': -1.0,
+            'left_shoulder': -1.0,
         }
     },
     {
@@ -481,7 +481,7 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 70,
         "motors": {
-            'right_shoulder': 0.8,
+            'right_shoulder': 1.0,
         }
     },
     {
@@ -493,13 +493,13 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 74,
         "motors": {
-            'right_shoulder': 0.8,
+            'right_shoulder': 1.0,
         }
     },
     {
         "time": 75,
         "motors": {
-            'right_elbow': -0.8,
+            'right_elbow': -1.0,
         }
     },
     {
@@ -511,19 +511,19 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 77,
         "motors": {
-            'right_elbow': 0.8,
+            'right_elbow': 1.0,
         }
     },
     {
         "time": 79,
         "motors": {
-            'right_shoulder': 0.8,
+            'right_shoulder': 1.0,
         }
     },
     {
         "time": 80,
         "motors": {
-            'right_elbow': -0.8,
+            'right_elbow': -1.0,
         }
     },
     {
@@ -535,19 +535,19 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 82.5,
         "motors": {
-            'right_elbow': 0.8,
+            'right_elbow': 1.0,
         }
     },
     {
         "time": 83,
         "motors": {
-            'right_shoulder': 0.8,
+            'right_shoulder': 1.0,
         }
     },
     {
         "time": 85,
         "motors": {
-            'right_elbow': -0.8,
+            'right_elbow': -1.0,
             'left_elbow': 0.4,
         }
     },
@@ -561,8 +561,8 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 88,
         "motors": {
-            'left_elbow': 0.8,
-            'right_shoulder': -0.8,
+            'left_elbow': 1.0,
+            'right_shoulder': -1.0,
         }
     },
     {
@@ -577,10 +577,10 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 92,
         "motors": {
-            'right_shoulder': 0.8,
-            'left_shoulder': -0.8,
-            'right_elbow': 0.8,
-            'left_elbow': -0.8,
+            'right_shoulder': 1.0,
+            'left_shoulder': -1.0,
+            'right_elbow': 1.0,
+            'left_elbow': -1.0,
         }
     },
     {
@@ -588,8 +588,8 @@ basic_sequences["jorge_yellow_dance"] = [
         "motors": {
             'right_shoulder': -0.2,
             'left_shoulder': 0.2,
-            'right_elbow': -0.8,
-            'left_elbow': 0.8,
+            'right_elbow': -1.0,
+            'left_elbow': 1.0,
         }
     },
     {
@@ -601,15 +601,15 @@ basic_sequences["jorge_yellow_dance"] = [
     {
         "time": 102,
         "motors": {
-            'right_shoulder': -0.8,
-            'left_shoulder': 0.8,
+            'right_shoulder': -1.0,
+            'left_shoulder': 1.0,
         }
     },
     {
         "time": 105,
         "motors": {
-            'right_elbow': 0.8,
-            'left_elbow': -0.8,
+            'right_elbow': 1.0,
+            'left_elbow': -1.0,
         }
     },
     
