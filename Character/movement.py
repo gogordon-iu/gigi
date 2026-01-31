@@ -78,6 +78,68 @@ class Movement:
             
         return seq
 
+    def smooth_full_sequence(self, sequence, steps_per_second=50):
+        full_seq = []
+        # Simulate current positions as we iterate through the sequence
+        # Initialize with the actual current positions of the robot
+        simulated_current_positions = deepcopy(self.current_positions)
+        last_time = 0.0
+        
+        for keyframe in sequence:
+            target_time = keyframe['time']
+            target_motors_raw = keyframe['motors']
+            
+            duration = target_time - last_time
+            if duration <= 0:
+                # Instantaneous update or backward/same time (should ideally not happen in valid sequences)
+                # Just update our simulated state and continue
+                for m, ang in target_motors_raw.items():
+                    simulated_current_positions[m] = self.get_angle(ang, m)
+                last_time = target_time
+                continue
+                
+            number_steps = int(duration * steps_per_second)
+            if number_steps < 1: 
+                number_steps = 1
+            
+            delta_t = duration / number_steps
+            
+            # Pre-calculate target angles and start angles for interpolation
+            segment_targets = {}
+            for m, raw_ang in target_motors_raw.items():
+                segment_targets[m] = self.get_angle(raw_ang, m)
+                # Ensure we have a start position for this motor
+                if m not in simulated_current_positions:
+                    simulated_current_positions[m] = 0.0 # Default fallback
+            
+            # Generate steps 1 to N (inclusive of target_time, exclusive of last_time)
+            for t in range(1, number_steps + 1):
+                cur_time = last_time + t * delta_t
+                ratio = t / number_steps
+                
+                step_motors = {}
+                for m, target_val in segment_targets.items():
+                    start_val = simulated_current_positions[m]
+                    interp_val = start_val + (target_val - start_val) * ratio
+                    
+                    if isinstance(target_val, int):
+                        interp_val = int(interp_val)
+                        
+                    step_motors[m] = interp_val
+                    
+                full_seq.append({
+                    "time": cur_time,
+                    "motors": step_motors
+                })
+            
+            # Update simulated positions to the exact targets of this keyframe
+            for m, val in segment_targets.items():
+                simulated_current_positions[m] = val
+                
+            last_time = target_time
+            
+        return full_seq
+
     def move_sequence(self, motor_seq):
         start_time = time.time()
         for seq in motor_seq:
@@ -108,6 +170,7 @@ class Movement:
         elif isinstance(motor_data, str):       # this is the name of the sequence
             if motor_data in basic_sequences:
                 motor_seq = basic_sequences[motor_data]
+                motor_seq = self.smooth_full_sequence(motor_seq)
         elif isinstance(motor_data, dict):    # this is a single motors position
             if "duration" in motor_data:
                 duration = motor_data["duration"]
