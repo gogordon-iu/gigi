@@ -64,7 +64,9 @@ class Script:
                     self.character.idle(duration=current_data['pause']['before'])
 
             # current_data["type"] is an array of types. If it is custom, there is only one
-            if current_data["type"][0] in self.data['types']:
+            if len(current_data["type"])==0:
+                next_node = list(edges)[0][1]
+            elif current_data["type"][0] in self.data['types']:
                 print("Custom type: ", current_data["type"][0])   
                 next_node = self.data['types'][current_data['type'][0]](current_node=current_node, current_data=current_data, data_=self.data)
             # First check if is sensory in nature, since they are unique

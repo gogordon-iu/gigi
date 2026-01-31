@@ -590,7 +590,6 @@ class VisionHelpers:
                 return
             
             data = get_data_func()
-            print(f"DEUBG, look_for_worker: {data}")
             
             for face_id, face_info in data.items():
                 match = True
