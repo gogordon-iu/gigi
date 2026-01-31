@@ -239,11 +239,11 @@ class Character():
         start_time = time.time()
         if self.vision:            
             if self.lookat_calibration:     # if calibrated, look at something
-                self.vision.look_and_stop(what=what, timeout=1)
-                print("DEBUG: ", what, self.vision.found)                
-                if len(self.vision.found[what]) > 0:
+                results = self.vision.look_and_stop(what=what, timeout=timeout)
+                print("DEBUG: ", what, results)                
+                if len(results[what]) > 0:
                     self.vision.stop_vision()
-                    offset = next(iter(self.vision.found[what].values()))["offset"][0]     # the x-offset of the first face
+                    offset = next(iter(results[what].values()))["offset"][0]     # the x-offset of the first face
                     head_coor = self.lookat_coordinate(offset=offset)
                     # DEBUG
                     self.lookat_behavior(target_coor=head_coor)
