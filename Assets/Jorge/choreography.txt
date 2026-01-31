@@ -1,0 +1,47 @@
+3, arms up
+8, torso left
+12, torso center
+16, torso left
+19, torso center
+22, torso left
+30, right arm down, left arm almost down
+31, left arm down, right arm starting up
+35, right arm up, left arm almost up
+36, left arm up, right arm starting down
+38, right arm almost totally down, left arm middle
+39, right arm middle, left arm almost down
+40, right arm almost up, left arm up
+41, left arm almost up, right arm middle
+42, right arm down
+43, both arms middle
+44, left arm slightly lower than middle, torso begins to turn to center
+46, torso center, elbows start to go out
+48, both arms middle, elbows fully extended
+53, head turn left
+55, head middle
+58, head left
+60, head middle
+63, head left
+66, left arm up, right arm down
+69, left arm middle
+70, right arm up
+72, right arm middle
+74, right arm up
+75, right elbow in
+76, right arm middle
+77, right elbow out
+79, right arm up
+80, right elbow in
+82, right arm middle
+82.5, right elbow out
+83, right arm up
+85, right elbow in, left elbow half in
+87, right arm below middle, left arm above middle
+88, left elbow in, right arm down
+90, both arms middle, both elbows half out
+92, both arms up, both elbows out
+96, both arms below middle, both elbows in
+99, head center
+102,both arms down
+105, both elbows out
+
