@@ -25,7 +25,7 @@ list_of_scripts = get_scripts()
 print("List of scripts:")
 print(list_of_scripts)
 
-script_options = json.dumps(list(list_of_scripts.keys()) + ["[unk]"])
+script_options = json.dumps([sk.lower().replace("_", " ") for sk in list_of_scripts.keys()] + ["[unk]"])
 
 class WakeUp(ScriptGraph) : 
     def __init__(self):
@@ -55,7 +55,7 @@ class WakeUp(ScriptGraph) :
         #                     label="start speak")
 
         self.graph.add_node("wakeup_02", type="hear", 
-                            words='["run script", "bye", "show wifi", "connect"]')
+                            words='["run", "bye", "show", "connect"]')
         self.graph.add_edge("wakeup_01", 
                             "wakeup_02", 
                             label="ask what to do")
@@ -64,7 +64,7 @@ class WakeUp(ScriptGraph) :
         self.graph.add_node("wakeup_05", type="get_ip")
         self.graph.add_edge("wakeup_02", 
                             "wakeup_05", 
-                            label="show wifi")
+                            label="show")
         
         self.graph.add_node("wakeup_06", type=["show", "pause"],
                             pause={"after": 5.0},
@@ -137,11 +137,11 @@ class WakeUp(ScriptGraph) :
                             text="okay, I will run a script. Which one?")
         self.graph.add_edge("wakeup_02", 
                             "wakeup_03", 
-                            label="run script")
-        # self.graph.add_node("wakeup_04", type="hear", 
-        #                     words=script_options)
-        self.graph.add_node("wakeup_04", type="find", 
-                            what="qr", timeout=5)
+                            label="run")
+        self.graph.add_node("wakeup_04", type="hear", 
+                            words=script_options)
+        # self.graph.add_node("wakeup_04", type="find", 
+        #                     what="qr", timeout=5)
         self.graph.add_edge("wakeup_03", 
                             "wakeup_04", 
                             label="run script")
@@ -151,7 +151,7 @@ class WakeUp(ScriptGraph) :
                                 text="You said %s. Run it?" % sk)
             self.graph.add_edge("wakeup_04", 
                                 "wakeup_%s" % sk, 
-                                label=sk)
+                                label=sk.lower().replace("_", " "))
             self.graph.add_node("wakeup_%s_ask" % sk, type="hear",
                                 words='["yes", "no"]')
             self.graph.add_edge("wakeup_%s" % sk, 
