@@ -8,3 +8,9 @@ xset s off
 xset -dpms
 xset s noblank
 @reboot /home/orangepi/wakeup_gigi.sh >> /home/orangepi/wakeup_gigi.log 2>&1
+
+SHELL=/bin/bash
+PATH=/home/orangepi/Code/gigi/venv/bin:/usr/local/bin:/usr/bin:/bin
+
+# Start the wakeup script at boot; the script itself writes logs.
+@reboot /home/orangepi/wakeup_gigi.sh

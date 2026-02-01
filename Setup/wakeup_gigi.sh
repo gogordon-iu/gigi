@@ -11,6 +11,25 @@ VENVDIR=/home/orangepi/Code/gigi/venv
 PYTHON=${VENVDIR}/bin/python
 SCRIPT=/home/orangepi/Code/gigi/Character/wakeUp.py
 
+# helper: run command as $USER if we are root; otherwise run directly
+run_as_user() {
+  # usage: run_as_user "<command string>"
+  local cmd="$1"
+  if [ "$(id -u)" -eq 0 ]; then
+    # running as root -> run as target user without password prompt
+    # prefer runuser if available (no password prompt and safer than su in scripts)
+    if command -v runuser >/dev/null 2>&1; then
+      runuser -l "${USER}" -c "${cmd}"
+    else
+      su - "${USER}" -c "${cmd}"
+    fi
+  else
+    # already running as the user -> just run the command
+    bash -lc "${cmd}"
+  fi
+}
+
+
 # X settings
 DISPLAY_NUM=":0"
 XAUTH=/home/orangepi/.Xauthority
@@ -43,9 +62,9 @@ echo "Using DISPLAY=${DISPLAY}, XAUTHORITY=${XAUTH}" >> "$LOG"
 # Prevent screen blanking via xset (run as the GUI user)
 if command -v xset >/dev/null 2>&1; then
   echo "Disabling screen blanking via xset (as ${USER})" >> "$LOG"
-  su - "${USER}" -c "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} xset s off" >> "$LOG" 2>&1 || true
-  su - "${USER}" -c "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} xset -dpms" >> "$LOG" 2>&1 || true
-  su - "${USER}" -c "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} xset s noblank" >> "$LOG" 2>&1 || true
+  run_as_user "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} xset s off" >> "$LOG" 2>&1 || true
+  run_as_user "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} xset -dpms" >> "$LOG" 2>&1 || true
+  run_as_user "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} xset s noblank" >> "$LOG" 2>&1 || true
 fi
 
 # Copy motorData if present (your original behavior)
@@ -78,17 +97,33 @@ if [ "${found_usb}" -ne 1 ]; then
   aplay -l >> "$LOG" 2>&1 || true
   echo "Proceeding without detected USB speaker; script may fall back." >> "$LOG"
 else
-  echo "aplay -l (matching snippet):" >> "$LOG"
-  printf '%s\n' "${APLAY_OUT}" | grep -F -E "$(printf '%s|' "${USB_DEVICE_PATTERNS[@]}" | sed 's/|$//')" >> "$LOG" 2>&1 || true
+  echo "aplay -l (matching lines):" >> "$LOG"
+  for pat in "${USB_DEVICE_PATTERNS[@]}"; do
+    printf '%s\n' "${APLAY_OUT}" | grep -F -n "${pat}" >> "$LOG" 2>&1 || true
+  done
 fi
 
 # As a convenience, allow local user access to the X server (safe: localuser only)
 if command -v xhost >/dev/null 2>&1; then
   echo "Running xhost +SI:localuser:${USER} (as ${USER})" >> "$LOG"
-  su - "${USER}" -c "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} xhost +SI:localuser:${USER}" >> "$LOG" 2>&1 || true
+  run_as_user "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} xhost +SI:localuser:${USER}" >> "$LOG" 2>&1 || true
 fi
 
 # Finally start the Python script as the desktop user, with env set
 echo "Starting python script as ${USER} at $(date) (found_usb=${found_usb})" >> "$LOG"
 # Use exec so PID is replaced by python (cron job will not keep running otherwise)
-exec su - "${USER}" -c "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} ${PYTHON} ${SCRIPT}" >> "$LOG" 2>&1
+# Start python replacing the shell (use exec so PID is replaced by python)
+# Ensure the Python starts from the repo Character directory so relative paths are correct
+WORKDIR="/home/orangepi/Code/gigi/Character"
+
+if [ "$(id -u)" -eq 0 ]; then
+  # running as root -> drop to GUI user but keep correct working directory
+  if command -v runuser >/dev/null 2>&1; then
+    exec runuser -l "${USER}" -c "cd '${WORKDIR}' && DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} ${PYTHON} ${SCRIPT}" >> "$LOG" 2>&1
+  else
+    exec su - "${USER}" -c "cd '${WORKDIR}' && DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} ${PYTHON} ${SCRIPT}" >> "$LOG" 2>&1
+  fi
+else
+  # already running as the GUI user (user's crontab case) — just cd then exec
+  exec bash -lc "cd '${WORKDIR}' && DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} ${PYTHON} ${SCRIPT}" >> "$LOG" 2>&1
+fi
