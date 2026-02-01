@@ -627,6 +627,7 @@ basic_sequences["rave"] = [
     {'time': 1.4,
      'motors': {'right_shoulder': 1.0,
                 'neck': 0.2}},
+<<<<<<< HEAD
     {'time': 1.6,
      'motors': {'right_shoulder': -0.2,
                 'neck': 0.4}},
@@ -635,6 +636,16 @@ basic_sequences["rave"] = [
                 'neck': 0.6}},
     {'time': 2.0,
      'motors': {'right_shoulder': -0.2,
+=======
+    {'time': 2.5,
+     'motors': {'right_shoulder': 0.0,
+                'neck': 0.4}},
+    {'time': 3,
+     'motors': {'right_shoulder': 0.8,
+                'neck': 0.6}},
+    {'time': 3.5,
+     'motors': {'right_shoulder': 0.0,
+>>>>>>> ec9147a5ba062a6538719950224f988ebf848895
                 'neck': 0.8}},
 ]
 
