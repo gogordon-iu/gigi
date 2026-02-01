@@ -1,49 +1,49 @@
 {
     "neck": {
-        "channel": 0,
-        "min": 275,
-        "max": 625,
-        "center": 475,
+        "channel": 13,
+        "min": 200,
+        "max": 350,
+        "center": 275,
         "calibrated": true,
         "direction": "left"
     },
     "torso": {
-        "channel": 7,
-        "min": 150,
-        "max": 450,
-        "center": 300,
+        "channel": 10,
+        "min": 100,
+        "max": 300,
+        "center": 200,
         "calibrated": true,
         "direction": "left"
     },
     "left_shoulder": {
-        "channel": 1,
-        "min": 225,
-        "max": 525,
-        "center": 375,
+        "channel": 11,
+        "min": 175,
+        "max": 325,
+        "center": 250,
         "calibrated": true,
         "direction": "down"
     },
     "right_shoulder": {
-        "channel": 2,
-        "min": 250,
-        "max": 550,
-        "center": 400,
+        "channel": 15,
+        "min": 225,
+        "max": 425,
+        "center": 325,
         "calibrated": true,
         "direction": "up"
     },
     "left_elbow": {
-        "channel": 6,
-        "min": 350,
-        "max": 400,
-        "center": 375,
+        "channel": 12,
+        "min": 200,
+        "max": 250,
+        "center": 225,
         "calibrated": true,
         "direction": "in"
     },
     "right_elbow": {
-        "channel": 3,
-        "min": 200,
-        "max": 275,
-        "center": 250,
+        "channel": 14,
+        "min": 300,
+        "max": 350,
+        "center": 325,
         "calibrated": true,
         "direction": "out"
     }
