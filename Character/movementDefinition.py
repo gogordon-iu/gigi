@@ -1,3 +1,6 @@
+import math
+import random
+
 basic_sequences = {}
 
 basic_sequences['home'] = [
@@ -616,25 +619,54 @@ basic_sequences["jorge_yellow_dance"] = [
 
 ]
 
-basic_sequences["rave"] = [
-    {'time': 1,
-     'motors': {'right_elbow': 0.0,
-                'left_elbow': 0.0,
-                'right_shoulder': 1.0,
-                'left_shoulder': 0.8}},
-    {'time': 1.2,
-     'motors': {'right_shoulder': -0.2}},
-    {'time': 1.4,
-     'motors': {'right_shoulder': 1.0,
-                'neck': 0.2}},
-    {'time': 1.6,
-     'motors': {'right_shoulder': -0.2,
-                'neck': 0.4}},
-    {'time': 1.8,
-     'motors': {'right_shoulder': 1.0,
-                'neck': 0.6}},
-    {'time': 2.0,
-     'motors': {'right_shoulder': -0.2,
-                'neck': 0.8}},
-]
+
+def generate_rave_sequence(duration=120, dt=0.1):
+    sequence = []
+    steps = int(duration / dt)
+    
+    # Random offset for torso updates
+    next_torso_update = 0
+    current_torso_pos = 0.0
+
+    for i in range(steps):
+        t = i * dt
+        
+        # Hand 1 (Right): Quick up and down (Fast Sine Wave)
+        # Period approx 0.5s -> f = 2Hz -> 2*pi*f*t = 4*pi*t
+        # Amplitude 0.8 to -0.8
+        right_shoulder = 0.8 * math.sin(4 * math.pi * t)
+        right_elbow = 0.5 * math.cos(4 * math.pi * t) # Slightly different phase
+        
+        # Neck: Slow side to side (Slow Sine Wave)
+        # Period approx 4s -> f = 0.25Hz -> 2*pi*f*t = 0.5*pi*t
+        neck = 0.8 * math.sin(0.5 * math.pi * t)
+        
+        # Hand 2 (Left): "Own thing"
+        # Combine two waves for a more complex/independent look
+        left_shoulder = 0.6 * math.sin(2 * math.pi * t + 1.5) + 0.2 * math.sin(5 * math.pi * t)
+        left_elbow = 0.6 * math.cos(1.5 * math.pi * t)
+        
+        # Torso: Sporadic
+        if t >= next_torso_update:
+            current_torso_pos = random.uniform(-0.5, 0.5) # Assuming range -1 to 1 but kept moderate
+            # Sporadic interval between 1s and 4s
+            next_torso_update = t + random.uniform(1.0, 4.0)
+            
+        step_data = {
+            "time": round(t, 2),
+            "motors": {
+                "right_shoulder": round(right_shoulder, 3),
+                "right_elbow": round(right_elbow, 3),
+                "neck": round(neck, 3),
+                "left_shoulder": round(left_shoulder, 3),
+                "left_elbow": round(left_elbow, 3),
+                "torso": round(current_torso_pos, 3)
+            }
+        }
+        sequence.append(step_data)
+        
+    return sequence
+
+basic_sequences["rave"] = generate_rave_sequence()
+
 
