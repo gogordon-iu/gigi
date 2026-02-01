@@ -43,6 +43,10 @@ class Jorge_Blue(ScriptGraph) :
         self.graph.add_edge('Node_9', 'Node_10', label='Node_9_10')
         self.graph.add_node('Node_10', type=['speak'], text='The future is already here, it has been here…', pause={'after': 30})
         self.graph.add_edge('Node_10', 'Node_11', label='Node_10_11')
+        self.graph.add_node('Node_11', type=['move', 'face'], motors='rave', face=basic_sequences['blink'], pause={'before': 120})
+        self.graph.add_edge('Node_11', 'Node_12', label='Node_11_12')
+        self.graph.add_node('Node_12', type=['face'], face=basic_sequences['idle'], pause={'after': 120})
+        self.graph.add_edge('Node_12', 'Node_13', label='Node_12_13')
 
 
 if __name__ == "__main__":

@@ -34,9 +34,8 @@ sudo usermod -aG i2c orangepi
 sudo add-apt-repository ppa:mc3man/mpv-tests
 sudo apt update
 sudo apt install mpv
-# Open this file:
-#/home/orangepi/Code/gigi/venv/lib/python3.10/site-packages/mpv.py
-#Go to line ~1339, and replace:
+cp ../Resources/mpv.py ../venv/lib/python3.10/site-packages/
+# Replaced
 #if self.mpv_version_tuple >= (0, 38, 0):
 #with:
 #if False:
