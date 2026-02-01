@@ -1,5 +1,25 @@
 #!/bin/bash
 
+XAUTH=/home/orangepi/.Xauthority
+DISPLAY_NUM=":0"
+MAX_WAIT=60   # seconds to wait for X to appear
+
+# Wait for X server (socket / process) or for Xauthority file to exist
+i=0
+while [ $i -lt $MAX_WAIT ]; do
+  # check for Xorg process or socket
+  if pgrep -x Xorg >/dev/null 2>&1 || [ -f "$XAUTH" ]; then
+    break
+  fi
+  sleep 1
+  i=$((i+1))
+done
+
+if [ $i -ge $MAX_WAIT ]; then
+  echo "Timeout waiting for X after ${MAX_WAIT}s"
+  exit 1
+fi
+
 export DISPLAY=:0
 export XAUTHORITY=/home/orangepi/.Xauthority
 
