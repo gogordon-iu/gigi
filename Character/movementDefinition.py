@@ -629,12 +629,12 @@ basic_sequences["rave"] = [
                 'neck': 0.2}},
     {'time': 2.5,
      'motors': {'right_shoulder': 0.0,
-                'neck': 0.0}},
+                'neck': 0.4}},
     {'time': 3,
      'motors': {'right_shoulder': 0.8,
-                'neck': -0.2}},
+                'neck': 0.6}},
     {'time': 3.5,
      'motors': {'right_shoulder': 0.0,
-                'neck': 0.0}},
+                'neck': 0.8}},
 ]
 
