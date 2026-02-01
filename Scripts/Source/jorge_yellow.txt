@@ -1,7 +1,8 @@
 Jorge Activity Script 
-[name] Jorge
+[name] Jorge_yellow
 [Character] female
 [Speak] Hi! I am ready to dance
-[find] what: gesture [data] Fist [timeout] 10
+[find] what: gesture [data] Fist, OpenHand [timeout] 10
 [edge] no [goto] -1
 [edge] Fist [move] jorge_yellow_dance [pause] after: 10
+[edge] OpenHand [move] jorge_yellow_dance [pause] after: 10
