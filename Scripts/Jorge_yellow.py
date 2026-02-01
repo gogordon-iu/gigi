@@ -22,7 +22,7 @@ class Jorge_yellow(ScriptGraph) :
 
         self.graph.add_node('start', type=['character'])
         self.graph.add_edge('start', 'Node_2', label='start_2')
-        self.graph.add_node('Node_2', type=['speak'], text='Hi! I am ready to dance')
+        self.graph.add_node('Node_2', type=['speak', 'show'], text='Hi! I am ready to dance', video='../Assets/Jorge_yellow/jorge_yellow.mov.mp4')
         self.graph.add_edge('Node_2', 'Node_3', label='Node_2_3')
         self.graph.add_node('Node_3', type=['find'], what='gesture', timeout=10, data=['Fist', 'OpenHand'])
         self.graph.add_node('Node_4', type=[])
