@@ -18,6 +18,10 @@ nmcli connection modify "YourRouterSSID" ipv4.gateway 192.168.0.1
 nmcli connection modify "YourRouterSSID" ipv4.dns 8.8.8.8
 nmcli connection modify "YourRouterSSID" ipv4.method manual
 
+Set priorities:
+nmcli connection modify TP-LINK_MR3040_DB001C connection.autoconnect yes connection.autoconnect-priority 100
+nmcli connection modify "IU Guest"            connection.autoconnect yes connection.autoconnect-priority 20
+
 
 Remote Git:
 Steps to create a bare repo on Orange Pi:
