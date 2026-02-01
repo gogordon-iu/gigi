@@ -29,7 +29,7 @@ class Jorge_Blue(ScriptGraph) :
         self.graph.add_node('Node_4', type=[])
         self.graph.add_edge('Node_3', 'Node_4', label='no')
         self.graph.add_edge('Node_4', 'Node_3', label='Node_4_3')
-        self.graph.add_node('Node_5', type=['speak', 'move'], text='A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community.', motors='arms_circle', pause={'after': 10})
+        self.graph.add_node('Node_5', type=['speak'], text='A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community.', pause={'after': 10})
         self.graph.add_edge('Node_3', 'Node_5', label='ridiculous')
         self.graph.add_edge('Node_5', 'Node_7', label='Node_5_7')
         self.graph.add_node('Node_6', type=['speak'], text='A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community.', pause={'after': 10})
