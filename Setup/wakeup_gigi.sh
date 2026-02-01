@@ -109,6 +109,13 @@ if command -v xhost >/dev/null 2>&1; then
   run_as_user "DISPLAY=${DISPLAY} XAUTHORITY=${XAUTH} xhost +SI:localuser:${USER}" >> "$LOG" 2>&1 || true
 fi
 
+# Activate the virtual environment and source the environment variables
+echo "Activating virtual environment and sourcing environment variables..." >> "$LOG" 
+cd /home/orangepi/Code/gigi
+source venv/bin/activate
+source activate_environment.sh
+
+
 # Finally start the Python script as the desktop user, with env set
 echo "Starting python script as ${USER} at $(date) (found_usb=${found_usb})" >> "$LOG"
 # Use exec so PID is replaced by python (cron job will not keep running otherwise)
