@@ -182,3 +182,4 @@ motorData_calibrated.json
 #vscode settings
 .vscode/
 
+Character/motorData_calibrated_local.json
