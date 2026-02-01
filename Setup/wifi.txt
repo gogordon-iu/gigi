@@ -18,8 +18,14 @@ nmcli connection modify "YourRouterSSID" ipv4.gateway 192.168.0.1
 nmcli connection modify "YourRouterSSID" ipv4.dns 8.8.8.8
 nmcli connection modify "YourRouterSSID" ipv4.method manual
 
+Create a new connection, for example to the TPLINK:
+nmcli connection add type wifi ifname wlan0 con-name "TP-LINK_MR3040_DB001C" ssid "TP-LINK_MR3040_DB001C" \
+  ipv4.addresses 192.168.0.60/24 ipv4.gateway 192.168.0.1 ipv4.dns "8.8.8.8" ipv4.method manual \
+  wifi-sec.key-mgmt wpa-psk wifi-sec.psk "6B6D96FB6F"
+
 Set priorities:
 nmcli connection modify TP-LINK_MR3040_DB001C connection.autoconnect yes connection.autoconnect-priority 100
+nmcli connection modify MIGO connection.autoconnect yes connection.autoconnect-priority 80
 nmcli connection modify "IU Guest"            connection.autoconnect yes connection.autoconnect-priority 20
 
 

@@ -2,15 +2,21 @@ crontab -e               # edit the current user’s crontab
 
 SHELL=/bin/bash
 PATH=/home/orangepi/Code/gigi/venv/bin:/usr/local/bin:/usr/bin:/bin
-DISPLAY=:0
-XAUTHORITY=/home/orangepi/.Xauthority
-xset s off
-xset -dpms
-xset s noblank
-@reboot /home/orangepi/wakeup_gigi.sh >> /home/orangepi/wakeup_gigi.log 2>&1
-
-SHELL=/bin/bash
-PATH=/home/orangepi/Code/gigi/venv/bin:/usr/local/bin:/usr/bin:/bin
 
 # Start the wakeup script at boot; the script itself writes logs.
 @reboot /home/orangepi/wakeup_gigi.sh
+
+
+--- Add log rotation
+sudo tee /etc/logrotate.d/wakeup_gigi > /dev/null <<'EOF'
+/home/orangepi/wakeup_gigi.log {
+    rotate 7
+    daily
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    maxsize 100M
+}
+EOF
