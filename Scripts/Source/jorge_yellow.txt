@@ -6,3 +6,7 @@ Jorge Activity Script
 [edge] no [goto] -1
 [edge] Fist [move] jorge_yellow_dance [show] video: jorge_yellow [pause] after: 10
 [edge] OpenHand [move] jorge_yellow_dance [show] video: jorge_yellow [pause] after: 10
+[hear] words: yes, ridiculous [timeout] 10
+[edge] no [goto] -1
+[edge] ridiculous [move] rave [show] video: jorge_yellow [pause] before: 120
+[show] video: jorge_yellow [pause] after: 120
