@@ -4,7 +4,7 @@ Jorge Activity Script
 [Speak] Hi! I am ready to dance
 [hear] words: yes, ridiculous [timeout] 10
 [edge] no [goto] -1
-[edge] ridiculous [Speak] A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community. [move] arms_circle [pause] after: 10
+[edge] ridiculous [Speak] A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community.  [pause] after: 10
 [edge] yes [Speak] A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community. [pause] after: 10
 [Speak] I do not know any other ways to relate to water, Angel. [move] look_left
 [Speak] You are the one that programmed us. You will have to figure this out by yourself. I am sorry. [pause] after: 30
