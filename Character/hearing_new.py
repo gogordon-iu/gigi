@@ -121,11 +121,24 @@ class Hearing():
         else:
             return None
 
+    def found_keywords_in_text(self, text, unique_words):
+        cleaned_text = text.lower().replace('.', ' ').replace(',', ' ').replace('?', ' ').replace('!', ' ')
+        tokens = set(cleaned_text.split())
+        for phrase, distinct_set in unique_words.items():
+            if not distinct_set.isdisjoint(tokens):
+                print(f"Keyword matched: {phrase}")
+                return True 
+        return False
+
     def listen(self, stop_event=None):
         unique_words = []
         if self.words:
-            all_phrase_words = {phrase: set(phrase.split()) for phrase in json.loads(self.words)}
-            unique_words = {phrase: set(phrase.split()) for phrase in json.loads(self.words)}
+            all_phrase_words = {}
+            unique_words = {}
+            for phrase in json.loads(self.words):
+                cleaned_phrase = phrase.lower().replace('.', ' ').replace(',', ' ').replace('?', ' ').replace('!', ' ')
+                all_phrase_words[phrase] = set(cleaned_phrase.split())
+                unique_words[phrase] = set(cleaned_phrase.split())
             # print("all_phrase_words: ", all_phrase_words)
             for phrase, phrase_words in all_phrase_words.items():                    
                 for phrase2, phrase2_words in all_phrase_words.items():
@@ -187,6 +200,10 @@ class Hearing():
                             if len(text) > 10 and time.time() - self.audio_processor.last_speech_time > SILENCE_DURATION:
                                 print("Silence detected. Stopping transcription.")
                                 break
+                            
+                            if self.found_keywords_in_text(text, unique_words):
+                                print("Keywords detected. Stopping transcription.")
+                                break
                         continue
 
                     # Transcribe the audio chunk using optimized faster_whisper
@@ -198,6 +215,11 @@ class Hearing():
                     if transcription:
                         print(f"Transcription: {transcription}")
                         text += transcription + " "
+                        
+                        if self.words:
+                            if self.found_keywords_in_text(text, unique_words):
+                                print("Keywords detected. Stopping transcription.")
+                                break
 
                     if silence_times is None:
                         silence_times = time.time()
@@ -347,7 +369,8 @@ class Hearing():
 
 if __name__ == "__main__":
     hearing = Hearing(verbose=True) #, languages=["en", "es"])
-    hearing.words = '["show group one", "show group two", "show group three", "done gigi"]'
+    # hearing.words = '["show group one", "show group two", "show group three", "done gigi"]'
+    hearing.words = '["Guys, I don’t know what else to do; this is ridiculous; I am not kidding, it hurts. "]'
     hearing.run_hearing()
     print(hearing.texts)
     print('Done!')

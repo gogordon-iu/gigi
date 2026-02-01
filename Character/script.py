@@ -89,10 +89,27 @@ class Script:
                         else:
                             timeout = 10
                         self.character.listen_backchannel(timeout=timeout)
-                        if len(self.character.hearing.texts) == 0:
-                            output = 'timeout'
+                        # default is timeout
+                        output = 'timeout'
+                        # if looking for words, check if any of the words are heard
+                        if "words" in current_data:
+                            # current_data["words"] is a string of words separated by commas
+                            cleaned_words = [word.lower().replace('.', ' ').replace(',', ' ').replace('?', ' ').replace('!', ' ').strip() for word in json.loads(current_data["words"])]
+                            cleaned_text = [t.lower().replace('.', ' ').replace(',', ' ').replace('?', ' ').replace('!', ' ').strip() for t in self.character.hearing.texts[-1].split()]
+                            print(f'heard: {cleaned_text}')
+                            print(f'words: {cleaned_words}')
+                            for word in cleaned_words:
+                                for heard in cleaned_text:
+                                    if heard in word:
+                                        output = word
+                                        break
+                                if output != 'timeout':
+                                    break
                         else:
-                            output = self.character.hearing.texts[-1]
+                            if len(self.character.hearing.texts) == 0:
+                                output = 'timeout'
+                            else:
+                                output = self.character.hearing.texts[-1]
                         print("hear output: ", output)
                     else:
                         output = current_data["words"][0]
@@ -118,7 +135,8 @@ class Script:
                                 next_node = v
                                 break
                         else:
-                            if data['label'] == output:
+                            print(f'debug: {output} in {data["label"]}')
+                            if output in data['label']:
                                 next_node = v
                                 break
             elif "find" in current_data['type']:

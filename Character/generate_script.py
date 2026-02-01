@@ -1,4 +1,5 @@
 import os
+import argparse
 from character import *
 
 
@@ -273,9 +274,12 @@ def create_files_with_header(parsed_lines, added_code, output_dir, header, child
 # file_path = '../Scripts/Source/test.txt'  # Replace with your file path
 # languages = ['en', 'es']
 
-file_path = '../Scripts/Source/jorge.txt'  # Replace with your file path
-languages = ['en']
+parser = argparse.ArgumentParser()
+parser.add_argument('script_name', nargs='?', default='jorge_blue')
+args = parser.parse_args()
 
+file_path = f'../Scripts/Source/{args.script_name}.txt'
+languages = ['en']
 
 FORCE_GENERATE_AUDIO = True
 
