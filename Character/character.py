@@ -8,7 +8,7 @@ if HAS_SPEECH:
     from speech import Speech
 if HAS_HEARING:
     print('Importing Hearing module')
-    from hearing_new import Hearing
+    from hearing import Hearing
     # from hearing import Hearing
 if HAS_VISEME:
     print('Importing Viseme module')

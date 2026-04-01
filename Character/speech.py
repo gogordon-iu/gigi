@@ -189,13 +189,23 @@ class Speech():
 
     def get_usb_speaker(self):
         devices = sd.query_devices()
+        
+        # First, try to find HDMI audio output
         for i, d in enumerate(devices):
-            if d['max_output_channels'] > 0 and "USB" in d["name"]:
-                # Return the ALSA "plughw" string instead of index
-                # return f"plughw:{i},0"
+            if d['max_output_channels'] > 0 and "dp" in d["name"].lower():
+                print(f"Using HDMI speaker: {d['name']}")
                 return i, int(d['default_samplerate'])
+        
+        # Fallback: try USB
+        for i, d in enumerate(devices):
+            if d['max_output_channels'] > 0 and "hdmi" in d["name"]:
+                print(f"Using USB speaker: {d['name']}")
+                return i, int(d['default_samplerate'])
+        
+        # Fallback: first available output
         for i, d in enumerate(devices):
             if d['max_output_channels'] > 0:
+                print(f"Using default speaker: {d['name']}")
                 return i, int(d['default_samplerate'])
 
     # def get_usb_speaker(self):

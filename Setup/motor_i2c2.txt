@@ -7,3 +7,7 @@ overlay_prefix=rk356x
 overlays=i2c2-m1
 rootdev=UUID=4b3309b6-9bbe-431d-8609-82360b5b6154
 rootfstype=ext4
+
+# on the orangepi 5 pro i used i2c5-m3
+it was not being detected so I had to manually load the bus
+cp /boot/dtb/rockchip/rk3588s-orangepi-5-pro.dtb ~/rk3588s-orangepi-5-pro-i2c5-enabled.dtb

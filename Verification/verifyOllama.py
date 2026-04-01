@@ -7,7 +7,7 @@ url = "http://localhost:11434/api/chat"
 
 # Test payload
 payload = {
-    "model": "llama3.2:1b-instruct-q4_K_M",  # Change to your model name
+    "model": "hf.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M",  # Change to your model name
     "messages": [
         {
             "role": "system",
