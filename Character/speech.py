@@ -510,7 +510,11 @@ class Speech():
                 print("Audio finished!")
 
             # Play audio
-            sd.play(self.audio_objects[file]["data"], samplerate=self.audio_objects[file]["samplerate"])
+            try:
+                sd.play(self.audio_objects[file]["data"], samplerate=self.audio_objects[file]["samplerate"])
+            except:
+                stereo_audio = librosa.resample(self.audio_objects[file]["data"], orig_sr=self.audio_objects[file]["samplerate"], target_sr=self.speaker_sample_rate)
+                sd.play(stereo_audio, samplerate=self.speaker_sample_rate)
             sd.wait()  # Wait until playback finishes
             on_finished()
 
@@ -533,8 +537,10 @@ if __name__ == "__main__":
     # speech.run_speech(text="Hi everyone you goren. We are going to build a Ferris wheel. Four.")
     # speech.run_speech(file="../Assets/teacher/laugh.wav")
     # speech.run_speech(file="../Assets/audio/demo_01_greetings.wav")
-    tts_text = sys.argv[1] if len(sys.argv) > 1 else None
-    if tts_text is not None:
-        speech.run_speech(text=tts_text)
-    else:
-        speech.run_speech(text="Test number one")
+    speech.run_speech(file="/home/orangepi/Code/gigi/Assets/Jorge_Blue/speech/0e6c85228a7445938456465104065f46.wav")
+    
+    # tts_text = sys.argv[1] if len(sys.argv) > 1 else None
+    # if tts_text is not None:
+    #     speech.run_speech(text=tts_text)
+    # else:
+    #     speech.run_speech(text="Test number one")
