@@ -418,13 +418,12 @@ basic_sequences["jorge_yellow_dance"] = [
         "motors": {
             'right_shoulder': 0.0,
             'left_shoulder': 0.2,
-            'torso': 0.6
+            'torso': 1.0
         }
     },
     {
         "time": 46,
         "motors": {
-            'torso': 0.0,
             'right_elbow': 0.2,
             'left_elbow': -0.2,
         }

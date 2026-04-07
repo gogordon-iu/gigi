@@ -2,12 +2,14 @@ Jorge Activity Script
 [name] Jorge_Blue
 [Character] female
 [Speak] Hi! I am ready to dance
-[hear] words: ridiculous [timeout] 10
+[find] what: gesture [data] Fist, OpenHand [timeout] 10
 [edge] no [goto] -1
-[edge] ridiculous [Speak] A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community.  [pause] after: 10
+[edge] timeout [goto] -2
+[edge] Fist [Speak] A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community.  [pause] after: 5
+[edge] OpenHand [Speak] A ritual is a patterned, symbolic action that is repeated because it carries meaning, identity, or emotional power for that community.  [pause] after: 5
 [Speak] I do not know any other ways to relate to water, Angel. [move] look_left
 [Speak] You are the one that programmed us. You will have to figure this out by yourself. I am sorry. [pause] after: 30
 [Speak] The most sophisticated technology you can think of, has been right in front of you all this time, disguised in plain sight. [move] open_arms[pause] after: 30
-[Speak] The future is already here, it has been here! [pause] after: 30
-[move] rave [face] blink [pause] before: 120
+[Speak] The future is already here, it has been here! [pause] after: 10
+[move] rave [face] blink [pause] after: 120
 [face] idle [pause] after: 120

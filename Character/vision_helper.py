@@ -609,7 +609,8 @@ class VisionHelpers:
                     if 'emotion' in what:
                         result_container['data'] = face_info['emotion']
                     if 'gesture' in what:
-                        result_container['data'] = face_info['gesture']  
+                        result_container['data'] = face_info['gesture']
+                        face_info['gesture'] = 'Unknown'  # DEBUG: Prevent multiple detections
                     result_container['done'] = True
                     print(f"DEBUG: FOUND!!!! {result_container['data']}")
                     return
