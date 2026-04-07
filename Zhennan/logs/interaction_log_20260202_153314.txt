@@ -1,0 +1,12 @@
+[2026-02-02 15:33:14] [INFO] Initializing Robot-Assisted Activity System...
+[2026-02-02 15:33:14] [INFO] 
+Successfully loaded plan from 'activity_plan.json'.
+[2026-02-02 15:33:14] [STEP] --- Activity Started ---
+[2026-02-02 15:33:14] [STEP] [Step 1: CANNED]
+[2026-02-02 15:33:14] [ROBOT] Hello everyone! Today, we are going to have a special story time about friendship. I’m so excited to explore what makes friends special with you! [smile] Let’s get ready for an adventure together!
+[2026-02-02 15:33:16] [STEP] [Step 2: OPEN]
+[2026-02-02 15:33:16] [INFO] 
+(Interaction Phase. Type '/next' to force next step, or wait for robot to decide.)
+[2026-02-02 15:33:19] [STUDENT] hello
+[2026-02-02 15:33:20] [SYSTEM] Strategy Selected -> express_enthusiasm_for_learning
+[2026-02-02 15:33:20] [ROBOT] [smile] Hi there! I’m really glad you’re here. I can’t wait to hear what you think about friendship. What do you think a friend is? Or, what makes someone a good friend? [lean forward]

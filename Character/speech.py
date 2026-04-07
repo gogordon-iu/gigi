@@ -169,7 +169,8 @@ class Speech():
         sf.write(file, data, self.speaker_sample_rate, subtype='PCM_16')
         
         if self.child and IS_FFMPEG:
-            ffmpeg_path = r"C:/Users/gorengor/AppData/Local/Microsoft/WinGet/Links/ffmpeg.exe"
+            ffmpeg_path = shutil.which("ffmpeg")
+            
             (
                 ffmpeg
                 .input(file)

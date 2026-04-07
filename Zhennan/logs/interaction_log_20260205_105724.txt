@@ -1,0 +1,6 @@
+[2026-02-05 10:57:24] [INFO] Initializing Robot-Assisted Activity System...
+[2026-02-05 10:57:24] [INFO] 
+Successfully loaded plan from 'activity_plan.json'.
+[2026-02-05 10:57:24] [STEP] --- Activity Started ---
+[2026-02-05 10:57:24] [STEP] [Step 1: CANNED]
+[2026-02-05 10:57:24] [ROBOT] Hello everyone! Today, we are going to have a special story time about friendship. I’m so excited to explore what makes friends special with you! [smile] Let’s get ready for an adventure together!

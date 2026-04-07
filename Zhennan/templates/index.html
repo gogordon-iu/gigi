@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Activity Planner</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Robot Activity Planner</h1>
+            <p>Design engaging educational experiences for children</p>
+        </header>
+
+        <main>
+            <section id="generation-section" class="card glass">
+                <h2>Generate New Activity</h2>
+                <div class="input-group">
+                    <textarea id="activity-desc"
+                        placeholder="Describe the activity (e.g., 10 min 'design a habitat on mars' activity for five 3rd graders)..."></textarea>
+                    <p class="example-hint">Example: <span id="example-prompt">10 min 'design a habitat on mars'
+                            activity for five 3rd graders</span></p>
+                    <button id="generate-btn" class="primary-btn">Generate Plan</button>
+                </div>
+            </section>
+
+            <section id="review-section" class="hidden">
+                <div class="section-header">
+                    <h2>Review & Edit Plan</h2>
+                    <div class="actions">
+                        <button id="add-step-btn" class="secondary-btn">+ Add Step</button>
+                        <button id="save-btn" class="success-btn">Save to JSON</button>
+                    </div>
+                </div>
+
+                <div id="plan-metadata" class="metadata glass">
+                    <div class="meta-item">
+                        <label>Title:</label>
+                        <input type="text" id="plan-title">
+                    </div>
+                    <div class="meta-item">
+                        <label>Audience:</label>
+                        <input type="text" id="plan-audience">
+                    </div>
+                    <div class="meta-item">
+                        <label>Duration:</label>
+                        <input type="text" id="plan-duration">
+                    </div>
+                    <div class="meta-item">
+                        <label>Students:</label>
+                        <input type="text" id="plan-students">
+                    </div>
+                </div>
+
+                <div id="steps-container">
+                    <!-- Steps will be injected here -->
+                </div>
+            </section>
+        </main>
+
+        <div id="loading-overlay" class="hidden">
+            <div class="loader"></div>
+            <p>Generating your activity plan...</p>
+        </div>
+
+        <footer>
+            <p>Let's design a robot activity for your students!</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/script.js"></script>
+</body>
+
+</html>
