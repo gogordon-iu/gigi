@@ -44,13 +44,14 @@ def strip_nonverbals(text: str) -> str:
     def _rep(m):
         return m.group(0) if any(m.group(1).upper().startswith(t) for t in system_tags) else ""
     clean = re.sub(r"\[([^\]]+)\]", _rep, text).strip()
-    return re.sub(r" {2,}", " ", clean).strip()
+    return "placeholder " + re.sub(r" {2,}", " ", clean).strip()
 
 
 # ------------------------------------------------------------------
 # Init hardware
 # ------------------------------------------------------------------
-speech  = Speech(languages="en", activity="educational_activity", child=True)
+speech  = Speech(languages="en", child=False)
+speech.set_activity("educational_activity")
 hearing = Hearing(verbose=False)
 
 def robot_speak(text: str):
