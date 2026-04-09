@@ -14,9 +14,9 @@ def list_audio_devices():
 def get_usb_speaker():
     devices = sd.query_devices()
     for i, d in enumerate(devices):
-        if d['max_output_channels'] > 0 and "USB" in d["name"]:
+        if d['max_output_channels'] > 0 and "dp0" in d["name"]:
             return i, d
-    raise RuntimeError("No USB speaker found!")
+    raise RuntimeError("No speaker found!")
 
 
 def play_beep(device_id):
