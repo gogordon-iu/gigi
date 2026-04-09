@@ -521,6 +521,7 @@ class Speech():
                 print("Audio finished!")
 
             # Play audio
+            print("DEBUG: sample rate", self.audio_objects[file]["samplerate"])
             sd.play(self.audio_objects[file]["data"], samplerate=self.audio_objects[file]["samplerate"])
             sd.wait()  # Wait until playback finishes
             on_finished()
