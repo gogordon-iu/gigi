@@ -2,7 +2,8 @@ import os
 import json
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
-from Zhennan.llm_client_azure import LLMClient
+# from Zhennan.llm_client_azure import LLMClient
+from llm_client import LLMClient
 from strategy_catalog import StrategyCatalog
 from activity_planner import ActivityPlanner
 

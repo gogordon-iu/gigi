@@ -1,5 +1,6 @@
 import json
-from Zhennan.llm_client_azure import LLMClient
+# from Zhennan.llm_client_azure import LLMClient
+from llm_client import LLMClient
 
 class ActivityCoordinator:
     def __init__(self, llm_client: LLMClient):

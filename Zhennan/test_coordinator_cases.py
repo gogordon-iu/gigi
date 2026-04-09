@@ -1,5 +1,6 @@
 import json
-from Zhennan.llm_client_azure import LLMClient
+# from Zhennan.llm_client_azure import LLMClient
+from llm_client import LLMClient
 from coordinator import ActivityCoordinator
 
 def test_coordinator():
