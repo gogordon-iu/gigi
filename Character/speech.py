@@ -334,8 +334,11 @@ class Speech():
         if self.verbose:
             print("DEBUG: samplerate", samplerate)
         # first change to mono (not stereo)
-        if len(data.shape) > 1:
-            data = data[:,0]
+        print("Debug: data shape", data.shape)
+        # if len(data.shape) > 1:
+        #     data = data[:,0]
+
+
         # then if required, resample
         if samplerate != self.speaker_sample_rate:
             data = librosa.resample(data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
@@ -405,8 +408,9 @@ class Speech():
                             self.update_audio_objects(text=text, file=None)
                     if loaded_audio:
                         # first change to mono (not stereo)
-                        if len(data.shape) > 1:
-                            data = data[:,0]
+                        print("Debug: data shape", data.shape)
+                        # if len(data.shape) > 1:
+                        #     data = data[:,0]
                         # then if required, resample
                         if samplerate != self.speaker_sample_rate:
                             data = librosa.resample(data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
