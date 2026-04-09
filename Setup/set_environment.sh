@@ -54,3 +54,6 @@ sudo ./LCD7C-show
 # Setup wake up and associated files
 cd ~/Code/gigi/
 chmod +x activate_environment.sh
+
+# conda activate
+conda activate ./.venv

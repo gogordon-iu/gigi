@@ -37,6 +37,7 @@ git remote add orangepi ssh://orangepi@192.168.0.50/home/orangepi/repos/gigi.git
 git remote add orangepiMIGO ssh://orangepi@10.0.0.26/home/orangepi/repos/gigi.git
 git remote add orangepiBlue ssh://orangepi@10.0.0.69/home/orangepi/repos/gigi.git
 git remote add orangepiMIGO27 ssh://orangepi@10.0.0.27/home/orangepi/repos/gigi.git
+git remote add orangepiMIGOV2 ssh://orangepi@10.0.0.223/home/orangepi/repos/gigi.git
 git push orangepi main
 
 On the Orange Pi, keep your working copy separate from the bare repo:
