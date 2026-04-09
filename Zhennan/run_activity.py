@@ -8,8 +8,7 @@ import datetime
 sys.path.append('/home/orangepi/Code/gigi')
 sys.path.append('/home/orangepi/Code/gigi/Character')
 
-from Character.speech import Speech
-from Character.hearing import Hearing
+from Character.character import Character
 
 from llm_client import LLMClient
 from strategy_catalog import StrategyCatalog
@@ -50,15 +49,16 @@ def strip_nonverbals(text: str) -> str:
 # ------------------------------------------------------------------
 # Init hardware
 # ------------------------------------------------------------------
-speech  = Speech(languages="en", child=False)
-speech.set_activity("educational_activity")
-hearing = Hearing(verbose=False)
+gigi = Character()
+gigi.set_activity(activity_name="educational_activity")
+viseme_data = {"text": None, "file": None}
 
 def robot_speak(text: str):
     log("ROBOT", text)
     clean = strip_nonverbals(text)
     if not clean:
         return
+    viseme_data['text'] = clean
 
     with open(os.devnull, 'w') as devnull:
         null_fd = devnull.fileno()
@@ -67,7 +67,7 @@ def robot_speak(text: str):
         try:
             os.dup2(null_fd, 1)  # suppress "Generating speech..."
             os.dup2(null_fd, 2)  # suppress ffmpeg wall of text
-            speech.run_speech(text=clean)
+            gigi.run_character(viseme_data=viseme_data)
         finally:
             os.dup2(saved_stdout, 1)
             os.dup2(saved_stderr, 2)
@@ -76,11 +76,11 @@ def robot_speak(text: str):
 
 def robot_listen() -> str:
     print("\n[Listening...]")
-    hearing.texts = []
-    hearing.run_hearing()
+    gigi.hearing.texts = []
+    gigi.listen_backchannel()
 
-    if hearing.texts:
-        heard = hearing.texts[-1]
+    if gigi.hearing.texts:
+        heard = gigi.hearing.texts[-1]
         log("STUDENT", heard)
         return heard
 
