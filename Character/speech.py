@@ -334,7 +334,6 @@ class Speech():
         if self.verbose:
             print("DEBUG: samplerate", samplerate)
         # first change to mono (not stereo)
-        print("Debug: data shape", data.shape)
         # if len(data.shape) > 1:
         #     data = data[:,0]
 
@@ -408,7 +407,6 @@ class Speech():
                             self.update_audio_objects(text=text, file=None)
                     if loaded_audio:
                         # first change to mono (not stereo)
-                        print("Debug: data shape", data.shape)
                         # if len(data.shape) > 1:
                         #     data = data[:,0]
                         # then if required, resample
@@ -525,7 +523,6 @@ class Speech():
                 print("Audio finished!")
 
             # Play audio
-            print("DEBUG: sample rate", self.audio_objects[file]["samplerate"])
             sd.play(self.audio_objects[file]["data"], samplerate=self.audio_objects[file]["samplerate"])
             sd.wait()  # Wait until playback finishes
             on_finished()

@@ -141,7 +141,6 @@ class Character():
                 face_parts.append([self.speech.sample_rate,
                                    self.viseme.generate_viseme_sequence(file=viseme_data['file'], text=viseme_data['text'])])
                 # self.viseme.generate_viseme(file=viseme_data['file'], text=viseme_data['text'])
-            print(f'DEBUG: face parts: {face_parts}')
             if len(face_parts) > 0:
                 face_sequence, min_delay = self.face.combine_seuqences(sequences=face_parts)
                 self.face.generate_face(parts_selected=face_sequence, stop_condition="face", delay=min_delay)

@@ -4,6 +4,7 @@ import sys
 import json
 import time
 import datetime
+import random
 
 sys.path.append('/home/orangepi/Code/gigi')
 sys.path.append('/home/orangepi/Code/gigi/Character')
@@ -43,7 +44,7 @@ def strip_nonverbals(text: str) -> str:
     def _rep(m):
         return m.group(0) if any(m.group(1).upper().startswith(t) for t in system_tags) else ""
     clean = re.sub(r"\[([^\]]+)\]", _rep, text).strip()
-    return "placeholder " + re.sub(r" {2,}", " ", clean).strip()
+    return re.sub(r" {2,}", " ", clean).strip()
 
 
 # ------------------------------------------------------------------
@@ -52,31 +53,27 @@ def strip_nonverbals(text: str) -> str:
 gigi = Character()
 gigi.set_activity(activity_name="educational_activity")
 viseme_data = {"text": None, "file": None}
+movement_data = ""
+
+# movement repertoir
+movement_options = ["open_arms", "look_from_side_to_side", "look_left", "look_right",  
+    "arms_down", "arms_up", "arms_up_and_down", "arms_circle"]
 
 def robot_speak(text: str):
     log("ROBOT", text)
     clean = strip_nonverbals(text)
     if not clean:
         return
-    viseme_data['text'] = clean
-
-    with open(os.devnull, 'w') as devnull:
-        null_fd = devnull.fileno()
-        saved_stdout = os.dup(1)
-        saved_stderr = os.dup(2)
-        try:
-            os.dup2(null_fd, 1)  # suppress "Generating speech..."
-            os.dup2(null_fd, 2)  # suppress ffmpeg wall of text
-            gigi.run_character(viseme_data=viseme_data)
-        finally:
-            os.dup2(saved_stdout, 1)
-            os.dup2(saved_stderr, 2)
-            os.close(saved_stdout)
-            os.close(saved_stderr)
+    sentences = re.split(r'(?<=[.!?])\s+', clean)
+    for i, sentence in enumerate(sentences):
+        viseme_data['text'] = "placeholder " + sentence
+        movement_data = random.choice(movement_options)
+        gigi.run_character(viseme_data=viseme_data, movement_data=movement_data)
 
 def robot_listen() -> str:
     print("\n[Listening...]")
     gigi.hearing.texts = []
+    gigi.run_character(movement_data="home")
     gigi.listen_backchannel()
 
     if gigi.hearing.texts:
