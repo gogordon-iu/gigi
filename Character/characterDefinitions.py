@@ -13,7 +13,7 @@ if IS_ROBOT:
     HAS_VISION = True
 
     HAS_MOVEMENT = True
-    HAS_CONVERSATION = False
+    HAS_CONVERSATION = True
 else:
     HAS_FACE = True
     HAS_SPEECH = True

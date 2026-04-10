@@ -17,6 +17,10 @@ from interaction_manager import InteractionManager
 from coordinator import ActivityCoordinator
 
 
+IS_COORDINATOR = False
+IS_CLOSING = False
+IS_STRATEGY = True
+
 # ------------------------------------------------------------------
 # Logging
 # ------------------------------------------------------------------
@@ -52,23 +56,25 @@ def strip_nonverbals(text: str) -> str:
 # ------------------------------------------------------------------
 gigi = Character()
 gigi.set_activity(activity_name="educational_activity")
-viseme_data = {"text": None, "file": None}
-movement_data = ""
 
 # movement repertoir
 movement_options = ["open_arms", "look_from_side_to_side", "look_left", "look_right",  
-    "arms_down", "arms_up", "arms_up_and_down", "arms_circle"]
+    "arms_down", "arms_circle"]
 
-def robot_speak(text: str):
+def robot_speak(text: str, image: str = None):
     log("ROBOT", text)
     clean = strip_nonverbals(text)
     if not clean:
         return
     sentences = re.split(r'(?<=[.!?])\s+', clean)
     for i, sentence in enumerate(sentences):
-        viseme_data['text'] = "placeholder " + sentence
+        viseme_data = {'text': "placeholder " + sentence, 'file': None}
         movement_data = random.choice(movement_options)
-        gigi.run_character(viseme_data=viseme_data, movement_data=movement_data)
+        if i == 0 and image:
+            image_data = {'filename': image}
+        else:
+            image_data = None
+        gigi.run_character(viseme_data=viseme_data, movement_data=movement_data, image_data=image_data)
 
 def robot_listen() -> str:
     print("\n[Listening...]")
@@ -94,8 +100,9 @@ def robot_listen() -> str:
 # ------------------------------------------------------------------
 llm_client  = LLMClient()
 catalog     = StrategyCatalog()
-manager     = InteractionManager(llm_client, catalog)
-coordinator = ActivityCoordinator(llm_client)
+manager     = InteractionManager(llm_client, catalog, IS_STRATEGY)
+if IS_COORDINATOR:
+    coordinator = ActivityCoordinator(llm_client)
 
 def is_closing_condition_met(history: list, closing_condition: str) -> bool:
     """Ask the LLM a simple yes/no: has the closing condition been met?"""
@@ -116,7 +123,7 @@ def is_closing_condition_met(history: list, closing_condition: str) -> bool:
 # ------------------------------------------------------------------
 # Load plan
 # ------------------------------------------------------------------
-plan_file = "activity_plan.json"
+plan_file = "activity_plan copy.json"
 if not os.path.exists(plan_file):
     print(f"'{plan_file}' not found.")
     sys.exit(1)
@@ -148,8 +155,9 @@ for i, step in enumerate(steps):
     # ── Canned step ──────────────────────────────────────────────
     if step_type in ("canned", "introduction", "core_content", "conclusion"):
         script = step.get("robot_script", "")
+        image = step.get("image", None)
         if script:
-            robot_speak(script)
+            robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
         if i < len(steps) - 1:
             time.sleep(2)
@@ -157,42 +165,48 @@ for i, step in enumerate(steps):
     # ── Open step ────────────────────────────────────────────────
     elif step_type in ("open", "open_conversation"):
         log("SYSTEM", "(Interaction phase. Say or type '/next' to advance.)")
-
-        if step.get("robot_script"):
-            robot_speak(step["robot_script"])
-            history.append({"role": "assistant", "content": step["robot_script"]})
+        script = step.get("robot_script", "")
+        image = step.get("image", None)
+        if script:
+            robot_speak(script, image)
+            history.append({"role": "assistant", "content": script})
 
         while True:
             user_input = robot_listen()
+            robot_speak(random.choice(gigi.conversation.waiting_options))
 
             if user_input.strip().lower() == "/next":
                 break
 
             history.append({"role": "user", "content": user_input})
-
-            closing = step.get("closing_condition", "")
-            if closing and is_closing_condition_met(history, closing):
-                log("SYSTEM", "Closing condition met — advancing.")
-                break
-
-            # Coordinator check
             elapsed = (time.time() - start_time) / 60.0
-            intervention = coordinator.check_intervention(history, plan, step, elapsed)
 
-            if intervention.get("action") == "intervene":
-                log("SYSTEM", f"Coordinator: {intervention.get('reason')}")
-                response = intervention.get("response", "")
-                if response:
-                    robot_speak(response)
-                    history.append({"role": "assistant", "content": response})
-                if intervention.get("override_next_step"):
-                    force_finish = True
+            if IS_CLOSING:
+                closing = step.get("closing_condition", "")
+                if closing and is_closing_condition_met(history, closing):
+                    log("SYSTEM", "Closing condition met — advancing.")
                     break
-                continue
+
+            if IS_COORDINATOR:
+                # Coordinator check
+                intervention = coordinator.check_intervention(history, plan, step, elapsed)
+
+                if intervention.get("action") == "intervene":
+                    log("SYSTEM", f"Coordinator: {intervention.get('reason')}")
+                    response = intervention.get("response", "")
+                    if response:
+                        robot_speak(response)
+                        history.append({"role": "assistant", "content": response})
+                    if intervention.get("override_next_step"):
+                        force_finish = True
+                        break
+                    continue
 
             # Interaction manager
-            print("...")
-            robot_response = manager.generate_turn(history, step)
+            system_prompt, user_prompt = manager.get_prompts(history, step)
+            print("DEBUG: system_prompt, ", system_prompt)
+            print("DEBUG: user_prompt, ", user_prompt)
+            robot_response = gigi.conversation.get_response(system_prompt, user_prompt)
 
             if not robot_response:
                 log("SYSTEM", "No response generated.")
@@ -200,11 +214,12 @@ for i, step in enumerate(steps):
 
             content = robot_response
 
-            # Log strategy tag, don't speak it
-            m = re.search(r"\[STRATEGY:\s*(.*?)\]", content)
-            if m:
-                log("SYSTEM", f"Strategy → {m.group(1)}", terminal=False)
-                content = content.replace(m.group(0), "").strip()
+            if IS_STRATEGY:
+                # Log strategy tag, don't speak it
+                m = re.search(r"\[STRATEGY:\s*(.*?)\]", content)
+                if m:
+                    log("SYSTEM", f"Strategy → {m.group(1)}", terminal=False)
+                    content = content.replace(m.group(0), "").strip()
 
             # Advance step
             if "[NEXT_STEP]" in content:
@@ -219,5 +234,6 @@ for i, step in enumerate(steps):
             history.append({"role": "assistant", "content": content})
 
             log("SYSTEM", f"Elapsed: {elapsed:.1f} min", terminal=False)
+            break
 
 log("STEP", "--- Activity Finished ---")

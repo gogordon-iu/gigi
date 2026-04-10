@@ -1,15 +1,19 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
+# from transformers import AutoModelForCausalLM, AutoTokenizer
 import ollama
 import requests
 import subprocess
 import time
+import threading
+import random
+
+LLM_TIMEOUT = 30
 
 class Conversation:
     def __init__(self, system_prompt=None):
-        print("Initiazling conversation (starting ollame server)...")
+        # print("Initiazling conversation (starting ollame server)...")
 
-        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(10)
+        # subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # time.sleep(10)
 
         #model_name = "EleutherAI/gpt-neo-125M"  # Replace with a smaller model if needed
         #self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -37,6 +41,21 @@ class Conversation:
 
         self.text = []
 
+        self.waiting_options = [
+            "You know, that is a really thoughtful way to look at it. I was just considering how that fits into our activity today.",
+            "Let me take a good look at what we have found so far. It is really interesting how all these pieces are coming together.",
+            "I am really glad you shared that with me. It iss exactly that kind of creativity that makes working on this so much fun.",
+            "You know, I was just noticing how much effort you are putting into this today. It is really wonderful to see how you are approaching these ideas.", 
+            "It is so interesting to hear your perspective on this. I always find that everyone sees things just a little bit differently."
+        ]
+
+        self.timeout_options = [
+            'That was great, thank you.',
+            'Thank you for sharing your thoughts.',
+            'Amazing disucssions.'
+            ]
+
+
     # def response(self, input_text=None):
     #     if input_text is None:
     #         input_text = "What is the meaning of life?"
@@ -57,6 +76,35 @@ class Conversation:
     #     print(self.tokenizer.decode(output[0], skip_special_tokens=True))
     #     self.text.append(self.tokenizer.decode(output[0], skip_special_tokens=True))
     
+    def get_response(self, system_prompt, user_prompt):
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        payload = {
+            "model": self.ollama_model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": 0.7
+            }
+        }
+        try:
+            response = requests.post(
+                f"{self.ollama_url}/api/chat",
+                json=payload,
+                timeout=LLM_TIMEOUT  # Wait a maximum of 10 seconds
+            )
+            response.raise_for_status()
+            result = response.json()["message"]["content"]
+        except requests.exceptions.Timeout:
+            result = random.choice(self.timeout_options)
+        
+        print(result)
+        return result
+
+
     def get_response_with_tts_sync(self, text):
         """Get LLM response with conversation memory"""
         if not text:
@@ -79,20 +127,20 @@ class Conversation:
                     self.conversation_history = self.conversation_history[-(self.max_history * 2):]
             
             # Use /api/chat endpoint for conversation support
-            response = requests.post(
-                f"{self.ollama_url}/api/chat",
+            print( self.conversation_history)
+            response = requests.post(f"{self.ollama_url}/api/chat",
                 json={
                     "model": self.ollama_model,
                     "messages": self.conversation_history,
                     "stream": False,
                     "options": {
                         "temperature": 0.7,
-                        "num_predict": 100
+                        "num_ctx": 2048
                     }
                 },
                 timeout=60
             )
-            
+            response.raise_for_status()
             if response.status_code == 200:
                 assistant_message = response.json()["message"]["content"].strip()
                 
@@ -113,7 +161,30 @@ class Conversation:
             print(f"❌ LLM error: {e}")
             error_msg = "Connection issue."
             return error_msg
-        
+
+
+    def get_response_threaded(self, system_prompt, user_prompt, on_success):
+        """
+        Wraps get_response in a background thread.
+        :param system_prompt: The system instructions
+        :param user_prompt: The user input
+        :param on_success: Callback function that takes the string response
+        :param on_error: Callback function that takes an error message/exception
+        """
+        def worker():
+            try:
+                # Call your existing function
+                result = self.get_response(system_prompt, user_prompt)
+                # Send the result back via the success callback
+                on_success(result)
+            except Exception as e:
+                # Catch errors (timeouts, 500s, etc.) and send back via error callback
+                print(f"Threaded LLM Error: {e}")
+
+        # Create and start the thread
+        thread = threading.Thread(target=worker, daemon=True)
+        return thread
+
 if __name__ == "__main__":
     conv = Conversation()
     resp=conv.get_response_with_tts_sync("Hello, how are you?")

@@ -417,7 +417,12 @@ class Speech():
 
                         if env_file is not None:
                             if os.path.exists(env_file):
-                                envelope = np.load(env_file)
+                                try:
+                                    envelope = np.load(env_file)
+                                except:
+                                    envelope = self.get_envelope(audio_file, y=data, sr=samplerate)
+                                    if self.keep_record:
+                                        np.save(env_file, envelope)
                             else:
                                 envelope = self.get_envelope(audio_file, y=data, sr=samplerate)
                                 if self.keep_record:
@@ -469,6 +474,13 @@ class Speech():
         if max_length > 0:
             y = y[:sr*max_length]
         envelope = librosa.onset.onset_strength(y=y, sr=sr, hop_length=int(sr * self.sample_rate))
+        stretch_factor = 2.0
+        if stretch_factor != 1.0:
+            old_indices = np.arange(len(envelope))
+            new_length = int(len(envelope) * stretch_factor)
+            new_indices = np.linspace(0, len(envelope) - 1, new_length)
+            envelope = np.interp(new_indices, old_indices, envelope)
+            
         envelope = envelope / np.max(envelope)
 
         envelope = np.minimum(envelope * 4, 1.0)

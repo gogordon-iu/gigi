@@ -4,25 +4,18 @@ from llm_client import LLMClient
 from strategy_catalog import StrategyCatalog
 
 class InteractionManager:
-    def __init__(self, llm_client: LLMClient, strategy_catalog: StrategyCatalog):
+    def __init__(self, llm_client: LLMClient, strategy_catalog: StrategyCatalog, is_strategy: bool):
         self.llm_client = llm_client
+        self.is_strategy = is_strategy
         self.strategy_catalog = strategy_catalog
-
-    def generate_turn(self, history: list, step: dict) -> str:
-        """
-        Generates the next robot turn based on history and the current step.
-        """
-        catalog_str = self.strategy_catalog.get_randomized_catalog_string()
-        
-        # Serialize history for prompt
-        history_str = "\n".join([f"{entry['role']}: {entry['content']}" for entry in history[-10:]]) # Keep last 10 turns for context
-
-        system_prompt = f"""You are an educational robot facilitating an activity.
-CURRENT STEP: {json.dumps(step, indent=2)}
-
-STRATEGY CATALOG:
-{catalog_str}
-
+        self.system_prompt_prefix = """You are an educational robot facilitating an activity."""
+        self.system_prompt_suffix = ""
+        if self.is_strategy:
+            self.system_prompt_suffix += """
+                STRATEGY CATALOG:
+                {self.strategy_catalog}
+                """
+        self.system_prompt_suffix = """
 YOUR ROLE:
 1. Analyze the student's input in the context of the current step.
 2. IF the step type is "open":
@@ -43,9 +36,38 @@ OUTPUT FORMAT (MANDATORY):
 - Example: [STRATEGY: express_enthusiasm_for_learning] [wave hands] I'm so excited to see what you create! [smile]
 - If absolutely no strategy fits, you may output just the spoken text.
 - DO NOT use IDs that are not present in the provided STRATEGY CATALOG.
+- ALWAYS include verbal response, NOT ONLY STRATEGY and non-verbal actions.
 """
+
+    def get_prompts(self, history: list, step: dict) -> str:
+        catalog_str = self.strategy_catalog.get_randomized_catalog_string()
+        
+        # Serialize history for prompt
+        history_str = "\n".join([f"{entry['role']}: {entry['content']}" for entry in history[-10:]]) # Keep last 10 turns for context
+
+        system_prompt_current = f"""CURRENT STEP: {json.dumps(step, indent=2)}"""
+        system_prompt = self.system_prompt_prefix + system_prompt_current + self.system_prompt_suffix
         
         user_prompt = f"Recent Interaction History:\n{history_str}\n\nStudent just said: {history[-1]['content'] if history and history[-1]['role'] == 'student' else '...'}\n\nGenerate Robot Response:"
+        return system_prompt, user_prompt
+
+    def generate_turn(self, history: list, step: dict) -> str:
+        """
+        Generates the next robot turn based on history and the current step.
+        """
+        catalog_str = self.strategy_catalog.get_randomized_catalog_string()
+        
+        # Serialize history for prompt
+        history_str = "\n".join([f"{entry['role']}: {entry['content']}" for entry in history[-10:]]) # Keep last 10 turns for context
+
+        system_prompt_current = f"""CURRENT STEP: {json.dumps(step, indent=2)}"""
+        system_prompt = self.system_prompt_prefix + system_prompt_current + self.system_prompt_suffix
+        
+        user_prompt = f"Recent Interaction History:\n{history_str}\n\nStudent just said: {history[-1]['content'] if history and history[-1]['role'] == 'user' else '...'}\n\nGenerate Robot Response:"
+
+        print("DEUBG: generate_turn, system_prompt, ", system_prompt)
+        print("DEUBG: generate_turn, user_prompt, ", user_prompt)
 
         response = self.llm_client.get_completion(system_prompt, user_prompt, json_mode=False)
+        print("DEBUG: generate_turn, response, ", response)
         return response

@@ -70,9 +70,9 @@ class Character():
             self.movement = None
 
         if HAS_CONVERSATION:
-            self.conv = Conversation()
+            self.conversation = Conversation()
         else:
-            self.conv = None
+            self.conversation = None
 
         self.lookat_calibration = None
         if self.face and self.movement and self.vision:
@@ -265,7 +265,7 @@ class Character():
             self.lookfor_backchannel(what=what)
 
     def full_conversation(self):
-        if self.viseme and self.conv:
+        if self.viseme and self.conversation:
             agent_text = "What do you want to talk about"
             for i in range(2):
                 print("Agent: ", agent_text)
@@ -273,8 +273,8 @@ class Character():
                 self.listen_backchannel()
                 user_text = self.hearing.texts[-1]
                 print("User: ", user_text)
-                self.conv.response(input_text=user_text)
-                agent_text = self.conv.text[-1]
+                self.conversation.response(input_text=user_text)
+                agent_text = self.conversation.text[-1]
         
 
 

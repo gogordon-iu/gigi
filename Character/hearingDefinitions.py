@@ -5,7 +5,7 @@ TARGET_SAMPLE_RATE = 16000  # Whisper requires 16kHz
 # Chunking and silence detection
 CHUNK_DURATION = 5          # Duration of audio chunks in seconds
 SILENCE_THRESHOLD = 0.02    # Amplitude threshold for silence detection
-SILENCE_DURATION = 3        # Stop recording after this many seconds of silence
+SILENCE_DURATION = 2.0        # Stop recording after this many seconds of silence
 
 # Whisper transcription parameters
 NO_SPEECH_THRESHOLD = 0.7   # Higher = stricter silence rejection (reduces hallucinations)

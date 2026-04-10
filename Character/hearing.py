@@ -50,9 +50,9 @@ class Hearing():
             self.audio_processor = WhisperAudioProcessor(
                 native_sample_rate=INPUT_SAMPLE_RATE,
                 target_sample_rate=TARGET_SAMPLE_RATE,
-                energy_threshold=300,
+                energy_threshold=500,
                 buffer_duration=2.0,
-                min_audio_length=0.5,
+                min_audio_length=0.75,
                 silence_duration=SILENCE_DURATION,
                 debug=verbose
             )
