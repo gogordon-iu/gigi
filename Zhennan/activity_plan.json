@@ -8,7 +8,7 @@
       "step_type": "canned"
     },
     {
-      "closing_condition": "After each student shares at least one idea or the group lists at least 5 basic needs.",
+      "closing_condition": "After student tells yes.",
       "goal": "Encourage students to brainstorm what humans need to survive anywhere, especially on another planet.",
       "step_type": "open",
       "suggested_topics": [
@@ -20,11 +20,15 @@
       ]
     },
     {
+      "robot_script": "Going to next step!",
+      "step_type": "canned"
+    },
+    {
       "robot_script": "Great ideas! On Mars, things are very different\u2014there\u2019s no air to breathe, and it\u2019s super cold! So, we need to be very creative. Now, let\u2019s imagine what our Mars habitat will look like. Will it be underground, shaped like a dome, or something else? Let\u2019s dream big! [curious face]",
       "step_type": "canned"
     },
     {
-      "closing_condition": "When the group agrees on a basic design for their habitat.",
+      "closing_condition": "When the student selects a single habitat.",
       "goal": "Facilitate a group discussion to decide on the shape, location, and special features of the Mars habitat.",
       "step_type": "open",
       "suggested_topics": [
@@ -38,11 +42,15 @@
       ]
     },
     {
+      "robot_script": "Going to next step!",
+      "step_type": "canned"
+    },
+    {
       "robot_script": "Awesome teamwork! Now, every great habitat needs cool features. What should we add to make life on Mars fun and safe? For example, maybe a space playground or a robot assistant like me! [wave hands]",
       "step_type": "canned"
     },
     {
-      "closing_condition": "After each student has suggested at least one feature or the group agrees on three special features.",
+      "closing_condition": "After student tells a feature they want to add.",
       "goal": "Invite students to suggest creative features or activities that make their Mars habitat unique.",
       "step_type": "open",
       "suggested_topics": [
@@ -53,11 +61,15 @@
       ]
     },
     {
+      "robot_script": "Going to next step!",
+      "step_type": "canned"
+    },
+    {
       "robot_script": "Wow! I love all your ideas. Let\u2019s quickly draw or describe our Mars habitat together. You can draw, tell a story, or act it out\u2014any way you like! I\u2019ll help by describing what I imagine too. [express enthusiasm_for_learning]",
       "step_type": "canned"
     },
     {
-      "closing_condition": "After each student shares their creation, either by showing, telling, or acting.",
+      "closing_condition": "After the student shares a creation",
       "goal": "Have students express their design using drawings, storytelling, or acting, and share their work with the group.",
       "step_type": "open",
       "suggested_topics": [
@@ -67,11 +79,15 @@
       ]
     },
     {
+      "robot_script": "Going to next step!",
+      "step_type": "canned"
+    },
+    {
       "robot_script": "You all worked so hard and used your amazing imaginations! [cheer] Can each of you tell us one thing you liked most about our Mars habitat or something a friend added that was really cool?",
       "step_type": "canned"
     },
     {
-      "closing_condition": "After each student shares at least one positive reflection.",
+      "closing_condition": "After student shares  one positive reflection.",
       "goal": "Facilitate a brief reflection where students recognize each other's ideas and share what they liked.",
       "step_type": "open",
       "suggested_topics": [
@@ -79,6 +95,10 @@
         "Something a friend contributed",
         "Most creative idea"
       ]
+    },
+    {
+      "robot_script": "Going to next step!",
+      "step_type": "canned"
     },
     {
       "robot_script": "Fantastic job, Mars designers! We imagined, created, and worked as a team. Remember, teamwork and creativity can help us solve any challenge\u2014even living on Mars! [clap] Thank you for exploring with me today!",

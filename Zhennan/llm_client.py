@@ -1,10 +1,10 @@
 import os
 import json
 import requests
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+#load_dotenv()
 
 class LLMClient:
     def __init__(self):

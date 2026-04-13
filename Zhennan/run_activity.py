@@ -5,26 +5,33 @@ import json
 import time
 import datetime
 import random
-
-sys.path.append('/home/orangepi/Code/gigi')
-sys.path.append('/home/orangepi/Code/gigi/Character')
+if os.name=="posix":
+    sys.path.append('/home/orangepi/Code/gigi')
+    sys.path.append('/home/orangepi/Code/gigi/Character')
+else:
+    sys.path.append('C:/Users/gowth/Desktop/gigi')
+    sys.path.append('C:/Users/gowth/Desktop/gigi/Character')
 
 from Character.character import Character
 
 from llm_client import LLMClient
 from strategy_catalog import StrategyCatalog
+from StrategyRAG import StrategyRAG
 from interaction_manager import InteractionManager
-from coordinator import ActivityCoordinator
 
+# Offline modules — no LLM cost
+from behavior_filter import check_behavior
+from step_controller import StepController
+from closing_checker import check_closing
 
-IS_COORDINATOR = False
-IS_CLOSING = False
-IS_STRATEGY = True
+# ── Feature flags ────────────────────────────────────────────────────────────
+IS_STRATEGY  = True   # Use RAG-based strategy hints in LLM prompt
+IS_CLOSING   = True   # Use offline keyword closing condition checker
 
 # ------------------------------------------------------------------
 # Logging
 # ------------------------------------------------------------------
-log_dir = "logs"
+log_dir      = "logs"
 os.makedirs(log_dir, exist_ok=True)
 timestamp    = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 log_filename = os.path.join(log_dir, f"activity_{timestamp}.txt")
@@ -35,8 +42,12 @@ def log(source: str, message: str, terminal: bool = True):
     with open(log_filename, "a", encoding="utf-8") as f:
         f.write(entry + "\n")
     if terminal:
-        prefix = {"ROBOT": "\n[ROBOT]", "STUDENT": "\n[STUDENT]",
-                  "SYSTEM": "\n[System]", "STEP": "\n"}.get(source, "\n")
+        prefix = {
+            "ROBOT":   "\n[ROBOT]",
+            "STUDENT": "\n[STUDENT]",
+            "SYSTEM":  "\n[System]",
+            "STEP":    "\n"
+        }.get(source, "\n")
         print(f"{prefix}: {message}")
 
 
@@ -57,9 +68,10 @@ def strip_nonverbals(text: str) -> str:
 gigi = Character()
 gigi.set_activity(activity_name="educational_activity")
 
-# movement repertoir
-movement_options = ["open_arms", "look_from_side_to_side", "look_left", "look_right",  
-    "arms_down", "arms_circle"]
+movement_options = [
+    "open_arms", "look_from_side_to_side", "look_left",
+    "look_right", "arms_down", "arms_circle"
+]
 
 def robot_speak(text: str, image: str = None):
     log("ROBOT", text)
@@ -68,13 +80,14 @@ def robot_speak(text: str, image: str = None):
         return
     sentences = re.split(r'(?<=[.!?])\s+', clean)
     for i, sentence in enumerate(sentences):
-        viseme_data = {'text': "placeholder " + sentence, 'file': None}
+        viseme_data   = {'text': "placeholder " + sentence, 'file': None}
         movement_data = random.choice(movement_options)
-        if i == 0 and image:
-            image_data = {'filename': image}
-        else:
-            image_data = None
-        gigi.run_character(viseme_data=viseme_data, movement_data=movement_data, image_data=image_data)
+        image_data    = {'filename': image} if (i == 0 and image) else None
+        gigi.run_character(
+            viseme_data=viseme_data,
+            movement_data=movement_data,
+            image_data=image_data
+        )
 
 def robot_listen() -> str:
     print("\n[Listening...]")
@@ -87,7 +100,6 @@ def robot_listen() -> str:
         log("STUDENT", heard)
         return heard
 
-    # Fallback to keyboard if mic fails
     print("[STT failed – type or press Enter to skip]")
     typed = input("[STUDENT (typed)]: ").strip()
     if typed:
@@ -96,34 +108,18 @@ def robot_listen() -> str:
 
 
 # ------------------------------------------------------------------
-# Init LLM pipeline
+# Init LLM + offline pipeline
 # ------------------------------------------------------------------
-llm_client  = LLMClient()
-catalog     = StrategyCatalog()
-manager     = InteractionManager(llm_client, catalog, IS_STRATEGY)
-if IS_COORDINATOR:
-    coordinator = ActivityCoordinator(llm_client)
+llm_client = LLMClient()
+catalog    = StrategyCatalog()
+rag        = StrategyRAG(catalog)           # embeddings built once here
+manager    = InteractionManager(llm_client, rag)
 
-def is_closing_condition_met(history: list, closing_condition: str) -> bool:
-    """Ask the LLM a simple yes/no: has the closing condition been met?"""
-    history_str = "\n".join(f"{e['role']}: {e['content']}" for e in history[-6:])
-    
-    system_prompt = (
-        "You are a strict evaluator. Given a conversation history and a closing condition, "
-        "reply with ONLY 'YES' or 'NO'. Nothing else."
-    )
-    user_prompt = (
-        f"Closing condition: {closing_condition}\n\n"
-        f"Conversation history:\n{history_str}\n\n"
-        "Has the closing condition been met? Reply YES or NO only."
-    )
-    
-    result = llm_client.get_completion(system_prompt, user_prompt)
-    return result and "YES" in result.upper()
+
 # ------------------------------------------------------------------
 # Load plan
 # ------------------------------------------------------------------
-plan_file = "activity_plan copy.json"
+plan_file = "math_activity.json"
 if not os.path.exists(plan_file):
     print(f"'{plan_file}' not found.")
     sys.exit(1)
@@ -135,11 +131,22 @@ log("SYSTEM", f"Loaded: {plan.get('activity_title', '?')}")
 
 
 # ------------------------------------------------------------------
+# Init time controller from plan
+# ------------------------------------------------------------------
+target_duration_str = plan.get("approximate_duration", "10 minutes")
+try:
+    target_minutes = float(target_duration_str.split()[0])
+except Exception:
+    target_minutes = 10.0
+
+controller = StepController(target_minutes=target_minutes)
+
+
+# ------------------------------------------------------------------
 # Run activity
 # ------------------------------------------------------------------
 history      = []
 steps        = plan.get("steps", plan.get("phases", []))
-start_time   = time.time()
 force_finish = False
 
 log("STEP", "--- Activity Started ---")
@@ -152,88 +159,86 @@ for i, step in enumerate(steps):
     step_type = step.get("step_type", step.get("phase_type", "unknown"))
     log("STEP", f"[Step {i+1}: {step_type.upper()}]")
 
-    # ── Canned step ──────────────────────────────────────────────
+    # ── Canned step ──────────────────────────────────────────────────────
     if step_type in ("canned", "introduction", "core_content", "conclusion"):
         script = step.get("robot_script", "")
-        image = step.get("image", None)
+        image  = step.get("image", None)
         if script:
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
         if i < len(steps) - 1:
             time.sleep(2)
 
-    # ── Open step ────────────────────────────────────────────────
+    # ── Open step ────────────────────────────────────────────────────────
     elif step_type in ("open", "open_conversation"):
         log("SYSTEM", "(Interaction phase. Say or type '/next' to advance.)")
         script = step.get("robot_script", "")
-        image = step.get("image", None)
+        image  = step.get("image", None)
         if script:
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
 
+        closing_condition = step.get("closing_condition", "")
+
         while True:
+
+            # ── 1. Time check (offline) ──────────────────────────────────
+            if controller.should_force_finish():
+                log("SYSTEM", "Time limit reached — force finishing.")
+                robot_speak(controller.wrap_up_response())
+                force_finish = True
+                break
+
+            if controller.is_near_end():
+                log("SYSTEM", "Approaching time limit.", terminal=False)
+
+            # ── 2. Listen ────────────────────────────────────────────────
             user_input = robot_listen()
             robot_speak(random.choice(gigi.conversation.waiting_options))
 
+            # ── 3. Manual advance ────────────────────────────────────────
             if user_input.strip().lower() == "/next":
                 break
 
-            history.append({"role": "user", "content": user_input})
-            elapsed = (time.time() - start_time) / 60.0
+            # ── 4. Behavior check (offline) ──────────────────────────────
+            bad_behavior_response = check_behavior(user_input)
+            if bad_behavior_response:
+                log("SYSTEM", "Behavior issue detected — canned response.")
+                robot_speak(bad_behavior_response)
+                continue  # don't add bad input to history
 
-            if IS_CLOSING:
-                closing = step.get("closing_condition", "")
-                if closing and is_closing_condition_met(history, closing):
-                    log("SYSTEM", "Closing condition met — advancing.")
+            # ── 5. Append to history ─────────────────────────────────────
+            history.append({"role": "user", "content": user_input})
+
+            # ── 6. Closing condition check (offline) ─────────────────────
+            if IS_CLOSING and closing_condition:
+                if check_closing(history, closing_condition, llm_client, use_llm=True):
+                    log("SYSTEM", "Closing condition met — advancing step.")
                     break
 
-            if IS_COORDINATOR:
-                # Coordinator check
-                intervention = coordinator.check_intervention(history, plan, step, elapsed)
+            # ── 7. Generate robot response via RAG + tiny LLM ────────────
+            system_prompt, user_prompt = manager.get_prompts(history, step, user_input)
 
-                if intervention.get("action") == "intervene":
-                    log("SYSTEM", f"Coordinator: {intervention.get('reason')}")
-                    response = intervention.get("response", "")
-                    if response:
-                        robot_speak(response)
-                        history.append({"role": "assistant", "content": response})
-                    if intervention.get("override_next_step"):
-                        force_finish = True
-                        break
-                    continue
+            log("SYSTEM", f"system_prompt: {system_prompt}", terminal=False)
+            log("SYSTEM", f"user_prompt: {user_prompt}",   terminal=False)
 
-            # Interaction manager
-            system_prompt, user_prompt = manager.get_prompts(history, step)
-            print("DEBUG: system_prompt, ", system_prompt)
-            print("DEBUG: user_prompt, ", user_prompt)
             robot_response = gigi.conversation.get_response(system_prompt, user_prompt)
 
             if not robot_response:
                 log("SYSTEM", "No response generated.")
                 continue
 
-            content = robot_response
-
+            # Log strategy (retrieved offline, not from LLM output)
             if IS_STRATEGY:
-                # Log strategy tag, don't speak it
-                m = re.search(r"\[STRATEGY:\s*(.*?)\]", content)
-                if m:
-                    log("SYSTEM", f"Strategy → {m.group(1)}", terminal=False)
-                    content = content.replace(m.group(0), "").strip()
+                best = rag.retrieve(user_input, top_k=1)
+                if best:
+                    log("SYSTEM", f"Strategy → {best[0].id}", terminal=False)
 
-            # Advance step
-            if "[NEXT_STEP]" in content:
-                clean = content.replace("[NEXT_STEP]", "").strip()
-                if clean:
-                    robot_speak(clean)
-                    history.append({"role": "assistant", "content": clean})
-                log("SYSTEM", "Moving to next step.")
-                break
+            robot_speak(robot_response)
+            history.append({"role": "assistant", "content": robot_response})
 
-            robot_speak(content)
-            history.append({"role": "assistant", "content": content})
+            log("SYSTEM", f"Elapsed: {controller.elapsed_minutes():.1f} min", terminal=False)
 
-            log("SYSTEM", f"Elapsed: {elapsed:.1f} min", terminal=False)
-            break
+            break  # one response per student turn, then listen again
 
 log("STEP", "--- Activity Finished ---")

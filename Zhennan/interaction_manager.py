@@ -1,73 +1,101 @@
-import json
-# from Zhennan.llm_client_azure import LLMClient
-from llm_client import LLMClient
-from strategy_catalog import StrategyCatalog
+"""
+InteractionManager — simplified for Qwen 0.5B.
 
-class InteractionManager:
-    def __init__(self, llm_client: LLMClient, strategy_catalog: StrategyCatalog, is_strategy: bool):
-        self.llm_client = llm_client
-        self.is_strategy = is_strategy
-        self.strategy_catalog = strategy_catalog
-        self.system_prompt_prefix = """You are an educational robot facilitating an activity."""
-        self.system_prompt_suffix = ""
-        if self.is_strategy:
-            self.system_prompt_suffix += """
-                STRATEGY CATALOG:
-                {self.strategy_catalog}
-                """
-        self.system_prompt_suffix = """
-YOUR ROLE:
-1. Analyze the student's input in the context of the current step.
-2. IF the step type is "open":
-    - Check the "closing_condition". If it is met based on the history, output exactly: [NEXT_STEP]
-    - Otherwise, determine if any strategy from the catalog is triggered.
-    - If a strategy matches, use its 'robot_actions' as a guide.
-    - Keep the conversation flowing naturally towards the step's goal.
-3. IF the step type is "canned":
-    - This function should typically not be called for canned steps as they are static.
-    - However, if called, just output the robot_script or a transition.
-
-OUTPUT FORMAT (MANDATORY):
-- If the conversation should end or move forward: [NEXT_STEP] (You can still include a robot response before this tag).
-- For EVERY response in "open" step, you MUST try to apply at least one strategy from the CATALOG.
-- VARIETY IS KEY: Avoid using the same strategy multiple times in a row. Look at the interaction history and choose a DIFFERENT approach if the situation allows.
-- If a strategy is applied, prefix your response with exactly: [STRATEGY: strategy_id]
-- Include appropriate non-verbal actions in square brackets (e.g., [nod], [wave hands]) within or after the spoken text, following the 'Non-Verbal Options' in the catalog.
-- Example: [STRATEGY: express_enthusiasm_for_learning] [wave hands] I'm so excited to see what you create! [smile]
-- If absolutely no strategy fits, you may output just the spoken text.
-- DO NOT use IDs that are not present in the provided STRATEGY CATALOG.
-- ALWAYS include verbal response, NOT ONLY STRATEGY and non-verbal actions.
+Strategy is selected OFFLINE via StrategyRAG (no LLM cost).
+The LLM receives a minimal prompt (~100-150 tokens) and is asked
+for ONE short spoken sentence only.
 """
 
-    def get_prompts(self, history: list, step: dict) -> str:
-        catalog_str = self.strategy_catalog.get_randomized_catalog_string()
-        
-        # Serialize history for prompt
-        history_str = "\n".join([f"{entry['role']}: {entry['content']}" for entry in history[-10:]]) # Keep last 10 turns for context
+import re
+from llm_client import LLMClient
+from StrategyRAG import StrategyRAG
 
-        system_prompt_current = f"""CURRENT STEP: {json.dumps(step, indent=2)}"""
-        system_prompt = self.system_prompt_prefix + system_prompt_current + self.system_prompt_suffix
-        
-        user_prompt = f"Recent Interaction History:\n{history_str}\n\nStudent just said: {history[-1]['content'] if history and history[-1]['role'] == 'student' else '...'}\n\nGenerate Robot Response:"
+
+def _first_sentence(text: str) -> str:
+    """
+    Return only the first sentence of the model's output.
+    Prevents the model from hallucinating extra turns like:
+      "Great job! student: can we do more? robot: yes!"
+    Also strips any echoed role prefix (robot: / assistant:).
+    """
+    # Strip echoed role prefix
+    text = re.sub(r"^(robot:|assistant:|student:)\s*", "", text.strip(), flags=re.IGNORECASE)
+
+    # Cut at the first sentence boundary
+    m = re.search(r"[.!?]", text)
+    if m:
+        text = text[:m.end()].strip()
+
+    # If the model started hallucinating a new turn, cut there too
+    text = re.split(r"\n\s*(student:|robot:|user:|assistant:)", text, flags=re.IGNORECASE)[0]
+
+    return text.strip()
+
+
+class InteractionManager:
+    def __init__(self, llm_client: LLMClient, strategy_rag: StrategyRAG):
+        self.llm_client = llm_client
+        self.rag = strategy_rag
+
+    def _build_prompts(self, history: list, step: dict, student_input: str) -> tuple[str, str]:
+        """
+        Shared prompt builder used by both get_prompts and generate_turn.
+
+        Key fix: ALL role labels are normalized to "student"/"robot".
+        Previously history used "user"/"assistant" while the prompt
+        used "student"/"robot" — the mixed labels caused 0.5B to
+        hallucinate the rest of the conversation itself.
+        """
+        # RAG: pick best strategy offline
+        best_strategies = self.rag.retrieve(student_input or "", top_k=1)
+        strategy = best_strategies[0] if best_strategies else None
+        strategy_hint = strategy.robot_actions if strategy else ""
+        strategy_id   = strategy.id if strategy else "none"
+
+        # Only last 2 turns — normalize roles to student/robot
+        recent = history[-2:]
+        history_lines = []
+        for e in recent:
+            role = "student" if e["role"] == "user" else "robot"
+            history_lines.append(f"{role}: {e['content']}")
+        history_str = "\n".join(history_lines)
+
+        step_goal = step.get("goal", "")
+
+        system_prompt = (
+            f"You are a friendly educational robot talking to a child. "
+            f"Goal: {step_goal}. "
+            f"Hint: {strategy_hint} "
+            f"Reply with ONE short sentence only. Stop after the sentence."
+        )
+
+        user_prompt = (
+            f"{history_str}\n"
+            f"student: {student_input}\n"
+            f"robot:"
+        )
+
+        return system_prompt, user_prompt, strategy_id
+
+    def get_prompts(self, history: list, step: dict, student_input: str = "") -> tuple[str, str]:
+        """
+        Returns (system_prompt, user_prompt) for external callers (e.g. gigi.conversation).
+        """
+        system_prompt, user_prompt, _ = self._build_prompts(history, step, student_input)
         return system_prompt, user_prompt
 
-    def generate_turn(self, history: list, step: dict) -> str:
+    def generate_turn(self, history: list, step: dict, student_input: str) -> tuple[str, str]:
         """
-        Generates the next robot turn based on history and the current step.
+        Generate the robot's next spoken response.
+
+        Returns:
+            (response_text, strategy_id)
         """
-        catalog_str = self.strategy_catalog.get_randomized_catalog_string()
-        
-        # Serialize history for prompt
-        history_str = "\n".join([f"{entry['role']}: {entry['content']}" for entry in history[-10:]]) # Keep last 10 turns for context
-
-        system_prompt_current = f"""CURRENT STEP: {json.dumps(step, indent=2)}"""
-        system_prompt = self.system_prompt_prefix + system_prompt_current + self.system_prompt_suffix
-        
-        user_prompt = f"Recent Interaction History:\n{history_str}\n\nStudent just said: {history[-1]['content'] if history and history[-1]['role'] == 'user' else '...'}\n\nGenerate Robot Response:"
-
-        print("DEUBG: generate_turn, system_prompt, ", system_prompt)
-        print("DEUBG: generate_turn, user_prompt, ", user_prompt)
+        system_prompt, user_prompt, strategy_id = self._build_prompts(history, step, student_input)
 
         response = self.llm_client.get_completion(system_prompt, user_prompt, json_mode=False)
-        print("DEBUG: generate_turn, response, ", response)
-        return response
+
+        # Take only the first sentence — stops hallucinated multi-turn output
+        response = _first_sentence(response)
+
+        return response, strategy_id
