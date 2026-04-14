@@ -1,0 +1,52 @@
+{
+  "activity_title": "Fun with Multiplication",
+  "approximate_duration": "8 minutes",
+  "number_of_students": "1 student",
+  "target_audience": "3rd Grade (8-9 years old)",
+  "steps": [
+    {
+      "step_type": "canned",
+      "robot_script": "Hi there! Today we are going to practice multiplication together. I love numbers! [smile] Don't worry — we'll make it fun. Ready to start?"
+    },
+    {
+      "step_type": "open",
+      "goal": "Check if the student is ready and comfortable before starting.",
+      "closing_condition": "After student says yes or ready.",
+      "suggested_topics": ["Yes", "Ready", "Let's go"]
+    },
+    {
+      "step_type": "canned",
+      "robot_script": "Great! Let's warm up. If you have 3 bags and each bag has 4 apples, how many apples do you have in total? Take your time! [curious face]"
+    },
+    {
+      "step_type": "open",
+      "goal": "Guide the student to solve 3 times 4 and explain their thinking.",
+      "closing_condition": "After student gives a number as their answer.",
+      "suggested_topics": ["Count by 3s", "Count by 4s", "Draw it out"]
+    },
+    {
+      "step_type": "canned",
+      "robot_script": "That's right, 3 times 4 equals 12! [nod] You've got it! Now let's try a trickier one. What is 6 times 5?"
+    },
+    {
+      "step_type": "open",
+      "goal": "Encourage the student to solve 6 times 5 and share how they figured it out.",
+      "closing_condition": "After student gives a number as their answer.",
+      "suggested_topics": ["Skip counting by 5s", "Using fingers", "Thinking of 5+5+5+5+5+5"]
+    },
+    {
+      "step_type": "canned",
+      "robot_script": "Excellent! 6 times 5 is 30. [cheer] You are a multiplication star! Last challenge — can you make up your own multiplication problem and solve it for me?"
+    },
+    {
+      "step_type": "open",
+      "goal": "Let the student create and solve their own multiplication problem to show confidence.",
+      "closing_condition": "After student shares their own problem and an answer.",
+      "suggested_topics": ["Any two numbers", "Something from real life like cookies or toys"]
+    },
+    {
+      "step_type": "canned",
+      "robot_script": "Wow, I am so proud of you! You solved every problem today and even made up your own. [clap] Multiplication is your superpower now. See you next time, math champion!"
+    }
+  ]
+}
