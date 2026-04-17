@@ -80,7 +80,7 @@ def robot_speak(text: str, image: str = None):
         return
     sentences = re.split(r'(?<=[.!?])\s+', clean)
     for i, sentence in enumerate(sentences):
-        viseme_data   = {'text': "placeholder " + sentence, 'file': None}
+        viseme_data   = {'text': sentence, 'file': None}
         movement_data = random.choice(movement_options)
         image_data    = {'filename': image} if (i == 0 and image) else None
         gigi.run_character(

@@ -22,13 +22,13 @@ import sys
 import platform
 
 
-SOUND_OPTION = "sounddevice"
+SOUND_OPTION = "pygame"
+import soundfile as sf
 if SOUND_OPTION == "pygame":
     from pygame import mixer, time
-    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1" 
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
 elif SOUND_OPTION == "sounddevice":
     import sounddevice as sd
-    import soundfile as sf
 
 TTS_MODEL = "nix"
 
@@ -89,6 +89,7 @@ class Speech():
         else:
             self.save_recorded_audio()
 
+        self.speaker_sample_rate = TTS_SAMPLE_RATE
         if SOUND_OPTION == "pygame":
             mixer.init()
             self.pygame_lock = threading.Lock()
@@ -365,8 +366,9 @@ class Speech():
             # check if speech is already recorded
             pre_audio_file = [key for key, value in self.recorded_audio[self.activity].items() if value == text]
             if len(pre_audio_file) > 0:
-                file = pre_audio_file[0]
-                if os.path.exists(file):
+                candidate = pre_audio_file[0]
+                if os.path.exists(candidate):
+                    file = candidate
                     env_file = file.replace(".wav", ".npy")
                     print("Found record: ", file)
                     found = True

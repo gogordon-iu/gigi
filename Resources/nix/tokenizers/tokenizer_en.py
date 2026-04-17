@@ -41,9 +41,9 @@ class NixTokenizerEN:
             for text in texts
         ]
 
-        # 2. Tokenize phonemes
+        # 2. Tokenize phonemes (skip characters not in vocab, e.g. '-' word boundaries)
         tokens = [
-            self._intersperse([self.vocab_dict[p] for p in phoneme], 0)
+            self._intersperse([self.vocab_dict[p] for p in phoneme if p in self.vocab_dict], 0)
             for phoneme in phonemes
         ]
 
