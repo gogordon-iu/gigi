@@ -23,14 +23,28 @@ import platform
 
 
 SOUND_OPTION = "pygame"
-APLAY_DEVICE = "plughw:1,0"  # ALSA device for OrangePi DP speakers
+ROBOT_ALSA_CARD = 1   # rockchip,dp0 — change if aplay -l shows a different card number
 import soundfile as sf
 if SOUND_OPTION == "pygame":
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
-    if not IS_ROBOT:
-        from pygame import mixer, time
-    else:
-        import subprocess as _subprocess
+    if IS_ROBOT:
+        # Write ~/.asoundrc so ALSA default = DP speakers.
+        # SDL with alsa driver reads ALSA default, so no SDL_AUDIODEV needed.
+        _asoundrc = os.path.expanduser("~/.asoundrc")
+        _asoundrc_content = (
+            f'pcm.!default {{\n'
+            f'    type plug\n'
+            f'    slave.pcm "hw:{ROBOT_ALSA_CARD},0"\n'
+            f'}}\n'
+            f'ctl.!default {{\n'
+            f'    type hw\n'
+            f'    card {ROBOT_ALSA_CARD}\n'
+            f'}}\n'
+        )
+        with open(_asoundrc, 'w') as _f:
+            _f.write(_asoundrc_content)
+        os.environ['SDL_AUDIODRIVER'] = 'alsa'
+    from pygame import mixer, time
 elif SOUND_OPTION == "sounddevice":
     import sounddevice as sd
 
@@ -97,9 +111,8 @@ class Speech():
         if SOUND_OPTION == "pygame":
             if IS_ROBOT:
                 self.speaker_sample_rate = 48000
-            else:
-                mixer.init(frequency=self.speaker_sample_rate)
-            self.pygame_lock = threading.Lock()  # unused on robot but kept for consistency
+            mixer.init(frequency=self.speaker_sample_rate)
+            self.pygame_lock = threading.Lock()
         elif SOUND_OPTION == "sounddevice":
             speaker_device, self.speaker_sample_rate = self.get_usb_speaker()
             sd.default.device = (None, speaker_device)  # (input_device, output_device)
@@ -518,41 +531,26 @@ class Speech():
 
 
     
-    def _aplay(self, file, stop_event=None):
-        """Play a WAV file via aplay (OrangePi/Linux only)."""
-        proc = _subprocess.Popen(
-            ["aplay", "-D", APLAY_DEVICE, file],
-            stdout=_subprocess.DEVNULL, stderr=_subprocess.DEVNULL
-        )
-        while proc.poll() is None:
-            if stop_event is not None and stop_event.is_set():
-                proc.terminate()
-                break
-            sleep_time.sleep(0.05)
-
     def generate_audio(self, text=None, file=None, stop_event=None, stop_condition=None):
         file = self.update_audio_objects(text=text, file=file)
 
         if SOUND_OPTION == "pygame":
-            if IS_ROBOT:
-                self._aplay(file, stop_event)
-            else:
-                sound = self.audio_objects[file]["sound"]
-                with self.pygame_lock:
-                    sound.play()
-                    duration_ms = int(sound.get_length() * 1000)
-                    clock = time.Clock()
-                    elapsed = 0
-                    while elapsed < duration_ms:
-                        elapsed += clock.tick(30)
-                        if stop_event is not None and stop_event.is_set():
-                            break
-                    sound.stop()
-                    if AUDIO_DELAY:
-                        sleep_time.sleep(AUDIO_DELAY)
-                    if stop_condition is not None:
-                        if "audio" in stop_condition:
-                            stop_event.set()
+            sound = self.audio_objects[file]["sound"]
+            with self.pygame_lock:
+                sound.play()
+                duration_ms = int(sound.get_length() * 1000)
+                clock = time.Clock()
+                elapsed = 0
+                while elapsed < duration_ms:
+                    elapsed += clock.tick(30)
+                    if stop_event is not None and stop_event.is_set():
+                        break
+                sound.stop()
+                if AUDIO_DELAY:
+                    sleep_time.sleep(AUDIO_DELAY)
+                if stop_condition is not None:
+                    if "audio" in stop_condition:
+                        stop_event.set()
         elif SOUND_OPTION == "sounddevice":
             sd.play(self.audio_objects[file]["data"], samplerate=self.audio_objects[file]["samplerate"])
             sd.wait()
@@ -560,22 +558,19 @@ class Speech():
     def play_audio(self, file, stop_event=None):
         """Play an already-loaded audio_objects entry directly, skipping TTS generation."""
         if SOUND_OPTION == "pygame":
-            if IS_ROBOT:
-                self._aplay(file, stop_event)
-            else:
-                sound = self.audio_objects[file]["sound"]
-                with self.pygame_lock:
-                    sound.play()
-                    duration_ms = int(sound.get_length() * 1000)
-                    clock = time.Clock()
-                    elapsed = 0
-                    while elapsed < duration_ms:
-                        elapsed += clock.tick(30)
-                        if stop_event is not None and stop_event.is_set():
-                            break
-                    sound.stop()
-                    if AUDIO_DELAY:
-                        sleep_time.sleep(AUDIO_DELAY)
+            sound = self.audio_objects[file]["sound"]
+            with self.pygame_lock:
+                sound.play()
+                duration_ms = int(sound.get_length() * 1000)
+                clock = time.Clock()
+                elapsed = 0
+                while elapsed < duration_ms:
+                    elapsed += clock.tick(30)
+                    if stop_event is not None and stop_event.is_set():
+                        break
+                sound.stop()
+                if AUDIO_DELAY:
+                    sleep_time.sleep(AUDIO_DELAY)
         elif SOUND_OPTION == "sounddevice":
             sd.play(self.audio_objects[file]["data"], samplerate=self.audio_objects[file]["samplerate"])
             sd.wait()
