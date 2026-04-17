@@ -91,7 +91,15 @@ class Speech():
 
         self.speaker_sample_rate = TTS_SAMPLE_RATE
         if SOUND_OPTION == "pygame":
-            mixer.init()
+            if IS_ROBOT:
+                os.environ.setdefault("SDL_AUDIODRIVER", "alsa")
+                os.environ.setdefault("SDL_AUDIODEV", "plughw:1,0")
+                # S/PDIF (DP audio) requires 44100 or 48000 Hz; use 48000 as output rate
+                # and let sf.write resample TTS audio to match
+                mixer.init(frequency=48000)
+                self.speaker_sample_rate = 48000
+            else:
+                mixer.init(frequency=self.speaker_sample_rate)
             self.pygame_lock = threading.Lock()
         elif SOUND_OPTION == "sounddevice":
             speaker_device, self.speaker_sample_rate = self.get_usb_speaker()
