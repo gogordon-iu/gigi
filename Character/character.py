@@ -104,6 +104,16 @@ class Character():
         movement_thread = None
         viseme_sequence = None
 
+        # Kick off image preload in background during TTS generation (free parallelism)
+        preload_thread = None
+        if self.face and image_data:
+            preload_thread = threading.Thread(
+                target=self.face.preload_image,
+                args=(image_data['filename'],),
+                daemon=True
+            )
+            preload_thread.start()
+
         # Pre-generate audio synchronously, then use play_audio_thread so the
         # speech thread skips all TTS/loading work and goes straight to playback.
         if viseme_data and self.speech and self.viseme:
@@ -119,11 +129,14 @@ class Character():
             movement_thread = self.movement.movement_thread(motor_data=movement_data)
             movement_thread.start()
 
-        # Show image/video briefly, then fall through to viseme animation
+        # Wait for preload to finish, then display image from main thread (cv2 requirement)
+        if preload_thread:
+            preload_thread.join()
         if self.face and video_data:
             self.face.display_video_file(filename=video_data['filename'])
-        elif self.face and image_data:
-            self.face.display_image_file(filename=image_data['filename'])
+        elif self.face and image_data and self.face.preloaded_image is not None:
+            self.face.show_face = False
+            self.face.display_face(self.face.preloaded_image)
             self._cv_wait(image_data.get('duration', 1.5))
 
         # Viseme animation (or plain face) with speech

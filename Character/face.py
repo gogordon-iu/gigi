@@ -25,6 +25,7 @@ class Face():
         self.IMAGE_OPTION = IMAGE_OPTION
         self.character = characters[character]
         self.show_face = True
+        self.preloaded_image = None
         self.guidance = None
         self.guidance_images = {}
         self.set_activity(activity_name=activity)
@@ -311,41 +312,47 @@ class Face():
         else:
             self.show_face = True
 
+    def _resolve_image_path(self, filename):
+        if not os.path.exists(filename):
+            filename = self.activity_face_path + filename.split('/')[-1]
+        if not os.path.exists(filename):
+            filename = image_folder_path + filename.split('/')[-1]
+        return filename if os.path.exists(filename) else None
+
+    def preload_image(self, filename):
+        """Load and decode image on any thread — stores result for main-thread display."""
+        self.preloaded_image = None
+        path = self._resolve_image_path(filename)
+        if not path:
+            print(f"Image not found: {filename}")
+            return
+        try:
+            pil_image = Image.open(path)
+            if IMAGE_OPTION == "cv":
+                if pil_image.mode in ("RGBA", "LA") or (pil_image.mode == "P" and pil_image.info.get("transparency") is not None):
+                    rgba = pil_image.convert("RGBA")
+                    alpha = rgba.split()[-1]
+                    background = Image.new("RGB", rgba.size, (255, 255, 255))
+                    background.paste(rgba, mask=alpha)
+                    image = np.array(background)
+                else:
+                    image = np.array(pil_image.convert("RGB"))
+                self.preloaded_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            elif IMAGE_OPTION == "pygame":
+                mode, size, data = pil_image.mode, pil_image.size, pil_image.tobytes()
+                self.preloaded_image = pygame.image.fromstring(data, size, mode)
+            print(f"Image preloaded: {path}")
+        except Exception as e:
+            print(f"Image preload error: {e}")
+
     def display_image_file(self, filename=None):
         if filename:
-            print("FACE DEBUG: ", filename)
-            if not os.path.exists(filename):
-                filename = self.activity_face_path + filename.split('/')[-1]
-            print("FACE DEBUG: ", filename)
-            if not os.path.exists(filename):
-                filename = image_folder_path + filename.split('/')[-1]
-            print("FACE DEBUG: ", filename)
-            if os.path.exists(filename):
-                print("FACE DEBUG FOUND: ", filename)
-                pil_image = Image.open(filename)
-                if IMAGE_OPTION == "cv":
-                    # Convert PIL image to an OpenCV BGR numpy array, handling transparency by compositing onto white
-                    if pil_image.mode in ("RGBA", "LA") or (pil_image.mode == "P" and pil_image.info.get("transparency") is not None):
-                        rgba = pil_image.convert("RGBA")
-                        alpha = rgba.split()[-1]
-                        background = Image.new("RGB", rgba.size, (255, 255, 255))
-                        background.paste(rgba, mask=alpha)
-                        image = np.array(background)
-                    else:
-                        image = np.array(pil_image.convert("RGB"))
-
-                    # Convert RGB (PIL) to BGR (OpenCV)
-                    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-                elif IMAGE_OPTION == "pygame":
-                    mode = pil_image.mode
-                    size = pil_image.size
-                    data = pil_image.tobytes()
-
-                    # Create a Pygame Surface from the PIL image data
-                    image = pygame.image.fromstring(data, size, mode)
+            self.preload_image(filename)
+            if self.preloaded_image is not None:
                 self.show_face = False
-                self.display_face(image)
+                self.display_face(self.preloaded_image)
         else:
+            self.preloaded_image = None
             self.show_face = True
 
     def combine_seuqences(self, sequences=None):
