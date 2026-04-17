@@ -518,16 +518,16 @@ class Speech():
             sound = self.audio_objects[file]["sound"]
             with self.pygame_lock:
                 sound.play()
-
-                while mixer.get_busy():
-                    time.Clock().tick(10)
-                    if stop_event is not None:
-                        if stop_event.is_set():
-                            break
+                duration_ms = int(sound.get_length() * 1000)
+                clock = time.Clock()
+                elapsed = 0
+                while elapsed < duration_ms:
+                    elapsed += clock.tick(30)
+                    if stop_event is not None and stop_event.is_set():
+                        break
                 sound.stop()
                 if AUDIO_DELAY:
                     sleep_time.sleep(AUDIO_DELAY)
-                
                 if stop_condition is not None:
                     if "audio" in stop_condition:
                         stop_event.set()
@@ -546,9 +546,12 @@ class Speech():
         if SOUND_OPTION == "pygame":
             sound = self.audio_objects[file]["sound"]
             with self.pygame_lock:
-                sound.play()
-                while mixer.get_busy():
-                    time.Clock().tick(10)
+                channel = sound.play()
+                duration_ms = int(sound.get_length() * 1000)
+                clock = time.Clock()
+                elapsed = 0
+                while elapsed < duration_ms:
+                    elapsed += clock.tick(30)
                     if stop_event is not None and stop_event.is_set():
                         break
                 sound.stop()
