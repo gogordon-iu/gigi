@@ -541,9 +541,32 @@ class Speech():
             sd.wait()  # Wait until playback finishes
             on_finished()
 
+    def play_audio(self, file, stop_event=None):
+        """Play an already-loaded audio_objects entry directly, skipping TTS generation."""
+        if SOUND_OPTION == "pygame":
+            sound = self.audio_objects[file]["sound"]
+            with self.pygame_lock:
+                sound.play()
+                while mixer.get_busy():
+                    time.Clock().tick(10)
+                    if stop_event is not None and stop_event.is_set():
+                        break
+                sound.stop()
+                if AUDIO_DELAY:
+                    sleep_time.sleep(AUDIO_DELAY)
+        elif SOUND_OPTION == "sounddevice":
+            sd.play(self.audio_objects[file]["data"], samplerate=self.audio_objects[file]["samplerate"])
+            sd.wait()
+
     def audio_thread(self, text=None, file=None):
         stop_event = threading.Event()
         t = threading.Thread(target=self.generate_audio, args=(text, file, stop_event, None))
+        return t
+
+    def play_audio_thread(self, file):
+        """Thread that plays a pre-loaded audio object with no TTS overhead."""
+        stop_event = threading.Event()
+        t = threading.Thread(target=self.play_audio, args=(file, stop_event))
         return t
     
     def run_speech(self, text=None, file=None):

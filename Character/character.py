@@ -102,18 +102,27 @@ class Character():
                       image_data=None, video_data=None):
         speech_thread = None
         movement_thread = None
-        if viseme_data and self.speech:
+        viseme_sequence = None
+
+        # Pre-generate audio synchronously, then use play_audio_thread so the
+        # speech thread skips all TTS/loading work and goes straight to playback.
+        if viseme_data and self.speech and self.viseme:
+            audio_file = self.speech.update_audio_objects(file=viseme_data['file'], text=viseme_data['text'])
+            viseme_sequence = self.viseme.generate_viseme_sequence(file=viseme_data['file'], text=viseme_data['text'])
+            speech_thread = self.speech.play_audio_thread(file=audio_file)
+        elif viseme_data and self.speech:
             speech_thread = self.speech.audio_thread(file=viseme_data['file'], text=viseme_data['text'])
-            speech_thread.start()
         elif audio_data and self.speech:
             speech_thread = self.speech.audio_thread(file=audio_data['file'], text=audio_data['text'])
-            speech_thread.start()
+
         if movement_data and self.movement:
             movement_thread = self.movement.movement_thread(motor_data=movement_data)
             movement_thread.start()
 
         # Priority in displaying on screen: video, image, text, face, viseme
         if (image_data or video_data or caption_data) and self.face:
+            if speech_thread:
+                speech_thread.start()
             if video_data:
                 self.face.display_video_file(filename=video_data['filename'])
             elif image_data:
@@ -127,23 +136,26 @@ class Character():
             if face_data and self.face:
                 if 'parts' in face_data:
                     face_parts.append([0.5, face_data['parts']])
-                    # self.face.generate_face(parts_selected=face_data['parts'])
                 elif 'sequence' in face_data:
                     face_parts.append([0.5, basic_sequences[face_data['sequence']]])
-                    # self.face.run_sequence(face_sequence_name=face_data['sequence'])
                 if 'guidance' in face_data:
                     self.face.guidance = face_data['guidance']
                 else:
                     self.face.guidance = None
             elif self.face and face_data is None:
                 self.face.guidance = None
-            if viseme_data and self.viseme:
-                face_parts.append([self.speech.sample_rate,
-                                   self.viseme.generate_viseme_sequence(file=viseme_data['file'], text=viseme_data['text'])])
-                # self.viseme.generate_viseme(file=viseme_data['file'], text=viseme_data['text'])
+            if viseme_sequence is not None:
+                face_parts.append([self.speech.sample_rate, viseme_sequence])
             if len(face_parts) > 0:
                 face_sequence, min_delay = self.face.combine_seuqences(sequences=face_parts)
+                # Start speech and face animation together
+                if speech_thread:
+                    speech_thread.start()
                 self.face.generate_face(parts_selected=face_sequence, stop_condition="face", delay=min_delay)
+            elif speech_thread:
+                speech_thread.start()
+        elif speech_thread:
+            speech_thread.start()
 
         if speech_thread:
             speech_thread.join()

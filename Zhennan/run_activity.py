@@ -119,7 +119,7 @@ manager    = InteractionManager(llm_client, rag)
 # ------------------------------------------------------------------
 # Load plan
 # ------------------------------------------------------------------
-plan_file = "math_activity.json"
+plan_file = "activity_plan.json"
 if not os.path.exists(plan_file):
     print(f"'{plan_file}' not found.")
     sys.exit(1)
@@ -161,8 +161,12 @@ for i, step in enumerate(steps):
 
     # ── Canned step ──────────────────────────────────────────────────────
     if step_type in ("canned", "introduction", "core_content", "conclusion"):
-        script = step.get("robot_script", "")
-        image  = step.get("image", None)
+        sub_steps = step.get("sub_steps", [])
+        if sub_steps:
+            script = " ".join(s["text"] for s in sub_steps if s.get("text"))
+        else:
+            script = step.get("robot_script", "")
+        image  = step.get("image_path", step.get("image", None))
         if script:
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
@@ -173,7 +177,7 @@ for i, step in enumerate(steps):
     elif step_type in ("open", "open_conversation"):
         log("SYSTEM", "(Interaction phase. Say or type '/next' to advance.)")
         script = step.get("robot_script", "")
-        image  = step.get("image", None)
+        image  = step.get("image_path", step.get("image", None))
         if script:
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
