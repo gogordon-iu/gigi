@@ -158,9 +158,17 @@ class Character():
             speech_thread.start()
 
         if speech_thread:
-            speech_thread.join()
+            self._join_with_cv_loop(speech_thread)
         if movement_thread:
             movement_thread.join()
+
+    def _join_with_cv_loop(self, thread):
+        """Join a thread while keeping the OpenCV event loop alive (required on Linux/OrangePi)."""
+        if self.face and self.face.IMAGE_OPTION == "cv":
+            import cv2
+            while thread.is_alive():
+                cv2.waitKey(30)
+        thread.join()
 
     def stop_character(self):
         if self.vision:

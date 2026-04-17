@@ -22,6 +22,7 @@ import threading
 class Face():
     def __init__(self, character="fuzzy", full_screen=True, activity=None):
         print("Initiliazing face ...")
+        self.IMAGE_OPTION = IMAGE_OPTION
         self.character = characters[character]
         self.show_face = True
         self.guidance = None
