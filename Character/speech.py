@@ -25,8 +25,11 @@ import platform
 SOUND_OPTION = "pygame"
 import soundfile as sf
 if SOUND_OPTION == "pygame":
-    from pygame import mixer, time
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
+    if IS_ROBOT:
+        os.environ['SDL_AUDIODRIVER'] = 'alsa'
+        os.environ['SDL_AUDIODEV'] = 'plughw:1,0'
+    from pygame import mixer, time
 elif SOUND_OPTION == "sounddevice":
     import sounddevice as sd
 
@@ -92,10 +95,6 @@ class Speech():
         self.speaker_sample_rate = TTS_SAMPLE_RATE
         if SOUND_OPTION == "pygame":
             if IS_ROBOT:
-                os.environ.setdefault("SDL_AUDIODRIVER", "alsa")
-                os.environ.setdefault("SDL_AUDIODEV", "plughw:1,0")
-                # S/PDIF (DP audio) requires 44100 or 48000 Hz; use 48000 as output rate
-                # and let sf.write resample TTS audio to match
                 mixer.init(frequency=48000)
                 self.speaker_sample_rate = 48000
             else:
