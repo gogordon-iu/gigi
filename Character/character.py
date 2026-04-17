@@ -119,36 +119,29 @@ class Character():
             movement_thread = self.movement.movement_thread(motor_data=movement_data)
             movement_thread.start()
 
-        # Priority in displaying on screen: video, image, text, face, viseme
-        if (image_data or video_data or caption_data) and self.face:
-            if speech_thread:
-                speech_thread.start()
-            if video_data:
-                self.face.display_video_file(filename=video_data['filename'])
-            elif image_data:
-                self.face.display_image_file(filename=image_data['filename'])
-            elif caption_data:
-                self.face.display_text(text=caption_data['caption'])
-        elif self.face:
-            self.face.display_image_file(filename=None)
-            print(f'Running face with data: {face_data}, viseme: {viseme_data}')
+        # Show image/video briefly, then fall through to viseme animation
+        if self.face and video_data:
+            self.face.display_video_file(filename=video_data['filename'])
+        elif self.face and image_data:
+            self.face.display_image_file(filename=image_data['filename'])
+            self._cv_wait(image_data.get('duration', 1.5))
+
+        # Viseme animation (or plain face) with speech
+        if self.face:
+            self.face.display_image_file(filename=None)  # restore character face
             face_parts = []
-            if face_data and self.face:
+            if face_data:
                 if 'parts' in face_data:
                     face_parts.append([0.5, face_data['parts']])
                 elif 'sequence' in face_data:
                     face_parts.append([0.5, basic_sequences[face_data['sequence']]])
-                if 'guidance' in face_data:
-                    self.face.guidance = face_data['guidance']
-                else:
-                    self.face.guidance = None
-            elif self.face and face_data is None:
+                self.face.guidance = face_data.get('guidance', None)
+            else:
                 self.face.guidance = None
             if viseme_sequence is not None:
                 face_parts.append([self.speech.sample_rate, viseme_sequence])
             if len(face_parts) > 0:
                 face_sequence, min_delay = self.face.combine_seuqences(sequences=face_parts)
-                # Start speech and face animation together
                 if speech_thread:
                     speech_thread.start()
                 self.face.generate_face(parts_selected=face_sequence, stop_condition="face", delay=min_delay)
@@ -161,6 +154,16 @@ class Character():
             self._join_with_cv_loop(speech_thread)
         if movement_thread:
             movement_thread.join()
+
+    def _cv_wait(self, seconds):
+        """Sleep while keeping the OpenCV event loop alive."""
+        if self.face and self.face.IMAGE_OPTION == "cv":
+            import cv2
+            end = time.time() + seconds
+            while time.time() < end:
+                cv2.waitKey(30)
+        else:
+            time.sleep(seconds)
 
     def _join_with_cv_loop(self, thread):
         """Join a thread while keeping the OpenCV event loop alive (required on Linux/OrangePi)."""
