@@ -61,7 +61,7 @@ class Hearing():
             self.vad = webrtcvad.Vad(2)  # Aggressiveness level 2 — more robust to noise than 1
             self.vad_frame_duration = 30  # ms (10, 20, or 30)
             self.vad_frame_size = int(TARGET_SAMPLE_RATE * self.vad_frame_duration / 1000)
-            self.speech_threshold = 0.15
+            self.speech_threshold = 0.10
 
             # Single VAD-driven silence timer — updated only when WebRTC confirms speech
             self.last_vad_speech_time = None
