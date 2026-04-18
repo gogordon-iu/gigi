@@ -89,12 +89,13 @@ class Speech():
         else:
             self.save_recorded_audio()
 
-        self.speaker_sample_rate = TTS_SAMPLE_RATE
+        self.speaker_sample_rate = TTS_SAMPLE_RATE  # TTS generates at this rate
         if SOUND_OPTION == "pygame":
             mixer.init(frequency=self.speaker_sample_rate)
             self.pygame_lock = threading.Lock()
+            self.device_samplerate = self.speaker_sample_rate
         elif SOUND_OPTION == "sounddevice":
-            speaker_device, _ = self.get_usb_speaker()
+            speaker_device, self.device_samplerate = self.get_usb_speaker()
             sd.default.device = (None, speaker_device)  # (input_device, output_device)
 
 
@@ -532,8 +533,7 @@ class Speech():
                     if "audio" in stop_condition:
                         stop_event.set()
         elif SOUND_OPTION == "sounddevice":
-            sd.play(self.audio_objects[file]["data"], samplerate=self.audio_objects[file]["samplerate"])
-            sd.wait()
+            self._sd_play(file, stop_event)
 
     def play_audio(self, file, stop_event=None):
         """Play an already-loaded audio_objects entry directly, skipping TTS generation."""
@@ -552,8 +552,23 @@ class Speech():
                 if AUDIO_DELAY:
                     sleep_time.sleep(AUDIO_DELAY)
         elif SOUND_OPTION == "sounddevice":
-            sd.play(self.audio_objects[file]["data"], samplerate=self.audio_objects[file]["samplerate"])
-            sd.wait()
+            self._sd_play(file, stop_event)
+
+    def _sd_play(self, file, stop_event=None):
+        """Play via sounddevice, resampling to device native rate if needed."""
+        data = self.audio_objects[file]["data"]
+        src_rate = self.audio_objects[file]["samplerate"]
+        if src_rate != self.device_samplerate:
+            data = librosa.resample(data.T if data.ndim > 1 else data,
+                                    orig_sr=src_rate, target_sr=self.device_samplerate)
+            if data.ndim > 1:
+                data = data.T
+        sd.play(data, samplerate=self.device_samplerate)
+        while sd.get_stream().active:
+            if stop_event is not None and stop_event.is_set():
+                sd.stop()
+                break
+            sleep_time.sleep(0.05)
 
     def audio_thread(self, text=None, file=None):
         stop_event = threading.Event()
