@@ -23,26 +23,57 @@ import platform
 
 
 SOUND_OPTION = "pygame"
-ROBOT_ALSA_CARD = 1   # rockchip,dp0 — change if aplay -l shows a different card number
 import soundfile as sf
+
+def _find_dp_device():
+    """Use sounddevice to auto-discover the DP/HDMI speaker and its native sample rate."""
+    try:
+        import sounddevice as _sd
+        devices = _sd.query_devices()
+        for d in devices:
+            if d['max_output_channels'] > 0 and 'dp' in d['name'].lower():
+                return d['name'], int(d['default_samplerate'])
+        for d in devices:
+            if d['max_output_channels'] > 0 and 'hdmi' in d['name'].lower():
+                return d['name'], int(d['default_samplerate'])
+    except Exception as e:
+        print(f"Device discovery failed: {e}")
+    return None, 48000
+
 if SOUND_OPTION == "pygame":
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
     if IS_ROBOT:
-        # Write ~/.asoundrc so ALSA default = DP speakers.
-        # SDL with alsa driver reads ALSA default, so no SDL_AUDIODEV needed.
-        _asoundrc = os.path.expanduser("~/.asoundrc")
-        _asoundrc_content = (
-            f'pcm.!default {{\n'
-            f'    type plug\n'
-            f'    slave.pcm "hw:{ROBOT_ALSA_CARD},0"\n'
-            f'}}\n'
-            f'ctl.!default {{\n'
-            f'    type hw\n'
-            f'    card {ROBOT_ALSA_CARD}\n'
-            f'}}\n'
-        )
-        with open(_asoundrc, 'w') as _f:
-            _f.write(_asoundrc_content)
+        _dev_name, _dev_samplerate = _find_dp_device()
+        if _dev_name:
+            # Extract ALSA card number from device name (e.g. "rockchip,dp0: ..." → card index)
+            # sounddevice names ALSA devices as "hw:X,Y" or contain the card name;
+            # write ~/.asoundrc using the discovered name directly.
+            _asoundrc = os.path.expanduser("~/.asoundrc")
+            # Use the sounddevice name as ALSA PCM device (PortAudio uses ALSA names)
+            _alsa_dev = f'plug:{_dev_name.split(":")[0].strip()}'
+            # Fallback: use card number from name if format is "hw:N,M"
+            if _dev_name.startswith("hw:") or _dev_name.startswith("plughw:"):
+                _alsa_dev = _dev_name
+            else:
+                # Try to find card number via aplay -l match
+                try:
+                    import subprocess as _sp
+                    _out = _sp.check_output(["aplay", "-l"], text=True)
+                    for _line in _out.splitlines():
+                        if 'dp' in _line.lower() and _line.startswith("card"):
+                            _card_num = int(_line.split(":")[0].replace("card", "").strip())
+                            _alsa_dev = f"plughw:{_card_num},0"
+                            break
+                except Exception:
+                    _alsa_dev = "plughw:1,0"
+            with open(_asoundrc, 'w') as _f:
+                _f.write(
+                    f'pcm.!default {{\n    type plug\n    slave.pcm "{_alsa_dev}"\n}}\n'
+                    f'ctl.!default {{\n    type hw\n    card 1\n}}\n'
+                )
+            print(f"Audio device: {_alsa_dev} @ {_dev_samplerate} Hz")
+        else:
+            _dev_samplerate = 48000
         os.environ['SDL_AUDIODRIVER'] = 'alsa'
     from pygame import mixer, time
 elif SOUND_OPTION == "sounddevice":
@@ -107,10 +138,8 @@ class Speech():
         else:
             self.save_recorded_audio()
 
-        self.speaker_sample_rate = TTS_SAMPLE_RATE
+        self.speaker_sample_rate = _dev_samplerate if (IS_ROBOT and SOUND_OPTION == "pygame") else TTS_SAMPLE_RATE
         if SOUND_OPTION == "pygame":
-            if IS_ROBOT:
-                self.speaker_sample_rate = 48000
             mixer.init(frequency=self.speaker_sample_rate)
             self.pygame_lock = threading.Lock()
         elif SOUND_OPTION == "sounddevice":
