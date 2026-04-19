@@ -64,7 +64,10 @@ class Character():
                 self.movement = Movement()
                 if wakeup:
                     self.movement.home_position()
-            except:
+            except Exception as e:
+                import traceback
+                print(f"[Movement init failed]: {e}")
+                traceback.print_exc()
                 self.movement = None
         else:
             self.movement = None
