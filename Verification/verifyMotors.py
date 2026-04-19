@@ -133,9 +133,15 @@ def main():
         print(f"Writing channel={channel} angle={angle}")
         motors.set_pwm(channel, 0, angle)
 
-        # Read back the registers to confirm the write
-        reg_base = LED0_ON_L + 4 * channel
         with SMBus(motors.interface) as bus:
+            # Read MODE registers
+            mode1 = bus.read_byte_data(motors.address, MODE1)
+            mode2 = bus.read_byte_data(motors.address, MODE2)
+            print(f"MODE1=0x{mode1:02X} (SLEEP bit={'SET - chip asleep!' if mode1 & 0x10 else 'clear, OK'})")
+            print(f"MODE2=0x{mode2:02X} (OUTDRV={'totem-pole OK' if mode2 & 0x04 else 'open-drain'})")
+
+            # Read back PWM registers
+            reg_base = LED0_ON_L + 4 * channel
             on_l  = bus.read_byte_data(motors.address, reg_base)
             on_h  = bus.read_byte_data(motors.address, reg_base + 1)
             off_l = bus.read_byte_data(motors.address, reg_base + 2)
