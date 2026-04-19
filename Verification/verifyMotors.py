@@ -129,14 +129,28 @@ def main():
     angle = int(sys.argv[2])
     motors = Motors()
 
-     # check channeks
     try:
+        print(f"Writing channel={channel} angle={angle}")
         motors.set_pwm(channel, 0, angle)
-        time.sleep(3)  # Wait 2 seconds to observe the motor/servo
+
+        # Read back the registers to confirm the write
+        reg_base = LED0_ON_L + 4 * channel
+        with SMBus(motors.interface) as bus:
+            on_l  = bus.read_byte_data(motors.address, reg_base)
+            on_h  = bus.read_byte_data(motors.address, reg_base + 1)
+            off_l = bus.read_byte_data(motors.address, reg_base + 2)
+            off_h = bus.read_byte_data(motors.address, reg_base + 3)
+        on_val  = (on_h << 8) | on_l
+        off_val = (off_h << 8) | off_l
+        print(f"Readback → ON={on_val}, OFF={off_val} (expected OFF={angle})")
+
+        time.sleep(3)
         motors.software_reset()
         print('------')
-    except:
-        print("Error")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()
