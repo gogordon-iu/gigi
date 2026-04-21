@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-LLM_TIMEOUT = 30
+LLM_TIMEOUT = 120
 
 class Conversation:
     def __init__(self, system_prompt=None, use_rag=False, rag_file_path=None):

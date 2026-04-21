@@ -242,6 +242,7 @@ for i, step in enumerate(steps):
                 action["type"] = "speak"
                 action["response"] = robot_response
 
+            log("SYSTEM", "Waiting for LLM response...")
             t_process = threading.Thread(target=process_input)
             t_process.start()
 
