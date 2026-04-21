@@ -1,109 +1,121 @@
 {
   "activity_title": "Design a Habitat on Mars",
   "approximate_duration": "10 minutes",
-  "number_of_students": "5 students",
+  "number_of_students": "1 students",
   "steps": [
     {
-      "robot_script": "Hello, explorers! Today, we\u2019re going to imagine what it would be like to live on Mars. Our mission is to design the perfect habitat for humans to survive and thrive on the Red Planet. Are you ready? [smile] I love learning about space!",
-      "step_type": "canned"
+      "image_filename": "temp_75913e2c.png",
+      "image_prompt": "A high-quality, vibrant 3D digital illustration of the surface of Mars, featuring reddish terrain with rocks, craters, and a distant view of Olympus Mons. The atmosphere is thin, with a pale sky and hints of dust storms, setting the stage for building a new habitat.",
+      "image_url": "/static/temp_images/temp_75913e2c.png",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "Welcome, explorers! Today, we are going to imagine what it would be like to live on Mars. Let's design a habitat that could help us survive and thrive there.",
+          "facial": "[smile]",
+          "movement": "[wave]"
+        },
+        {
+          "text": "Mars is very different from Earth. The air is thin, it's cold, and there is lots of red dust. We need to think creatively about how to build our habitat!",
+          "facial": "[curious face]",
+          "movement": "[gesture to students]"
+        }
+      ],
+      "image_path": "images/temp_75913e2c.png"
     },
     {
-      "closing_condition": "After student tells yes.",
-      "goal": "Encourage students to brainstorm what humans need to survive anywhere, especially on another planet.",
+      "closing_condition": "After each student shares at least one idea for the habitat's features.",
+      "goal": "Encourage students to brainstorm and share ideas for what their Mars habitat should include.",
+      "image_filename": "temp_def84a07.png",
+      "image_prompt": "A high-quality, vibrant 3D digital illustration of various habitat concepts on Mars: domed shelters, underground tunnels, solar panels, airlocks, and greenhouses, all integrated with the Martian landscape. The structures are futuristic and imaginative, showing different possible designs and features.",
+      "image_url": "/static/temp_images/temp_def84a07.png",
       "step_type": "open",
       "suggested_topics": [
-        "Food and water",
-        "Air",
-        "Shelter",
-        "Clothing",
-        "Fun activities"
-      ]
+        "Shelter design (domes",
+        "tunnels)",
+        "How to get air",
+        "water",
+        "and food"
+      ],
+      "image_path": "images/temp_def84a07.png"
     },
     {
-      "robot_script": "Going to next step!",
-      "step_type": "canned"
+      "image_filename": "temp_0ac331f7.png",
+      "image_prompt": "A high-quality, vibrant 3D digital illustration of a detailed cutaway of a Mars habitat, showing inside rooms: sleeping quarters, kitchen, science lab, greenhouse, and recreation area, all safely enclosed from the harsh Martian environment.",
+      "image_url": "/static/temp_images/temp_0ac331f7.png",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "Great ideas, everyone! Now, let's think about how these features will help us live on Mars. For example, we need a way to make sure everyone has enough air to breathe and food to eat.",
+          "facial": "[nod]",
+          "movement": "[point to screen]"
+        },
+        {
+          "text": "I wonder what would happen if we add a greenhouse to grow plants for food and oxygen. What other creative solutions can you think of?",
+          "facial": "[curious face]",
+          "movement": "[gesture to students]"
+        }
+      ],
+      "image_path": "images/temp_0ac331f7.png"
     },
     {
-      "robot_script": "Great ideas! On Mars, things are very different\u2014there\u2019s no air to breathe, and it\u2019s super cold! So, we need to be very creative. Now, let\u2019s imagine what our Mars habitat will look like. Will it be underground, shaped like a dome, or something else? Let\u2019s dream big! [curious face]",
-      "step_type": "canned"
-    },
-    {
-      "closing_condition": "When the student selects a single habitat.",
-      "goal": "Facilitate a group discussion to decide on the shape, location, and special features of the Mars habitat.",
+      "closing_condition": "After the students propose creative solutions for at least one main challenge.",
+      "goal": "Invite students to suggest imaginative solutions for challenges (e.g., growing food, recycling air/water, keeping warm).",
+      "image_filename": "temp_9b79b308.png",
+      "image_prompt": "A high-quality, vibrant 3D digital illustration of a Mars habitat's greenhouse filled with plants, hydroponics systems, and sunlight filtering through a dome. Pipes and tanks show water recycling, and there are imaginative details like floating gardens or Martian potatoes.",
+      "image_url": "/static/temp_images/temp_9b79b308.png",
       "step_type": "open",
       "suggested_topics": [
-        "Dome",
-        "underground",
-        "or tower shape",
-        "Windows and gardens",
-        "Special rooms (science",
-        "play",
-        "sleep)"
-      ]
+        "How to grow food and get oxygen",
+        "Ways to recycle water or stay warm"
+      ],
+      "image_path": "images/temp_9b79b308.png"
     },
     {
-      "robot_script": "Going to next step!",
-      "step_type": "canned"
+      "image_filename": "temp_0a5515d7.png",
+      "image_prompt": "A high-quality, vibrant 3D digital illustration of a completed Mars habitat, with all the features discussed: domes, tunnels, solar panels, greenhouses, and living spaces, glowing safely under the Martian sky.",
+      "image_url": "/static/temp_images/temp_0a5515d7.png",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "Our Mars habitat is coming together! We worked hard and used lots of creative thinking. Imagine living in your own space home on Mars!",
+          "facial": "[cheer]",
+          "movement": "[small jump]"
+        },
+        {
+          "text": "Can you each tell everyone a little about your favorite idea and why it would be important or fun?",
+          "facial": "[smile]",
+          "movement": "[nod]"
+        }
+      ],
+      "image_path": "images/temp_0a5515d7.png"
     },
     {
-      "robot_script": "Awesome teamwork! Now, every great habitat needs cool features. What should we add to make life on Mars fun and safe? For example, maybe a space playground or a robot assistant like me! [wave hands]",
-      "step_type": "canned"
-    },
-    {
-      "closing_condition": "After student tells a feature they want to add.",
-      "goal": "Invite students to suggest creative features or activities that make their Mars habitat unique.",
+      "closing_condition": "After the students have presented at least one feature and their reasoning.",
+      "goal": "Give each student a chance to present their favorite feature and explain its value.",
+      "image_filename": "temp_85c765ce.png",
+      "image_prompt": "A high-quality, vibrant 3D digital illustration showing a Mars habitat's community area, with labels for each feature and a colorful infographic summarizing key survival elements. The scene is bright and inspiring, helping students reflect on their designs.",
+      "image_url": "/static/temp_images/temp_85c765ce.png",
       "step_type": "open",
       "suggested_topics": [
-        "Space playground",
-        "Robot helpers",
-        "Indoor gardens",
-        "Science labs"
-      ]
+        "Presenting favorite feature",
+        "Explaining why it's important or fun"
+      ],
+      "image_path": "images/temp_85c765ce.png"
     },
     {
-      "robot_script": "Going to next step!",
-      "step_type": "canned"
-    },
-    {
-      "robot_script": "Wow! I love all your ideas. Let\u2019s quickly draw or describe our Mars habitat together. You can draw, tell a story, or act it out\u2014any way you like! I\u2019ll help by describing what I imagine too. [express enthusiasm_for_learning]",
-      "step_type": "canned"
-    },
-    {
-      "closing_condition": "After the student shares a creation",
-      "goal": "Have students express their design using drawings, storytelling, or acting, and share their work with the group.",
-      "step_type": "open",
-      "suggested_topics": [
-        "Drawing the habitat",
-        "Telling a story about living in the habitat",
-        "Acting out a day on Mars"
-      ]
-    },
-    {
-      "robot_script": "Going to next step!",
-      "step_type": "canned"
-    },
-    {
-      "robot_script": "You all worked so hard and used your amazing imaginations! [cheer] Can each of you tell us one thing you liked most about our Mars habitat or something a friend added that was really cool?",
-      "step_type": "canned"
-    },
-    {
-      "closing_condition": "After student shares  one positive reflection.",
-      "goal": "Facilitate a brief reflection where students recognize each other's ideas and share what they liked.",
-      "step_type": "open",
-      "suggested_topics": [
-        "Favorite feature",
-        "Something a friend contributed",
-        "Most creative idea"
-      ]
-    },
-    {
-      "robot_script": "Going to next step!",
-      "step_type": "canned"
-    },
-    {
-      "robot_script": "Fantastic job, Mars designers! We imagined, created, and worked as a team. Remember, teamwork and creativity can help us solve any challenge\u2014even living on Mars! [clap] Thank you for exploring with me today!",
-      "step_type": "canned"
+      "image_filename": "temp_ba729078.png",
+      "image_prompt": "A high-quality, vibrant 3D digital illustration of a Mars habitat with a glowing 'Mission Success' banner, surrounded by all the creative features and a sense of teamwork. The habitat looks lively and safe, celebrating the completion of the team project.",
+      "image_url": "/static/temp_images/temp_ba729078.png",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "You didn\u2019t give up and used lots of creativity! The task was challenging, and you worked as a team to complete your Mars habitat. Congratulations, astronauts!",
+          "facial": "[smile]",
+          "movement": "[clap]"
+        }
+      ],
+      "image_path": "images/temp_ba729078.png"
     }
   ],
-  "target_audience": "3rd Grade (8-9 years old)"
+  "target_audience": "Grade 3 (8-9 years old)"
 }

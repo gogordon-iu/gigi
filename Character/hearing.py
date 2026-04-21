@@ -58,10 +58,13 @@ class Hearing():
             )
 
             # WebRTC VAD configuration
-            self.vad = webrtcvad.Vad(1)  # Aggressiveness level 1 (0-3)
+            self.vad = webrtcvad.Vad(2)  # Aggressiveness level 2 — more robust to noise than 1
             self.vad_frame_duration = 30  # ms (10, 20, or 30)
             self.vad_frame_size = int(TARGET_SAMPLE_RATE * self.vad_frame_duration / 1000)
-            self.speech_threshold = 0.15
+            self.speech_threshold = 0.10
+
+            # Single VAD-driven silence timer — updated only when WebRTC confirms speech
+            self.last_vad_speech_time = None
 
             # Word-level deduplication
             self.last_segment_words = []
@@ -272,8 +275,8 @@ class Hearing():
 
         elif HEARING_OPTION == "whisper":
             self.audio_queue = queue.Queue()
+            self.last_vad_speech_time = None
             text = ""
-            silence_times = None
 
             # Reset deduplication state for new listening session
             self.last_segment_words = []
@@ -289,54 +292,30 @@ class Hearing():
                 print("Listening... Speak into the microphone.")
 
                 while True:
-                    # ── Branch A: queue timed out (buffered audio path) ──────
                     try:
-                        audio_float = self.audio_queue.get(timeout=0.5)
+                        audio_float = self.audio_queue.get(timeout=0.3)
                     except queue.Empty:
-                        if self.audio_processor.should_process_buffer():
-                            buffered = self.audio_processor.get_buffered_audio()
-                            if buffered is not None:
-                                self.raw_audio_buffer.append(buffered)
-                                transcription = self.transcribe_with_dedup(buffered, language="en")
-                                if transcription:
-                                    print(f"Transcription: {transcription}")
-                                    text += transcription + " "
-                                    silence_times = time.time()  # reset only on real speech
-                                elif silence_times is None:
-                                    silence_times = time.time()  # initialize on first chunk
-
-                            if (
-                                len(text) > 10
-                                and silence_times is not None
-                                and time.time() - self.audio_processor.last_speech_time > SILENCE_DURATION
-                            ):
-                                print("Silence detected. Stopping transcription.")
-                                break
+                        # No VAD-confirmed speech chunk — check if we should stop
+                        if (
+                            self.last_vad_speech_time is not None
+                            and len(text.split()) >= 1
+                            and time.time() - self.last_vad_speech_time > SILENCE_DURATION
+                        ):
+                            print("Silence detected. Stopping transcription.")
+                            break
                         continue
 
-                    # ── Branch B: got a real chunk from the queue ────────────
+                    # Got a VAD-confirmed chunk — transcribe it
                     self.raw_audio_buffer.append(audio_float)
-
                     transcription = self.transcribe_with_dedup(audio_float, language="en")
-
-                    # Initialize silence timer on the very first chunk
-                    if silence_times is None:
-                        silence_times = time.time()
 
                     if transcription:
                         print(f"Transcription: {transcription}")
                         text += transcription + " "
-                        silence_times = time.time()  # reset ONLY when real speech arrived
-
-                    # NOTE: no unconditional reset here — that was the original bug
-                    silence_duration = time.time() - silence_times
 
                     if self.verbose:
-                        print(f"text length: {len(text)}, silence duration: {silence_duration:.1f}s")
-
-                    if len(text.split()) >= 1 and silence_duration > SILENCE_DURATION:
-                        print("Silence detected. Stopping transcription.")
-                        break
+                        vad_age = time.time() - self.last_vad_speech_time if self.last_vad_speech_time else 0
+                        print(f"words: {len(text.split())}, silence: {vad_age:.1f}s")
 
                 if text.strip():
                     self.texts.append(text.strip())
@@ -430,6 +409,7 @@ class Hearing():
                 audio_int16 = (audio_float * 32768.0).astype(np.int16)
 
                 if self.contains_speech(audio_int16):
+                    self.last_vad_speech_time = time.time()  # VAD-driven timer
                     try:
                         self.audio_queue.put_nowait(audio_float)
                     except queue.Full:

@@ -6,7 +6,7 @@
   "steps": [
     {
       "step_type": "canned",
-      "robot_script": "Hi there! Today we are going to practice multiplication together. I love numbers! [smile] Don't worry — we'll make it fun. Ready to start?"
+      "robot_script": "Hi there! Today we are going to practice multiplication together. I love numbers! [smile] Don't worry we'll make it fun. Ready to start?"
     },
     {
       "step_type": "open",
