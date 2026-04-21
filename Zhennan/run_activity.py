@@ -243,6 +243,7 @@ for i, step in enumerate(steps):
                 action["response"] = robot_response
 
             log("SYSTEM", "Waiting for LLM response...")
+            _loop_start_time = time.time()
             t_process = threading.Thread(target=process_input)
             t_process.start()
 
@@ -250,6 +251,8 @@ for i, step in enumerate(steps):
             robot_speak(random.choice(gigi.conversation.waiting_options))
 
             t_process.join()  # Wait for LLM processing if it's not done yet
+            _loop_end_time = time.time()
+            log("SYSTEM", f"Concurrent processing & filler speech duration: {_loop_end_time - _loop_start_time:.2f} seconds")
 
             if action["type"] == "break":
                 break
