@@ -5,6 +5,7 @@ import json
 import time
 import datetime
 import random
+import threading
 if os.name=="posix":
     sys.path.append('/home/orangepi/Code/gigi')
     sys.path.append('/home/orangepi/Code/gigi/Character')
@@ -70,7 +71,7 @@ gigi.set_activity(activity_name="educational_activity")
 
 movement_options = [
     "open_arms", "look_from_side_to_side", "look_left",
-    "look_right", "arms_down", "arms_circle"
+    "look_right", "arms_down"
 ]
 
 def robot_speak(text: str, image: str = None):
@@ -194,48 +195,73 @@ for i, step in enumerate(steps):
 
             # ── 2. Listen ────────────────────────────────────────────────
             user_input = robot_listen()
+            
+            # Start background processing for offline checks and LLM calls
+            action = {"type": None, "response": None}
+
+            def process_input():
+                # ── 3. Manual advance ────────────────────────────────────────
+                if user_input.strip().lower() == "/next":
+                    action["type"] = "break"
+                    return
+
+                # ── 4. Behavior check (offline) ──────────────────────────────
+                bad_behavior_response = check_behavior(user_input)
+                if bad_behavior_response:
+                    log("SYSTEM", "Behavior issue detected — canned response.")
+                    action["type"] = "continue"
+                    action["response"] = bad_behavior_response
+                    return
+
+                # ── 5. Append to history ─────────────────────────────────────
+                history.append({"role": "user", "content": user_input})
+
+                # ── 6. Closing condition check (offline) ─────────────────────
+                if IS_CLOSING and closing_condition:
+                    if check_closing(history, closing_condition, llm_client, use_llm=True):
+                        log("SYSTEM", "Closing condition met — advancing step.")
+                        action["type"] = "break"
+                        return
+
+                # ── 7. Generate robot response via RAG + tiny LLM ────────────
+                system_prompt, user_prompt = manager.get_prompts(history, step, user_input)
+
+                log("SYSTEM", f"system_prompt: {system_prompt}", terminal=False)
+                log("SYSTEM", f"user_prompt: {user_prompt}",   terminal=False)
+
+                robot_response = gigi.conversation.get_response(system_prompt, user_prompt)
+
+                if not robot_response:
+                    log("SYSTEM", "No response generated.")
+                    action["type"] = "continue"
+                    return
+
+                # Log strategy (retrieved offline, not from LLM output)
+                if IS_STRATEGY:
+                    best = rag.retrieve(user_input, top_k=1)
+                    if best:
+                        log("SYSTEM", f"Strategy → {best[0].id}", terminal=False)
+
+                action["type"] = "speak"
+                action["response"] = robot_response
+
+            t_process = threading.Thread(target=process_input)
+            t_process.start()
+
+            # Main thread speaks filler so GUI/Viseme works correctly
             robot_speak(random.choice(gigi.conversation.waiting_options))
 
-            # ── 3. Manual advance ────────────────────────────────────────
-            if user_input.strip().lower() == "/next":
+            t_process.join()  # Wait for LLM processing if it's not done yet
+
+            if action["type"] == "break":
                 break
-
-            # ── 4. Behavior check (offline) ──────────────────────────────
-            bad_behavior_response = check_behavior(user_input)
-            if bad_behavior_response:
-                log("SYSTEM", "Behavior issue detected — canned response.")
-                robot_speak(bad_behavior_response)
-                continue  # don't add bad input to history
-
-            # ── 5. Append to history ─────────────────────────────────────
-            history.append({"role": "user", "content": user_input})
-
-            # ── 6. Closing condition check (offline) ─────────────────────
-            if IS_CLOSING and closing_condition:
-                if check_closing(history, closing_condition, llm_client, use_llm=True):
-                    log("SYSTEM", "Closing condition met — advancing step.")
-                    break
-
-            # ── 7. Generate robot response via RAG + tiny LLM ────────────
-            system_prompt, user_prompt = manager.get_prompts(history, step, user_input)
-
-            log("SYSTEM", f"system_prompt: {system_prompt}", terminal=False)
-            log("SYSTEM", f"user_prompt: {user_prompt}",   terminal=False)
-
-            robot_response = gigi.conversation.get_response(system_prompt, user_prompt)
-
-            if not robot_response:
-                log("SYSTEM", "No response generated.")
+            elif action["type"] == "continue":
+                if action["response"]:
+                    robot_speak(action["response"])
                 continue
-
-            # Log strategy (retrieved offline, not from LLM output)
-            if IS_STRATEGY:
-                best = rag.retrieve(user_input, top_k=1)
-                if best:
-                    log("SYSTEM", f"Strategy → {best[0].id}", terminal=False)
-
-            robot_speak(robot_response)
-            history.append({"role": "assistant", "content": robot_response})
+            elif action["type"] == "speak":
+                robot_speak(action["response"])
+                history.append({"role": "assistant", "content": action["response"]})
 
             log("SYSTEM", f"Elapsed: {controller.elapsed_minutes():.1f} min", terminal=False)
 

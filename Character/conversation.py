@@ -5,11 +5,23 @@ import subprocess
 import time
 import threading
 import random
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 LLM_TIMEOUT = 30
 
 class Conversation:
-    def __init__(self, system_prompt=None):
+    def __init__(self, system_prompt=None, use_rag=False, rag_file_path=None):
+        self.use_rag = use_rag
+        self.rag_file_path = rag_file_path
+        self.rag_chunks = []
+        self.vectorizer = None
+        self.tfidf_matrix = None
+        
+        if self.use_rag and self.rag_file_path:
+            self._initialize_rag()
+            
         # print("Initiazling conversation (starting ollame server)...")
 
         # subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -76,9 +88,59 @@ class Conversation:
     #     print(self.tokenizer.decode(output[0], skip_special_tokens=True))
     #     self.text.append(self.tokenizer.decode(output[0], skip_special_tokens=True))
     
+    def _initialize_rag(self):
+        try:
+            with open(self.rag_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Chunk by paragraphs
+            chunks = [c.strip() for c in content.split('\n\n') if c.strip()]
+            
+            if not chunks:
+                # Fallback to lines if no double newlines exist
+                chunks = [c.strip() for c in content.split('\n') if c.strip()]
+                
+            self.rag_chunks = chunks
+            if self.rag_chunks:
+                self.vectorizer = TfidfVectorizer(stop_words='english')
+                self.tfidf_matrix = self.vectorizer.fit_transform(self.rag_chunks)
+                print(f"RAG initialized with {len(self.rag_chunks)} chunks.")
+        except Exception as e:
+            print(f"Error initializing RAG: {e}")
+
+    def retrieve_rag_context(self, user_query, top_k=2):
+        if not self.use_rag or not self.rag_chunks or self.vectorizer is None:
+            return ""
+        
+        try:
+            query_vec = self.vectorizer.transform([user_query])
+            similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
+            
+            # Get indices of top_k most similar chunks
+            # To handle cases where we have fewer chunks than top_k
+            k = min(top_k, len(self.rag_chunks))
+            top_indices = similarities.argsort()[-k:][::-1]
+            
+            retrieved = []
+            for idx in top_indices:
+                if similarities[idx] > 0.05:  # Relevance threshold
+                    retrieved.append(self.rag_chunks[idx])
+                    
+            if retrieved:
+                return "\n\n".join(retrieved)
+        except Exception as e:
+            print(f"Error retrieving RAG context: {e}")
+            
+        return ""
+
     def get_response(self, system_prompt, user_prompt):
+        rag_content = self.retrieve_rag_context(user_prompt)
+        final_system_prompt = system_prompt
+        if rag_content:
+            final_system_prompt += f"\n\nContext information:\n{rag_content}"
+
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": final_system_prompt},
             {"role": "user", "content": user_prompt}
         ]
 
@@ -128,10 +190,26 @@ class Conversation:
             
             # Use /api/chat endpoint for conversation support
             print( self.conversation_history)
+            
+            api_messages = list(self.conversation_history)
+            rag_content = self.retrieve_rag_context(text)
+            if rag_content:
+                if api_messages and api_messages[0].get("role") == "system":
+                    original_system = api_messages[0]["content"]
+                    api_messages[0] = {
+                        "role": "system",
+                        "content": f"{original_system}\n\nContext information:\n{rag_content}"
+                    }
+                else:
+                    api_messages.insert(0, {
+                        "role": "system",
+                        "content": f"Context information:\n{rag_content}"
+                    })
+
             response = requests.post(f"{self.ollama_url}/api/chat",
                 json={
                     "model": self.ollama_model,
-                    "messages": self.conversation_history,
+                    "messages": api_messages,
                     "stream": False,
                     "options": {
                         "temperature": 0.7,
