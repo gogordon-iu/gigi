@@ -17,7 +17,6 @@ from Character.character import Character
 
 from llm_client import LLMClient
 from strategy_catalog import StrategyCatalog
-from StrategyRAG import StrategyRAG
 from interaction_manager import InteractionManager
 
 # Offline modules — no LLM cost
@@ -113,8 +112,7 @@ def robot_listen() -> str:
 # ------------------------------------------------------------------
 llm_client = LLMClient()
 catalog    = StrategyCatalog()
-rag        = StrategyRAG(catalog)           # embeddings built once here
-manager    = InteractionManager(llm_client, rag)
+manager    = InteractionManager(llm_client)
 
 
 # ------------------------------------------------------------------
@@ -239,12 +237,6 @@ for i, step in enumerate(steps):
                     log("SYSTEM", "No response generated.")
                     action["type"] = "continue"
                     return
-
-                # Log strategy (retrieved offline, not from LLM output)
-                if IS_STRATEGY:
-                    best = rag.retrieve(user_input, top_k=1)
-                    if best:
-                        log("SYSTEM", f"Strategy → {best[0].id}", terminal=False)
 
                 action["type"] = "speak"
                 action["response"] = robot_response

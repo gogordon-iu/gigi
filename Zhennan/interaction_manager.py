@@ -8,7 +8,6 @@ for ONE short spoken sentence only.
 
 import re
 from llm_client import LLMClient
-from StrategyRAG import StrategyRAG
 
 
 def _first_sentence(text: str) -> str:
@@ -33,9 +32,8 @@ def _first_sentence(text: str) -> str:
 
 
 class InteractionManager:
-    def __init__(self, llm_client: LLMClient, strategy_rag: StrategyRAG):
+    def __init__(self, llm_client: LLMClient):
         self.llm_client = llm_client
-        self.rag = strategy_rag
 
     def _build_prompts(self, history: list, step: dict, student_input: str) -> tuple[str, str]:
         """
@@ -46,12 +44,6 @@ class InteractionManager:
         used "student"/"robot" — the mixed labels caused 0.5B to
         hallucinate the rest of the conversation itself.
         """
-        # RAG: pick best strategy offline
-        best_strategies = self.rag.retrieve(student_input or "", top_k=1)
-        strategy = best_strategies[0] if best_strategies else None
-        strategy_hint = strategy.robot_actions if strategy else ""
-        strategy_id   = strategy.id if strategy else "none"
-
         # Only last 2 turns — normalize roles to student/robot
         recent = history[-2:]
         history_lines = []
@@ -65,7 +57,6 @@ class InteractionManager:
         system_prompt = (
             f"You are a friendly educational robot talking to a child. "
             f"Goal: {step_goal}. "
-            f"Hint: {strategy_hint} "
             f"Reply with ONE short sentence only. Stop after the sentence."
         )
 
@@ -75,27 +66,27 @@ class InteractionManager:
             f"robot:"
         )
 
-        return system_prompt, user_prompt, strategy_id
+        return system_prompt, user_prompt
 
     def get_prompts(self, history: list, step: dict, student_input: str = "") -> tuple[str, str]:
         """
         Returns (system_prompt, user_prompt) for external callers (e.g. gigi.conversation).
         """
-        system_prompt, user_prompt, _ = self._build_prompts(history, step, student_input)
+        system_prompt, user_prompt = self._build_prompts(history, step, student_input)
         return system_prompt, user_prompt
 
-    def generate_turn(self, history: list, step: dict, student_input: str) -> tuple[str, str]:
+    def generate_turn(self, history: list, step: dict, student_input: str) -> str:
         """
         Generate the robot's next spoken response.
 
         Returns:
-            (response_text, strategy_id)
+            (response_text)
         """
-        system_prompt, user_prompt, strategy_id = self._build_prompts(history, step, student_input)
+        system_prompt, user_prompt = self._build_prompts(history, step, student_input)
 
         response = self.llm_client.get_completion(system_prompt, user_prompt, json_mode=False)
 
         # Take only the first sentence — stops hallucinated multi-turn output
         response = _first_sentence(response)
 
-        return response, strategy_id
+        return response
