@@ -496,7 +496,7 @@ class Speech():
         envelope = librosa.onset.onset_strength(
             y=y, sr=sr, hop_length=int(sr * self.sample_rate))
 
-        stretch_factor = 2.0
+        stretch_factor = 1.5
         if stretch_factor != 1.0:
             old_indices = np.arange(len(envelope))
             new_length  = int(len(envelope) * stretch_factor)

@@ -26,7 +26,7 @@ from closing_checker import check_closing
 
 # ── Feature flags ────────────────────────────────────────────────────────────
 IS_STRATEGY  = True   # Use RAG-based strategy hints in LLM prompt
-IS_CLOSING   = True   # Use offline keyword closing condition checker
+IS_CLOSING   = False   # Use offline keyword closing condition checker
 
 # ------------------------------------------------------------------
 # Logging
@@ -67,6 +67,7 @@ def strip_nonverbals(text: str) -> str:
 # ------------------------------------------------------------------
 gigi = Character()
 gigi.set_activity(activity_name="educational_activity")
+gigi.conversation.use_rag = IS_STRATEGY
 
 movement_options = [
     "open_arms", "look_from_side_to_side", "look_left",
