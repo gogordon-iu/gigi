@@ -17,7 +17,7 @@ from Character.character import Character
 
 from llm_client import LLMClient
 from strategy_catalog import StrategyCatalog
-from interaction_manager import InteractionManager
+from interaction_manager import InteractionManager, first_sentence  # ← import first_sentence
 
 # Offline modules — no LLM cost
 from behavior_filter import check_behavior
@@ -26,7 +26,7 @@ from closing_checker import check_closing
 
 # ── Feature flags ────────────────────────────────────────────────────────────
 IS_STRATEGY  = True   # Use RAG-based strategy hints in LLM prompt
-IS_CLOSING   = False   # Use offline keyword closing condition checker
+IS_CLOSING   = False  # Use offline keyword closing condition checker
 
 # ------------------------------------------------------------------
 # Logging
@@ -198,17 +198,16 @@ for i, step in enumerate(steps):
 
             # ── 2. Listen ────────────────────────────────────────────────
             user_input = robot_listen()
-            
-            # Start background processing for offline checks and LLM calls
+
             action = {"type": None, "response": None}
 
             def process_input():
-                # ── 3. Manual advance ────────────────────────────────────────
+                # ── 3. Manual advance ────────────────────────────────────
                 if user_input.strip().lower() == "/next":
                     action["type"] = "break"
                     return
 
-                # ── 4. Behavior check (offline) ──────────────────────────────
+                # ── 4. Behavior check (offline) ──────────────────────────
                 bad_behavior_response = check_behavior(user_input)
                 if bad_behavior_response:
                     log("SYSTEM", "Behavior issue detected — canned response.")
@@ -216,23 +215,25 @@ for i, step in enumerate(steps):
                     action["response"] = bad_behavior_response
                     return
 
-                # ── 5. Append to history ─────────────────────────────────────
+                # ── 5. Append to history ─────────────────────────────────
                 history.append({"role": "user", "content": user_input})
 
-                # ── 6. Closing condition check (offline) ─────────────────────
+                # ── 6. Closing condition check (offline) ─────────────────
                 if IS_CLOSING and closing_condition:
                     if check_closing(history, closing_condition, llm_client, use_llm=True):
                         log("SYSTEM", "Closing condition met — advancing step.")
                         action["type"] = "break"
                         return
 
-                # ── 7. Generate robot response via RAG + tiny LLM ────────────
+                # ── 7. Build prompts ─────────────────────────────────────
                 system_prompt, user_prompt = manager.get_prompts(history, step, user_input)
 
                 log("SYSTEM", f"system_prompt: {system_prompt}", terminal=False)
-                log("SYSTEM", f"user_prompt: {user_prompt}",   terminal=False)
+                log("SYSTEM", f"user_prompt: {user_prompt}",     terminal=False)
 
+                # ── 8. Call LLM and truncate to one sentence ─────────────
                 robot_response = gigi.conversation.get_response(system_prompt, user_prompt)
+                robot_response = first_sentence(robot_response)   # ← truncation applied here
 
                 if not robot_response:
                     log("SYSTEM", "No response generated.")
@@ -250,7 +251,7 @@ for i, step in enumerate(steps):
             # Main thread speaks filler so GUI/Viseme works correctly
             robot_speak(random.choice(gigi.conversation.waiting_options))
 
-            t_process.join()  # Wait for LLM processing if it's not done yet
+            t_process.join()
             _loop_end_time = time.time()
             log("SYSTEM", f"Concurrent processing & filler speech duration: {_loop_end_time - _loop_start_time:.2f} seconds")
 
