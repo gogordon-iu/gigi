@@ -11,28 +11,16 @@ LLM_TIMEOUT = 120
 # ------------------------------------------------------------------
 # Output sanitiser — applied to every LLM response before returning
 # ------------------------------------------------------------------
-def _first_sentence(text: str) -> str:
+def clean_response(text: str) -> str:
     """
-    Return only the first natural spoken sentence.
-    Strips role echoes, markdown bullets, and hallucinated extra turns.
+    Strips role echoes and hallucinated extra turns without truncating sentences.
     """
     if not text:
         return text
-
-    # Strip echoed role prefix  e.g. "robot: ", "Gigi: "
+    # Strip echoed role prefix
     text = re.sub(r"^(robot:|assistant:|student:|gigi:)\s*", "", text.strip(), flags=re.IGNORECASE)
-
-    # Strip markdown list openers  e.g. "1. ", "- ", "* "
-    text = re.sub(r"^\s*(\d+\.|[-*•])\s*", "", text)
-
-    # Cut at the first sentence-ending punctuation
-    m = re.search(r"[.!?]", text)
-    if m:
-        text = text[:m.end()].strip()
-
     # Cut if the model hallucinated a new speaker turn
     text = re.split(r"\n\s*(student:|robot:|user:|assistant:|gigi:)", text, flags=re.IGNORECASE)[0]
-
     return text.strip() or "That sounds really interesting — tell me more!"
 
 
@@ -167,7 +155,7 @@ class Conversation:
         ]
 
         raw    = self._call_npu(messages)
-        result = _first_sentence(raw)          # ← truncate here, every time
+        result = clean_response(raw)          # ← basic cleaning only, no sentence truncation
         print(f"🤖 Gigi: {result}")
         return result
 

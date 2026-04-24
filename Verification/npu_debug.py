@@ -53,7 +53,7 @@ payload = {
 def test_npu():
     print("--- NPU DEBUG TEST ---")
     print(f"URL: {url}")
-    print(f"Student Input: \"We would need water.\"")
+    print(f"Student Input: \"We wouldn't... need water. Doctor. wouldn't need water.\"")
     print("-" * 30)
 
     try:
@@ -73,18 +73,14 @@ def test_npu():
             
             # Simulated truncation from conversation.py
             import re
-            def _first_sentence(text):
+            def clean_response(text):
                 text = re.sub(r"^(robot:|assistant:|student:|gigi:)\s*", "", text.strip(), flags=re.IGNORECASE)
-                text = re.sub(r"^\s*(\d+\.|[-*•])\s*", "", text)
-                m = re.search(r"[.!?]", text)
-                if m:
-                    text = text[:m.end()].strip()
                 text = re.split(r"\n\s*(student:|robot:|user:|assistant:|gigi:)", text, flags=re.IGNORECASE)[0]
                 return text.strip()
             
-            truncated = _first_sentence(content)
-            print("\nLLM Output (Truncated):")
-            print(truncated)
+            cleaned = clean_response(content)
+            print("\nLLM Output (Cleaned):")
+            print(cleaned)
         else:
             print("\nNo choices returned in response.")
             print(json.dumps(result, indent=2))
