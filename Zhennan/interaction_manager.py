@@ -34,7 +34,7 @@ YOUR ROLE:
 1. Analyze the student's input in the context of the current step.
 2. IF the step type is "open":
     - Check the "closing_condition". If it is met based on the history, output exactly: [NEXT_STEP]
-    - Keep the conversation flowing naturally towards the step's goal.
+    - If the closing condition is not met, keep the conversation flowing naturally towards the step's goal.
 3. IF the step type is "canned":
     - This function should typically not be called for canned steps as they are static.
     - However, if called, just output the robot_script or a transition.
@@ -42,8 +42,7 @@ YOUR ROLE:
 OUTPUT FORMAT (MANDATORY):
 - If the conversation should end or move forward: [NEXT_STEP] (You can still include a robot response before this tag).
 - Include appropriate non-verbal actions in square brackets (e.g., [nod], [wave hands]) within or after the spoken text
-- Reply with ONE short conversational sentence.
-- Stop immediately after the first sentence.
+- Reply with ONE or TWO short conversational sentences
 """
         
         user_prompt = f"Recent Interaction History:\n{history_str}\n\n"
