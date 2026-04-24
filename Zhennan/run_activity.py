@@ -219,9 +219,13 @@ for i, step in enumerate(steps):
             elif action["type"] == "speak":
                 robot_response = action["response"]
                 
-                if "[NEXT_STEP]" in robot_response:
+                # Robust check for next step tag (handles [NEXT STEP], [next_step], etc.)
+                next_step_match = re.search(r"\[NEXT[ _]STEP\]", robot_response, re.IGNORECASE)
+                
+                if next_step_match:
                     log("SYSTEM", "Robot decided to move to next step.")
-                    clean_text = robot_response.replace("[NEXT_STEP]", "").strip()
+                    # Strip the tag and anything after it for the spoken response
+                    clean_text = robot_response[:next_step_match.start()].strip()
                     if clean_text:
                         robot_speak(clean_text)
                         history.append({"role": "assistant", "content": clean_text})

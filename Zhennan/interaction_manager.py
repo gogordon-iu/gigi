@@ -32,11 +32,15 @@ class InteractionManager:
 CURRENT STEP: {json.dumps(step, indent=2)}
 
 YOUR ROLE:
-1. First, check the "closing_condition" below. If it is met based on the interaction history, you MUST output exactly: [NEXT_STEP]
-2. If the condition is NOT met, keep the conversation flowing naturally towards the closing condition.
+1. First, check the "closing_condition" below. 
+2. IF the condition is met:
+    - Say a quick closing sentence (e.g. "Great job! Let's move on.") and then output exactly: [NEXT_STEP]
+3. IF the condition is NOT met:
+    - Keep the conversation flowing naturally towards the closing condition.
 
 MANDATORY OUTPUT RULES:
 - Reply with ONLY ONE or TWO short spoken sentences.
+- Use the EXACT tag [NEXT_STEP] to move forward.
 - DO NOT use lists, bullet points, or numbering.
 - DO NOT give multiple points or long explanations.
 - Speak naturally like you are talking out loud.
