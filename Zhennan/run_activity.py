@@ -21,12 +21,9 @@ from interaction_manager import InteractionManager  # ← removed first_sentence
 
 # Offline modules — no LLM cost
 from behavior_filter import check_behavior
-from step_controller import StepController
-from closing_checker import check_closing
 
 # ── Feature flags ────────────────────────────────────────────────────────────
 IS_STRATEGY  = True   # Use RAG-based strategy hints in LLM prompt
-IS_CLOSING   = False  # Use offline keyword closing condition checker
 
 # ------------------------------------------------------------------
 # Logging
@@ -131,31 +128,14 @@ log("SYSTEM", f"Loaded: {plan.get('activity_title', '?')}")
 
 
 # ------------------------------------------------------------------
-# Init time controller from plan
-# ------------------------------------------------------------------
-target_duration_str = plan.get("approximate_duration", "10 minutes")
-try:
-    target_minutes = float(target_duration_str.split()[0])
-except Exception:
-    target_minutes = 10.0
-
-controller = StepController(target_minutes=target_minutes)
-
-
-# ------------------------------------------------------------------
 # Run activity
 # ------------------------------------------------------------------
 history      = []
 steps        = plan.get("steps", plan.get("phases", []))
-force_finish = False
 
 log("STEP", "--- Activity Started ---")
 
 for i, step in enumerate(steps):
-
-    if force_finish and i < len(steps) - 1:
-        continue
-
     step_type = step.get("step_type", step.get("phase_type", "unknown"))
     log("STEP", f"[Step {i+1}: {step_type.upper()}]")
 
@@ -182,19 +162,7 @@ for i, step in enumerate(steps):
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
 
-        closing_condition = step.get("closing_condition", "")
-
         while True:
-
-            # ── 1. Time check (offline) ──────────────────────────────────
-            if controller.should_force_finish():
-                log("SYSTEM", "Time limit reached — force finishing.")
-                robot_speak(controller.wrap_up_response())
-                force_finish = True
-                break
-
-            if controller.is_near_end():
-                log("SYSTEM", "Approaching time limit.", terminal=False)
 
             # ── 2. Listen ────────────────────────────────────────────────
             user_input = robot_listen()
@@ -218,12 +186,6 @@ for i, step in enumerate(steps):
                 # ── 5. Append to history ─────────────────────────────────
                 history.append({"role": "user", "content": user_input})
 
-                # ── 6. Closing condition check (offline) ─────────────────
-                if IS_CLOSING and closing_condition:
-                    if check_closing(history, closing_condition, llm_client, use_llm=True):
-                        log("SYSTEM", "Closing condition met — advancing step.")
-                        action["type"] = "break"
-                        return
 
                 # ── 7. Generate Robot Response ───────────────────────────
                 robot_response = manager.generate_turn(history, step)
@@ -258,7 +220,6 @@ for i, step in enumerate(steps):
                 robot_speak(action["response"])
                 history.append({"role": "assistant", "content": action["response"]})
 
-            log("SYSTEM", f"Elapsed: {controller.elapsed_minutes():.1f} min", terminal=False)
 
             break  # one response per student turn, then listen again
 
