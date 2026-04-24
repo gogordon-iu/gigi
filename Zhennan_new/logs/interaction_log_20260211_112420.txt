@@ -1,6 +1,0 @@
-[2026-02-11 11:24:20] [INFO] Initializing Robot-Assisted Activity System...
-[2026-02-11 11:24:20] [INFO] 
-Successfully loaded plan from 'activity_plan.json'.
-[2026-02-11 11:24:20] [STEP] --- Activity Started ---
-[2026-02-11 11:24:20] [STEP] [Step 1: CANNED]
-[2026-02-11 11:24:20] [ROBOT] Hello space explorers! Today, we have a creative mission: let's design a habitat for humans to live on Mars! I’m so excited to imagine new things with you. Are you ready to be creative and curious? [smile]
