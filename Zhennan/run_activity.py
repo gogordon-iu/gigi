@@ -119,7 +119,7 @@ manager    = InteractionManager(gigi.conversation, catalog)
 # ------------------------------------------------------------------
 # Load plan
 # ------------------------------------------------------------------
-plan_file = "activity_plan.json"
+plan_file = "activity_plan_new.json"
 if not os.path.exists(plan_file):
     print(f"'{plan_file}' not found.")
     sys.exit(1)
