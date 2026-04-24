@@ -33,8 +33,13 @@ CURRENT STEP: {json.dumps(step, indent=2)}
 
 YOUR ROLE:
 1. Analyze the student's input in the context of the current step.
-2. If the "closing_condition" is met, output exactly: [NEXT_STEP]
-3. Otherwise, keep the conversation flowing naturally towards the goal.
+2. IF the step type is "open":
+    - Check the "closing_condition". If it is met based on the history, output exactly: [NEXT_STEP]
+    - If the student’s response indicates understanding (use your judgment), output exactly: [NEXT_STEP]
+    - Otherwise, keep the conversation flowing naturally towards the goal.
+3. IF the step type is "canned":
+    - This function should typically not be called for canned steps as they are static.
+    - However, if called, just output the robot_script or a transition.
 
 MANDATORY OUTPUT RULES:
 - Reply with ONLY ONE or TWO short spoken sentences.
