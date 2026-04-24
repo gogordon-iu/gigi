@@ -217,10 +217,17 @@ for i, step in enumerate(steps):
                     robot_speak(action["response"])
                 continue
             elif action["type"] == "speak":
-                robot_speak(action["response"])
-                history.append({"role": "assistant", "content": action["response"]})
-
-
-            break  # one response per student turn, then listen again
+                robot_response = action["response"]
+                
+                if "[NEXT_STEP]" in robot_response:
+                    log("SYSTEM", "Robot decided to move to next step.")
+                    clean_text = robot_response.replace("[NEXT_STEP]", "").strip()
+                    if clean_text:
+                        robot_speak(clean_text)
+                        history.append({"role": "assistant", "content": clean_text})
+                    break # exit the while True loop for this step
+                else:
+                    robot_speak(robot_response)
+                    history.append({"role": "assistant", "content": robot_response})
 
 log("STEP", "--- Activity Finished ---")

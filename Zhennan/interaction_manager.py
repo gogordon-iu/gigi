@@ -21,9 +21,9 @@ class InteractionManager:
         catalog_str = self.strategy_catalog.get_randomized_catalog_string()
         
         # Serialize history for prompt
-        # Keep last 2 turns for context
+        # Keep last 6 turns for context (3 exchanges)
         history_lines = []
-        for e in history[-2:]:
+        for e in history[-6:]:
             role = "student" if e["role"] == "user" else "robot"
             history_lines.append(f"{role}: {e['content']}")
         history_str = "\n".join(history_lines)
@@ -35,7 +35,6 @@ YOUR ROLE:
 1. Analyze the student's input in the context of the current step.
 2. IF the step type is "open":
     - Check the "closing_condition". If it is met based on the history, output exactly: [NEXT_STEP]
-    - If the student’s response indicates understanding (use your judgment), output exactly: [NEXT_STEP]
     - Otherwise, keep the conversation flowing naturally towards the goal.
 3. IF the step type is "canned":
     - This function should typically not be called for canned steps as they are static.
