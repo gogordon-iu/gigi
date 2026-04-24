@@ -1,94 +1,70 @@
-"""
-InteractionManager — simplified for Qwen 0.5B.
-
-Strategy is selected OFFLINE via StrategyRAG (no LLM cost).
-The LLM receives a minimal prompt (~100-150 tokens) and is asked
-for ONE short spoken sentence only.
-"""
-
+import json
 import re
-from llm_client import LLMClient
-
-
-def first_sentence(text: str) -> str:
-    """
-    Return only the first sentence of the model's output.
-
-    Prevents the model from:
-      - Hallucinating extra turns ("student: ... robot: ...")
-      - Producing numbered lists or bullet points
-      - Echoing its own role prefix
-    """
-    # Strip echoed role prefix
-    text = re.sub(r"^(robot:|assistant:|student:|gigi:)\s*", "", text.strip(), flags=re.IGNORECASE)
-
-    # Strip markdown bullets/numbering if the model opened with one
-    text = re.sub(r"^\s*(\d+\.|[-*•])\s*", "", text)
-
-    # Cut at the first sentence boundary
-    m = re.search(r"[.!?]", text)
-    if m:
-        text = text[:m.end()].strip()
-
-    # If the model started hallucinating a new turn, cut there too
-    text = re.split(r"\n\s*(student:|robot:|user:|assistant:|gigi:)", text, flags=re.IGNORECASE)[0]
-
-    # If nothing usable remains, return a safe fallback
-    return text.strip() or "That's really interesting — tell me more!"
-
+from strategy_catalog import StrategyCatalog
 
 class InteractionManager:
-    def __init__(self, llm_client: LLMClient):
-        self.llm_client = llm_client
-
-    def _build_prompts(self, history: list, step: dict, student_input: str) -> tuple[str, str]:
+    def __init__(self, conversation, strategy_catalog: StrategyCatalog):
         """
-        Shared prompt builder.
-
-        All role labels are normalized to "student"/"robot" so the
-        0.5B model doesn't get confused by mixed "user"/"assistant" labels.
+        Initializes the InteractionManager.
+        
+        Args:
+            conversation: An instance of Character.conversation.Conversation.
+            strategy_catalog: An instance of StrategyCatalog.
         """
-        # Only last 2 turns — normalize roles to student/robot
-        recent = history[-2:]
+        self.conversation = conversation
+        self.strategy_catalog = strategy_catalog
+
+    def generate_turn(self, history: list, step: dict, vision_context: str = None) -> str:
+        """
+        Generates the next robot turn based on history, the current step, and optional vision context.
+        """
+        catalog_str = self.strategy_catalog.get_randomized_catalog_string()
+        
+        # Serialize history for prompt
+        # Keep last 2 turns for context
         history_lines = []
-        for e in recent:
+        for e in history[-2:]:
             role = "student" if e["role"] == "user" else "robot"
             history_lines.append(f"{role}: {e['content']}")
         history_str = "\n".join(history_lines)
 
-        step_goal = step.get("goal", "")
+        system_prompt = f"""You are Gigi, a friendly educational robot talking to a child.
+CURRENT STEP: {json.dumps(step, indent=2)}
 
-        system_prompt = (
-            f"You are Gigi, a friendly educational robot talking to a child. "
-            f"Goal: {step_goal}. "
-            f"Reply with ONE short conversational sentence. "
-            f"Do NOT use lists, bullet points, or numbers. "
-            f"Do NOT explain or give multiple ideas. "
-            f"Speak naturally like you are talking out loud. "
-            f"Stop immediately after the first sentence."
-        )
+STRATEGY CATALOG:
+{catalog_str}
 
-        user_prompt = (
-            f"{history_str}\n"
-            f"student: {student_input}\n"
-            f"robot:"
-        )
+YOUR ROLE:
+1. Analyze the student's input in the context of the current step.
+2. IF the step type is "open":
+    - Check the "closing_condition". If it is met based on the history, output exactly: [NEXT_STEP]
+    - Otherwise, determine if any strategy from the catalog is triggered.
+    - If a strategy matches, use its 'robot_actions' as a guide.
+    - Keep the conversation flowing naturally towards the step's goal.
+3. IF the step type is "canned":
+    - This function should typically not be called for canned steps as they are static.
+    - However, if called, just output the robot_script or a transition.
 
-        return system_prompt, user_prompt
+OUTPUT FORMAT (MANDATORY):
+- If the conversation should end or move forward: [NEXT_STEP] (You can still include a robot response before this tag).
+- For EVERY response in "open" step, you MUST try to apply at least one strategy from the CATALOG.
+- VARIETY IS KEY: Avoid using the same strategy multiple times in a row. Look at the interaction history and choose a DIFFERENT approach if the situation allows.
+- If a strategy is applied, prefix your response with exactly: [STRATEGY: strategy_id]
+- Include appropriate non-verbal actions in square brackets (e.g., [nod], [wave hands]) within or after the spoken text, following the 'Non-Verbal Options' in the catalog.
+- Example: [STRATEGY: express_enthusiasm_for_learning] [wave hands] I'm so excited to see what you create! [smile]
+- If absolutely no strategy fits, you may output just the spoken text.
+- DO NOT use IDs that are not present in the provided STRATEGY CATALOG.
+- Reply with ONE short conversational sentence.
+- Stop immediately after the first sentence.
+"""
+        
+        user_prompt = f"Recent Interaction History:\n{history_str}\n\n"
+        if vision_context:
+            user_prompt += f"{vision_context}\n"
+        
+        student_said = history[-1]['content'] if history and history[-1]['role'] == 'user' else '...'
+        user_prompt += f"Student just said: {student_said}\n\nGenerate Robot Response:"
 
-    def get_prompts(self, history: list, step: dict, student_input: str = "") -> tuple[str, str]:
-        """
-        Returns (system_prompt, user_prompt) for external callers.
-        The caller is responsible for passing the response through
-        first_sentence() before speaking it.
-        """
-        return self._build_prompts(history, step, student_input)
-
-    def generate_turn(self, history: list, step: dict, student_input: str) -> str:
-        """
-        Generate the robot's next spoken response directly via LLMClient.
-        Applies first_sentence() truncation internally.
-        """
-        system_prompt, user_prompt = self._build_prompts(history, step, student_input)
-        response = self.llm_client.get_completion(system_prompt, user_prompt, json_mode=False)
-        return first_sentence(response)
+        # The conversation.get_response method handles RAG retrieval and sentence truncation internally.
+        response = self.conversation.get_response(system_prompt, user_prompt)
+        return response

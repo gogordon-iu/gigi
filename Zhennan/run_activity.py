@@ -17,7 +17,7 @@ from Character.character import Character
 
 from llm_client import LLMClient
 from strategy_catalog import StrategyCatalog
-from interaction_manager import InteractionManager, first_sentence  # ← import first_sentence
+from interaction_manager import InteractionManager  # ← removed first_sentence
 
 # Offline modules — no LLM cost
 from behavior_filter import check_behavior
@@ -113,7 +113,7 @@ def robot_listen() -> str:
 # ------------------------------------------------------------------
 llm_client = LLMClient()
 catalog    = StrategyCatalog()
-manager    = InteractionManager(llm_client)
+manager    = InteractionManager(gigi.conversation, catalog)
 
 
 # ------------------------------------------------------------------
@@ -225,15 +225,8 @@ for i, step in enumerate(steps):
                         action["type"] = "break"
                         return
 
-                # ── 7. Build prompts ─────────────────────────────────────
-                system_prompt, user_prompt = manager.get_prompts(history, step, user_input)
-
-                log("SYSTEM", f"system_prompt: {system_prompt}", terminal=False)
-                log("SYSTEM", f"user_prompt: {user_prompt}",     terminal=False)
-
-                # ── 8. Call LLM and truncate to one sentence ─────────────
-                robot_response = gigi.conversation.get_response(system_prompt, user_prompt)
-                robot_response = first_sentence(robot_response)   # ← truncation applied here
+                # ── 7. Generate Robot Response ───────────────────────────
+                robot_response = manager.generate_turn(history, step)
 
                 if not robot_response:
                     log("SYSTEM", "No response generated.")
