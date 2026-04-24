@@ -219,19 +219,14 @@ for i, step in enumerate(steps):
             elif action["type"] == "speak":
                 robot_response = action["response"]
                 
-                # Robust check for next step tag (handles [NEXT STEP], [next_step], etc.)
-                next_step_match = re.search(r"\[NEXT[ _]STEP\]", robot_response, re.IGNORECASE)
+                # Clean up any potential tags the LLM might have generated
+                robot_response = re.sub(r"\[?NEXT[ _]STEP\]?", "", robot_response, flags=re.IGNORECASE).strip()
                 
-                if next_step_match:
-                    log("SYSTEM", "Robot decided to move to next step.")
-                    # Strip the tag and anything after it for the spoken response
-                    clean_text = robot_response[:next_step_match.start()].strip()
-                    if clean_text:
-                        robot_speak(clean_text)
-                        history.append({"role": "assistant", "content": clean_text})
-                    break # exit the while True loop for this step
-                else:
+                if robot_response:
                     robot_speak(robot_response)
                     history.append({"role": "assistant", "content": robot_response})
+                
+                log("SYSTEM", "Teacher demo: Moving to next step after one response.")
+                break # Force exit the loop after one response
 
 log("STEP", "--- Activity Finished ---")

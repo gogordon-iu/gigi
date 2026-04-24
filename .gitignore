@@ -183,3 +183,14 @@ motorData_calibrated.json
 
 # Large model files
 *.rkllm
+
+# 1. Ignore the entire NPU resources folder
+Resources/rkn-llm/*
+
+# 2. Open the "doors" to the subdirectories (Required for Linux/Git logic)
+!Resources/rkn-llm/examples/
+!Resources/rkn-llm/examples/rkllm_server_demo/
+!Resources/rkn-llm/examples/rkllm_server_demo/rkllm_server/
+
+# 3. Specifically track the Flask server script
+!Resources/rkn-llm/examples/rkllm_server_demo/rkllm_server/flask_server.py

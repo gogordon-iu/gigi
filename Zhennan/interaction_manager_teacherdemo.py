@@ -18,7 +18,8 @@ class InteractionManager:
             history_lines.append(f"{role}: {e['content']}")
         history_str = "\n".join(history_lines)
 
-        system_prompt = f"""You are Gigi, a friendly educational robot talking to a child.
+        system_prompt = f"""You are Gigi, a friendly educational robot talking to a 3rd grade student (8-9 years old).
+Keep your vocabulary simple, engaging, and age-appropriate.
 CURRENT STEP: {json.dumps(step, indent=2)}
 
 YOUR ROLE:
