@@ -24,12 +24,12 @@ CURRENT STEP: {json.dumps(step, indent=2)}
 
 YOUR ROLE:
 1. Briefly acknowledge and appreciate or encourage the student based on their response.
-2. After your brief acknowledgment, you MUST output exactly: [NEXT_STEP]
 
 MANDATORY OUTPUT RULES:
-- Reply with ONLY ONE short spoken sentence.
-- Use the EXACT tag [NEXT_STEP] at the end of your response to move forward.
-- DO NOT use lists, bullet points, or numbering.
+- EXTREMELY SHORT: Reply with MAXIMUM 15 words.
+- ONLY ONE SENTENCE.
+- NEVER ask a question. DO NOT use question marks (?).
+- DO NOT use lists, bullet points, or paragraphs.
 - Speak naturally like you are talking out loud.
 - Include non-verbal actions in square brackets (e.g., [smile], [nod]).
 """
@@ -40,5 +40,15 @@ MANDATORY OUTPUT RULES:
         
         user_prompt += "\nGenerate Robot Response:"
 
+        import re
         response = self.conversation.get_response(system_prompt, user_prompt)
+        
+        # Post-processing: Force strictly ONE sentence and remove questions
+        sentences = re.split(r'(?<=[.!?])\s+', response.strip())
+        if sentences:
+            first_sentence = sentences[0].strip()
+            if first_sentence.endswith('?'):
+                first_sentence = first_sentence[:-1] + "!"
+            return first_sentence
+            
         return response
