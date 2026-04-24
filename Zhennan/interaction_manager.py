@@ -49,8 +49,7 @@ OUTPUT FORMAT (MANDATORY):
         if vision_context:
             user_prompt += f"{vision_context}\n"
         
-        student_said = history[-1]['content'] if history and history[-1]['role'] == 'user' else '...'
-        user_prompt += f"Student just said: {student_said}\n\nGenerate Robot Response:"
+        user_prompt += "\nGenerate Robot Response:"
 
         # The conversation.get_response method handles RAG retrieval and sentence truncation internally.
         response = self.conversation.get_response(system_prompt, user_prompt)
