@@ -4,7 +4,7 @@
   "number_of_students": "1 students",
   "steps": [
     {
-      "robot_script": "Hello, explorers! Today, we\u2019re going to imagine what it would be like to live on Mars. Our mission is to design the perfect habitat for humans to survive and thrive on the Red Planet. Are you ready? [smile] Please tell me some basic needs to survive on Mars!",
+      "robot_script": "Please tell me some basic needs to survive on Mars!",
       "step_type": "canned"
     },
     {
@@ -20,12 +20,12 @@
       ]
     },
     {
-      "robot_script": "Great ideas! On Mars, things are very different\u2014there\u2019s no air to breathe, and it\u2019s super cold! So, we need to be very creative. Now, let\u2019s imagine what our Mars habitat will look like. Will it be underground, shaped like a dome, or something else? Let\u2019s dream big! [curious face]",
+      "robot_script": "Now, let\u2019s imagine what our Mars habitat will look like. Will it be underground, shaped like a dome, or something else?",
       "step_type": "canned"
     },
     {
-      "closing_condition": "When the group agrees on a basic design for their habitat.",
-      "goal": "Facilitate a group discussion to decide on the shape, location, and special features of the Mars habitat.",
+      "closing_condition": "When the student shares at least one shape.",
+      "goal": "Facilitate a discussion to decide on the shape",
       "step_type": "open",
       "suggested_topics": [
         "Dome",
