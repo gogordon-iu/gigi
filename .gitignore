@@ -181,3 +181,5 @@ motorData_calibrated.json
 #vscode settings
 .vscode/
 
+# Large model files
+*.rkllm
