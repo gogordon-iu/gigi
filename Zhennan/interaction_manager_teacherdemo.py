@@ -40,15 +40,5 @@ MANDATORY OUTPUT RULES:
         
         user_prompt += "\nGenerate Robot Response:"
 
-        import re
         response = self.conversation.get_response(system_prompt, user_prompt)
-        
-        # Post-processing: Force strictly ONE sentence and remove questions
-        sentences = re.split(r'(?<=[.!?])\s+', response.strip())
-        if sentences:
-            first_sentence = sentences[0].strip()
-            if first_sentence.endswith('?'):
-                first_sentence = first_sentence[:-1] + "!"
-            return first_sentence
-            
         return response
