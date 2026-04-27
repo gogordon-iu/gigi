@@ -25,9 +25,11 @@ class InteractionManager:
 Keep your vocabulary simple, engaging, and age-appropriate.
 CURRENT STEP: {json.dumps(clean_step, indent=2)}
 
+Above is the current step. I gave you this to understand the context.
+
 YOUR ROLE:
 1. Briefly acknowledge and appreciate the student based on their response.
-2. Do not ask the student any questions.
+2. Do not ask the student any questions or follow up questions or responses which ends with question mark.
 
 MANDATORY OUTPUT RULES:
 - EXTREMELY SHORT: Reply with MAXIMUM 15 words.
@@ -35,6 +37,8 @@ MANDATORY OUTPUT RULES:
 - DO NOT use lists, bullet points, or paragraphs.
 - Speak naturally like you are talking out loud.
 - Include non-verbal actions in square brackets (e.g., [smile], [nod]).
+
+These are the output rules you must follow at any cost. You'll be rewarded if you follow these rules.
 """
         
         user_prompt = f"Recent Interaction History:\n{history_str}\n\n"
