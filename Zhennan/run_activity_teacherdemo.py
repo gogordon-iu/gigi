@@ -91,7 +91,14 @@ def robot_listen() -> str:
     print("\n[Listening...]")
     gigi.hearing.texts = []
     gigi.run_character(movement_data="home")
+    
+    if gigi.face:
+        gigi.face.display_text("Speak Now")
+        
     gigi.listen_backchannel()
+
+    if gigi.face:
+        gigi.face.display_text(None)
 
     if gigi.hearing.texts:
         heard = gigi.hearing.texts[-1]

@@ -21,7 +21,7 @@ class InteractionManager:
             history_lines.append(f"{role}: {e['content']}")
         history_str = "\n".join(history_lines)
 
-        system_prompt = """You are Gigi, a friendly educational robot talking to a 3rd grade student (8-9 years old).
+        system_prompt = """You are a friendly educational robot talking to a 3rd grade student (8-9 years old).
 Keep your vocabulary simple, engaging, and age-appropriate."""
 
         user_prompt = f"""Recent Interaction History:
@@ -31,13 +31,13 @@ Keep your vocabulary simple, engaging, and age-appropriate."""
         if vision_context:
             user_prompt += f"{vision_context}\n\n"
 
-        user_prompt += """Above is the interaction history between robot and student. I gave you this to understand the context.
+        user_prompt += """Above is the interaction history between you and the student. I gave you this to understand the context.
 
 YOUR ROLE:
-1. Generate therobot response to briefly acknowledge and appreciate the student based on their response.
-2. The robot response shouldn't have any questions or follow up questions or responses which ends with question mark.
+1. Generate a response to briefly acknowledge and appreciate the student based on their response.
+2. The response shouldn't have any questions or follow up questions or responses which ends with question mark.
 
-MANDATORY OUTPUT RULES of the robot response:
+MANDATORY OUTPUT RULES of the response:
 - Reply with MAXIMUM ONE or TWO short sentences.
 - DO NOT use lists, bullet points, or paragraphs.
 - DO NOT ask follow up questions or responses which ends with QUESTION MARKS.
@@ -46,7 +46,7 @@ MANDATORY OUTPUT RULES of the robot response:
 
 These are the output rules you must follow at any cost. You'll be rewarded if you follow these rules.
 
-Generate Robot Response:"""
+Generate the response:"""
 
         response = self.conversation.get_response(system_prompt, user_prompt)
         return response
