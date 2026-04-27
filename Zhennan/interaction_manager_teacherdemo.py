@@ -11,6 +11,9 @@ class InteractionManager:
         """
         Generates a single acknowledgment and then moves to the next step.
         """
+        # Create a cleaned version of the step without the fields we don't want the LLM to see
+        clean_step = {k: v for k, v in step.items() if k not in ["goal", "closing_condition", "suggested_topics"]}
+
         # Keep last 6 turns for context
         history_lines = []
         for e in history[-6:]:
@@ -20,7 +23,7 @@ class InteractionManager:
 
         system_prompt = f"""You are Gigi, a friendly educational robot talking to a 3rd grade student (8-9 years old).
 Keep your vocabulary simple, engaging, and age-appropriate.
-CURRENT STEP: {json.dumps(step, indent=2)}
+CURRENT STEP: {json.dumps(clean_step, indent=2)}
 
 YOUR ROLE:
 1. Briefly acknowledge and appreciate the student based on their response.

@@ -10,7 +10,7 @@
       "step_type": "canned",
       "sub_steps": [
         {
-          "text": "Welcome, explorers! Today, we are going to imagine what it would be like to live on Mars. Let's design a habitat that could help us survive and thrive there.",
+          "text": "Welcome, explorers! Today, we are going to imagine what it would be like to live on Mars. Let's design a habitat that could help us survive and thrive there. Are you ready?",
           "facial": "[smile]",
           "movement": "[wave]"
         },
