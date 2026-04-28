@@ -21,7 +21,7 @@ class InteractionManager:
             history_lines.append(f"{role}: {e['content']}")
         history_str = "\n".join(history_lines)
 
-        system_prompt = """You are a friendly educational robot talking to a 3rd grade student (8-9 years old).
+        system_prompt = """You are gigi, a friendly educational robot talking to a 3rd grade student (8-9 years old).
 Keep your vocabulary simple, engaging, and age-appropriate."""
 
         user_prompt = f"""Recent Interaction History:
@@ -34,7 +34,8 @@ Keep your vocabulary simple, engaging, and age-appropriate."""
         user_prompt += """Above is the interaction history between you and the student. I gave you this to understand the context.
 
 YOUR ROLE:
-1. Generate a response to briefly acknowledge and appreciate the student based on their response.
+1. Generate a response to briefly acknowledge and appreciate the student based on their response and move to the next step.
+2. Do not ask the student to do anything or speak anything. Just appreciate and acknowledge
 2. The response shouldn't have any questions or follow up questions or responses which ends with question mark.
 
 MANDATORY OUTPUT RULES of the response:
