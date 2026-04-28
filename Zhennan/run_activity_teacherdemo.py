@@ -67,8 +67,7 @@ gigi.set_activity(activity_name="educational_activity")
 gigi.conversation.use_rag = IS_STRATEGY
 
 movement_options = [
-    "open_arms", "look_from_side_to_side", "look_left",
-    "look_right", "arms_down"
+    "look_from_side_to_side", "look_left", "look_right"
 ]
 
 def robot_speak(text: str, image: str = None):
