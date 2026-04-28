@@ -306,14 +306,14 @@ class Character():
     def full_conversation(self):
         if self.viseme and self.conversation:
             agent_text = "What do you want to talk about"
+            system_prompt = "Your name is Gigi, a social robot teaching assistant. You are going to interact with children in a friendly and engaging manner. You are perky, curious and generally happy. Reply with ONE short conversational sentence. Do NOT use lists, bullet points, or numbers. Do NOT give multiple ideas or explanations. Speak naturally as if talking out loud. Stop immediately after the first sentence."
             for i in range(2):
                 print("Agent: ", agent_text)
                 self.viseme.run_viseme(text=agent_text)
                 self.listen_backchannel()
                 user_text = self.hearing.texts[-1]
                 print("User: ", user_text)
-                self.conversation.response(input_text=user_text)
-                agent_text = self.conversation.text[-1]
+                agent_text = self.conversation.get_response(system_prompt=system_prompt, user_prompt=user_text)
         
 
 
@@ -321,10 +321,10 @@ if __name__ == "__main__":
     fuzzy = Character()
     # fuzzy.conversational_turn(file="Assets/audio/demo_01_greetings.wav")
     # fuzzy.lookfor_backchannel()
-    # fuzzy.full_conversation()
+    fuzzy.full_conversation()
     # fuzzy.listen_backchannel()
-    fuzzy.movement.home_position()
-    fuzzy.lookat_something(timeout=10)
-    fuzzy.lookat_something(timeout=10)
-    fuzzy.lookat_something(timeout=10)
+    # fuzzy.movement.home_position()
+    # fuzzy.lookat_something(timeout=10)
+    # fuzzy.lookat_something(timeout=10)
+    # fuzzy.lookat_something(timeout=10)
 

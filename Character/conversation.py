@@ -4,6 +4,7 @@ import random
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from characterDefinitions import IS_ROBOT
 
 LLM_TIMEOUT = 120
 
@@ -38,8 +39,12 @@ class Conversation:
         if self.use_rag and self.rag_file_path:
             self._initialize_rag()
 
-        self.ollama_url   = "http://localhost:8080/rkllm_chat"
-        self.ollama_model = "qwen"
+        if IS_ROBOT:
+            self.ollama_url   = "http://localhost:8080/rkllm_chat"
+            self.ollama_model = "qwen"
+        else:
+            self.ollama_url   = "http://localhost:11434/v1/chat/completions"
+            self.ollama_model = "llama3.2:1b-instruct-q4_K_M"
         self.conversation_history = []
 
         default_system = (
