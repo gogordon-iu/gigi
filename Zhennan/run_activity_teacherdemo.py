@@ -17,7 +17,7 @@ from Character.character import Character
 
 from llm_client import LLMClient
 from strategy_catalog import StrategyCatalog
-from interaction_manager import InteractionManager  # ← removed first_sentence
+from interaction_manager_teacherdemo import InteractionManager
 
 # Offline modules — no LLM cost
 from behavior_filter import check_behavior
@@ -31,7 +31,7 @@ IS_STRATEGY  = True   # Use RAG-based strategy hints in LLM prompt
 log_dir      = "logs"
 os.makedirs(log_dir, exist_ok=True)
 timestamp    = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = os.path.join(log_dir, f"activity_{timestamp}.txt")
+log_filename = os.path.join(log_dir, f"activity_teacherdemo_{timestamp}.txt")
 
 def log(source: str, message: str, terminal: bool = True):
     now   = datetime.datetime.now().strftime("%H:%M:%S")
@@ -91,7 +91,14 @@ def robot_listen() -> str:
     print("\n[Listening...]")
     gigi.hearing.texts = []
     gigi.run_character(movement_data="home")
+    
+    if gigi.face:
+        gigi.face.display_text("Speak Now")
+        
     gigi.listen_backchannel()
+
+    if gigi.face:
+        gigi.face.display_text(None)
 
     if gigi.hearing.texts:
         heard = gigi.hearing.texts[-1]
@@ -116,7 +123,7 @@ manager    = InteractionManager(gigi.conversation, catalog)
 # ------------------------------------------------------------------
 # Load plan
 # ------------------------------------------------------------------
-plan_file = "activity_plan_new.json"
+plan_file = "activity_plan_demo2.json"
 if not os.path.exists(plan_file):
     print(f"'{plan_file}' not found.")
     sys.exit(1)
@@ -219,19 +226,14 @@ for i, step in enumerate(steps):
             elif action["type"] == "speak":
                 robot_response = action["response"]
                 
-                # Robust check for next step tag (handles [NEXT STEP], [next_step], etc.)
-                next_step_match = re.search(r"\[NEXT[ _]STEP\]", robot_response, re.IGNORECASE)
+                # Clean up any potential tags the LLM might have generated
+                robot_response = re.sub(r"\[?NEXT[ _]STEP\]?", "", robot_response, flags=re.IGNORECASE).strip()
                 
-                if next_step_match:
-                    log("SYSTEM", "Robot decided to move to next step.")
-                    # Strip the tag and anything after it for the spoken response
-                    clean_text = robot_response[:next_step_match.start()].strip()
-                    if clean_text:
-                        robot_speak(clean_text)
-                        history.append({"role": "assistant", "content": clean_text})
-                    break # exit the while True loop for this step
-                else:
+                if robot_response:
                     robot_speak(robot_response)
                     history.append({"role": "assistant", "content": robot_response})
+                
+                log("SYSTEM", "Teacher demo: Moving to next step after one response.")
+                break # Force exit the loop after one response
 
 log("STEP", "--- Activity Finished ---")

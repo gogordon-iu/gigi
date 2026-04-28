@@ -45,7 +45,7 @@ class Hearing():
         if HEARING_OPTION == "sr":
             self.recognizer = sr.Recognizer()
         elif HEARING_OPTION == "whisper":
-            self.model = WhisperModel("base", device="cpu", compute_type="int8", num_workers=1)
+            self.model = WhisperModel("base", device="cpu", compute_type="int8")
 
             self.audio_processor = WhisperAudioProcessor(
                 native_sample_rate=INPUT_SAMPLE_RATE,
