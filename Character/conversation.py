@@ -42,9 +42,11 @@ class Conversation:
         if IS_ROBOT:
             self.ollama_url   = "http://localhost:8080/rkllm_chat"
             self.ollama_model = "qwen"
+            self.fast_model   = "qwen"
         else:
             self.ollama_url   = "http://localhost:11434/v1/chat/completions"
             self.ollama_model = "llama3.2:1b-instruct-q4_K_M"
+            self.fast_model   = "llama3.2:1b-instruct-q4_K_M"
         self.conversation_history = []
 
         default_system = (
@@ -117,13 +119,13 @@ class Conversation:
     # ------------------------------------------------------------------
     # Core response helper — shared by both public methods
     # ------------------------------------------------------------------
-    def _call_npu(self, messages: list) -> str:
+    def _call_npu(self, messages: list, model: str = None) -> str:
         """
         Send `messages` to the NPU server and return the raw text response.
         Falls back to a timeout phrase on any error.
         """
         payload = {
-            "model":    self.ollama_model,
+            "model":    model if model else self.ollama_model,
             "messages": messages,
             "stream":   False
         }
@@ -141,6 +143,62 @@ class Conversation:
     # ------------------------------------------------------------------
     # Public: stateless single-turn  (used by InteractionManager)
     # ------------------------------------------------------------------
+    def check_fluid_done(self, transcript: str) -> bool:
+        """
+        Uses a fast LLM to check if the user has responded to the last robot query.
+        """
+        last_robot_query = ""
+        for msg in reversed(self.conversation_history):
+            if msg["role"] in ["assistant", "system", "gigi", "robot"]:
+                last_robot_query = msg["content"]
+                break
+
+        system_prompt = (
+            "You are a logical evaluator. Classify if the User's response answers the Robot's question. "
+            "If the user provides a valid answer ANYWHERE in their response, even if they also talk about unrelated things, it is considered ANSWERED. "
+            "First, print your reasoning. Then, on a new line at the very end, output exactly 'CONCLUSION: ANSWERED' or 'CONCLUSION: UNANSWERED'.\n\n"
+            "=== EXAMPLES ===\n"
+            "Robot: What's your favorite color?\nUser: My favorite is blue.\n"
+            "Reasoning: The user explicitly states their favorite color is blue.\nCONCLUSION: ANSWERED\n\n"
+            "Robot: What's your favorite color?\nUser: Today is Thursday.\n"
+            "Reasoning: The user talks about the day of the week, which does not answer the question about color.\nCONCLUSION: UNANSWERED\n\n"
+            "Robot: What did you eat for breakfast?\nUser: I woke up really late today and was super tired, but I managed to eat some cereal.\n"
+            "Reasoning: The user mentions eating cereal, which answers the question, despite the unrelated preamble.\nCONCLUSION: ANSWERED\n"
+            "=== END OF EXAMPLES ==="
+        )
+
+        user_prompt = (
+            "Now, evaluate the following:\n\n"
+            f"Robot: {last_robot_query}\n"
+            f"User: {transcript}\n"
+            "Reasoning:"
+        )
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        try:
+            raw = self._call_npu(messages, model=self.fast_model)
+            response_text = raw.strip().upper()
+            print(f"DEBUG: Response from check_fluid_done:\n{response_text}")
+            
+            # Look for the structured conclusion
+            if "CONCLUSION: ANSWERED" in response_text and "CONCLUSION: UNANSWERED" not in response_text:
+                return True
+            elif "CONCLUSION: UNANSWERED" in response_text:
+                return False
+                
+            # Fallback in case it forgot the "CONCLUSION:" prefix, check the last line
+            last_line = response_text.split('\n')[-1]
+            if "ANSWERED" in last_line and "UNANSWERED" not in last_line:
+                return True
+            return False
+        except Exception as e:
+            print(f"Error in check_fluid_done: {e}")
+            return False
+
     def get_response(self, system_prompt: str, user_prompt: str) -> str:
         """
         Stateless call: builds a fresh 2-message payload, returns ONE sentence.

@@ -445,6 +445,83 @@ class Hearing():
             stop_event = threading.Event()
         return threading.Thread(target=self.listen, args=[stop_event])
 
+    def listen_fluid(self, stop_event=None, check_callback=None, n_transcripts=1):
+        """
+        Similar to listen, but periodically calls check_callback(text) every n_transcripts chunks.
+        If the callback returns True, listening stops early.
+        """
+        if HEARING_OPTION == "sr" or HEARING_OPTION == "vosk":
+            self.listen(stop_event)
+            return
+
+        if HEARING_OPTION == "whisper":
+            self.audio_queue = queue.Queue()
+            self.last_vad_speech_time = None
+            text = ""
+            chunk_count = 0
+
+            # Reset deduplication state for new listening session
+            self.last_segment_words = []
+
+            with sd.InputStream(
+                samplerate=INPUT_SAMPLE_RATE,
+                channels=1,
+                device=self.mic_index,
+                callback=self.audio_callback_optimized,
+                blocksize=8192,
+                dtype='int16'
+            ):
+                print("Fluid Listening... Speak into the microphone.")
+
+                while True:
+                    if stop_event and stop_event.is_set():
+                        break
+
+                    try:
+                        audio_float = self.audio_queue.get(timeout=1.0) # GOREN changed to 1.0, it was 0.3
+                    except queue.Empty:
+                        if (
+                            self.last_vad_speech_time is not None
+                            and len(text.split()) >= 1
+                            and time.time() - self.last_vad_speech_time > SILENCE_DURATION
+                        ):
+                            print("Silence detected. Stopping transcription.")
+                            break
+                        continue
+
+                    self.raw_audio_buffer.append(audio_float)
+                    transcription = self.transcribe_with_dedup(audio_float, language="en")
+
+                    if transcription:
+                        print(f"Transcription: {transcription}")
+                        text += transcription + " "
+                        chunk_count += 1
+                        
+                        if check_callback and chunk_count >= n_transcripts:
+                            is_done = check_callback(text.strip())
+                            if is_done:
+                                print("Fluid listening callback detected 'done'. Stopping.")
+                                if stop_event is not None:
+                                    stop_event.set()
+                                break
+                            else:
+                                chunk_count = 0
+
+                    if self.verbose:
+                        vad_age = time.time() - self.last_vad_speech_time if self.last_vad_speech_time else 0
+                        print(f"words: {len(text.split())}, silence: {vad_age:.1f}s")
+
+                if text.strip():
+                    self.texts.append(text.strip())
+
+                if stop_event is not None:
+                    stop_event.set()
+
+    def hearing_fluid_thread(self, stop_event=None, check_callback=None, n_transcripts=1):
+        if stop_event is None:
+            stop_event = threading.Event()
+        return threading.Thread(target=self.listen_fluid, args=[stop_event, check_callback, n_transcripts])
+
     def run_hearing(self):
         self.clear_audio_buffer()
         hearing_thread = self.hearing_thread()

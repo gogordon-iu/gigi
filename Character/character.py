@@ -226,6 +226,28 @@ class Character():
                 self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
             hearing_thread.join()
 
+    def listen_fluid(self, timeout=30, n_transcripts=2):
+        if self.hearing and self.face and self.conversation:
+            stop_event = threading.Event()
+            # Timeout handler
+            threading.Timer(timeout, stop_event.set).start()
+            
+            def check_callback(text):
+                return self.conversation.check_fluid_done(text)
+            
+            # Use the new hearing_fluid_thread
+            hearing_thread = self.hearing.hearing_fluid_thread(
+                stop_event=stop_event, 
+                check_callback=check_callback, 
+                n_transcripts=n_transcripts
+            )
+            hearing_thread.start()
+            
+            while not stop_event.is_set():
+                self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
+            
+            hearing_thread.join()
+
     def idle(self, duration=-1.0):
         if self.face:
             stop_event = threading.Event()
@@ -319,9 +341,24 @@ class Character():
 
 if __name__ == "__main__":
     fuzzy = Character()
+    
+    print("\n--- Testing Fluid Listening ---")
+    test_question = "Can you tell me a little bit about your favorite animal and why you like it?"
+    print(f"Robot: {test_question}")
+    # Prime the conversation history so the LLM evaluator knows what it is evaluating against
+    if fuzzy.conversation:
+        fuzzy.conversation.conversation_history.append({"role": "assistant", "content": test_question})
+    
+    print("Start speaking! Keep talking until the AI decides you have answered the question.")
+    fuzzy.listen_fluid(timeout=30, n_transcripts=2)
+    
+    if fuzzy.hearing and fuzzy.hearing.texts:
+        print(f"\nFinal transcribed text: {fuzzy.hearing.texts[-1]}")
+    print("--- End Fluid Listening Test ---\n")
+
     # fuzzy.conversational_turn(file="Assets/audio/demo_01_greetings.wav")
     # fuzzy.lookfor_backchannel()
-    fuzzy.full_conversation()
+    # fuzzy.full_conversation()
     # fuzzy.listen_backchannel()
     # fuzzy.movement.home_position()
     # fuzzy.lookat_something(timeout=10)
