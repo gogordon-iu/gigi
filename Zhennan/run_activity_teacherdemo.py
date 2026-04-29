@@ -94,7 +94,7 @@ def robot_listen() -> str:
     if gigi.face:
         gigi.face.display_text("Speak Now")
         
-    gigi.listen_fluid()
+    gigi.listen_fluid(timeout=60)
 
     if gigi.face:
         gigi.face.display_text(None)
