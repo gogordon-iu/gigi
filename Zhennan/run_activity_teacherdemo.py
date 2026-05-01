@@ -137,7 +137,7 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 activity_folder = sys.argv[1]
-activity_dir = os.path.join("assets", activity_folder)
+activity_dir = os.path.join("Assets", activity_folder)
 json_files = [f for f in os.listdir(activity_dir) if f.endswith('.json')]
 if not json_files:
     print(f"No .json file found in '{activity_dir}'.")
