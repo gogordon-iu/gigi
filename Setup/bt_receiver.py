@@ -37,49 +37,51 @@ def main():
         while True:
             try:
                 # This blocks/fails until the Windows sender actually connects 
-            # and the `rfcomm watch` command creates the /dev/rfcomm0 device.
-            with serial.Serial(port_name, baudrate=115200, timeout=10) as ser:
-                print("\n>>> Connection established! Reading header...")
-                
-                header = ser.read(8)
-                if not header or len(header) != 8:
-                    print("Failed to receive valid header.")
-                    continue
+                # and the `rfcomm watch` command creates the /dev/rfcomm0 device.
+                with serial.Serial(port_name, baudrate=115200, timeout=10) as ser:
+                    print("\n>>> Connection established! Reading header...")
                     
-                file_size = struct.unpack("<Q", header)[0]
-                print(f"Expecting file of size {file_size} bytes...")
+                    header = ser.read(8)
+                    if not header or len(header) != 8:
+                        print("Failed to receive valid header.")
+                        continue
+
+                    file_size = struct.unpack("<Q", header)[0]
+                    print(f"Expecting file of size {file_size} bytes...")
+                    
+                    zip_path = os.path.join(base_dir, "temp_received.zip")
+                    received_bytes = 0
                 
-                zip_path = os.path.join(base_dir, "temp_received.zip")
-                received_bytes = 0
-                
-                with open(zip_path, "wb") as f:
-                    while received_bytes < file_size:
-                        chunk_size = min(4096, file_size - received_bytes)
-                        data = ser.read(chunk_size)
-                        if not data:
-                            break
-                        f.write(data)
-                        received_bytes += len(data)
+                    with open(zip_path, "wb") as f:
+                        while received_bytes < file_size:
+                            chunk_size = min(4096, file_size - received_bytes)
+                            data = ser.read(chunk_size)
+                            if not data:
+                                break
+                            f.write(data)
+                            received_bytes += len(data)
                         
-                if received_bytes == file_size:
-                    print("File received successfully. Extracting...")
-                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                        zip_ref.extractall(assets_dir)
-                    print(f"Successfully extracted to {assets_dir}")
-                else:
-                    print(f"Incomplete transfer. Got {received_bytes}/{file_size} bytes.")
+                    if received_bytes == file_size:
+                        print("File received successfully. Extracting...")
+                        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                            zip_ref.extractall(assets_dir)
+                        print(f"Successfully extracted to {assets_dir}")
+                    else:
+                        print(f"Incomplete transfer. Got {received_bytes}/{file_size} bytes.")
                     
-        except serial.SerialException:
-            # Port doesn't exist yet, which means no one has connected. Just wait and poll.
-            time.sleep(2)
-        except Exception as e:
-            print(f"Error: {e}")
-            time.sleep(2)
-        finally:
-            if 'zip_path' in locals() and os.path.exists(zip_path):
-                os.remove(zip_path)
+            except serial.SerialException:
+                # Port doesn't exist yet, which means no one has connected. Just wait and poll.
+                time.sleep(2)
+            except Exception as e:
+                print(f"Error: {e}")
+                time.sleep(2)
+            finally:
+                if 'zip_path' in locals() and os.path.exists(zip_path):
+                    os.remove(zip_path)
+                        
     except KeyboardInterrupt:
         print("\nExiting...")
+        
     finally:
         print("Stopping Bluetooth bridge...")
         if 'rfcomm_proc' in locals():
