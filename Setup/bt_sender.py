@@ -48,6 +48,9 @@ def main():
         sys.exit(1)
         
     try:
+        print("Waiting for connection to settle...")
+        time.sleep(2) # Give receiver time to open the port
+        
         # Send 8-byte file size header
         ser.write(struct.pack("<Q", file_size))
         
