@@ -122,15 +122,22 @@ manager    = InteractionManager(gigi.conversation, catalog)
 # ------------------------------------------------------------------
 # Load plan
 # ------------------------------------------------------------------
-plan_file = "activity_plan_demo2.json"
+if len(sys.argv) < 2:
+    print("Usage: python run_activity_teacherdemo.py <activity_folder_name>")
+    sys.exit(1)
+
+activity_folder = sys.argv[1]
+activity_dir = os.path.join("assets", activity_folder)
+plan_file = os.path.join(activity_dir, "activity_plan.json")
+
 if not os.path.exists(plan_file):
     print(f"'{plan_file}' not found.")
     sys.exit(1)
 
-with open(plan_file) as f:
+with open(plan_file, "r", encoding="utf-8") as f:
     plan = json.load(f)
 
-log("SYSTEM", f"Loaded: {plan.get('activity_title', '?')}")
+log("SYSTEM", f"Loaded: {plan.get('activity_title', '?')} from {activity_dir}")
 
 
 # ------------------------------------------------------------------
@@ -153,6 +160,8 @@ for i, step in enumerate(steps):
         else:
             script = step.get("robot_script", "")
         image  = step.get("image_path", step.get("image", None))
+        if image:
+            image = os.path.join(activity_dir, image).replace("\\", "/")
         if script:
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
@@ -164,6 +173,8 @@ for i, step in enumerate(steps):
         log("SYSTEM", "(Interaction phase. Say or type '/next' to advance.)")
         script = step.get("robot_script", "")
         image  = step.get("image_path", step.get("image", None))
+        if image:
+            image = os.path.join(activity_dir, image).replace("\\", "/")
         if script:
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
