@@ -58,6 +58,16 @@ def strip_nonverbals(text: str) -> str:
     clean = re.sub(r"\[([^\]]+)\]", _rep, text).strip()
     return re.sub(r" {2,}", " ", clean).strip()
 
+def find_file_in_dir(directory: str, filename: str, extensions: list = None) -> str:
+    base_name = os.path.splitext(os.path.basename(filename))[0]
+    for root, _, files in os.walk(directory):
+        for file in files:
+            file_base, file_ext = os.path.splitext(file)
+            if file_base == base_name:
+                if not extensions or file_ext.lower() in extensions:
+                    return os.path.join(root, file).replace("\\", "/")
+    return None
+
 
 # ------------------------------------------------------------------
 # Init hardware
@@ -128,11 +138,11 @@ if len(sys.argv) < 2:
 
 activity_folder = sys.argv[1]
 activity_dir = os.path.join("assets", activity_folder)
-plan_file = os.path.join(activity_dir, "activity_plan.json")
-
-if not os.path.exists(plan_file):
-    print(f"'{plan_file}' not found.")
+json_files = [f for f in os.listdir(activity_dir) if f.endswith('.json')]
+if not json_files:
+    print(f"No .json file found in '{activity_dir}'.")
     sys.exit(1)
+plan_file = os.path.join(activity_dir, json_files[0])
 
 with open(plan_file, "r", encoding="utf-8") as f:
     plan = json.load(f)
@@ -159,9 +169,10 @@ for i, step in enumerate(steps):
             script = " ".join(s["text"] for s in sub_steps if s.get("text"))
         else:
             script = step.get("robot_script", "")
-        image  = step.get("image_path", step.get("image", None))
-        if image:
-            image = os.path.join(activity_dir, image).replace("\\", "/")
+        image_ref = step.get("image_filename", step.get("image_path", step.get("image", None)))
+        image = None
+        if image_ref:
+            image = find_file_in_dir(activity_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
         if script:
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
@@ -172,9 +183,10 @@ for i, step in enumerate(steps):
     elif step_type in ("open", "open_conversation"):
         log("SYSTEM", "(Interaction phase. Say or type '/next' to advance.)")
         script = step.get("robot_script", "")
-        image  = step.get("image_path", step.get("image", None))
-        if image:
-            image = os.path.join(activity_dir, image).replace("\\", "/")
+        image_ref = step.get("image_filename", step.get("image_path", step.get("image", None)))
+        image = None
+        if image_ref:
+            image = find_file_in_dir(activity_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
         if script:
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})
