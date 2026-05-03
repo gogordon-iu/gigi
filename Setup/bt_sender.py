@@ -48,23 +48,41 @@ def main():
         sys.exit(1)
         
     try:
-        print("Waiting for connection to settle...")
-        time.sleep(2) # Give receiver time to open the port
+        print("Waiting for receiver to sync...")
+        ser.timeout = 2 # Add timeout for sync
         
-        # Send 8-byte file size header
+        # Handshake: wait for Orange Pi to be ready
+        while True:
+            ser.write(b"SYNC")
+            if ser.read(5) == b"READY":
+                break
+            time.sleep(0.5)
+            
+        print("Sending header...")
         ser.write(struct.pack("<Q", file_size))
         
-        # Give receiver a moment to parse the header
-        time.sleep(0.5) 
-        
+        # Wait for header ACK
+        if ser.read(3) != b"ACK":
+            print("Failed to get header acknowledgment from receiver.")
+            return
+            
         print("Sending file data...")
         sent_bytes = 0
+        CHUNK_SIZE = 4096
         with open(zip_path, "rb") as f:
             while True:
-                chunk = f.read(4096)
+                chunk = f.read(CHUNK_SIZE)
                 if not chunk:
                     break
                 ser.write(chunk)
+                
+                # Wait for Orange Pi to acknowledge this chunk
+                # This prevents the Mac's Bluetooth buffer from overflowing and hanging!
+                ack = ser.read(1)
+                if ack != b"K":
+                    print("\nError: Connection dropped or out of sync!")
+                    break
+                    
                 sent_bytes += len(chunk)
                 
                 # Print progress

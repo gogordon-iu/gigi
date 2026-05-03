@@ -39,7 +39,15 @@ def main():
                 # This blocks/fails until the Windows sender actually connects 
                 # and the `rfcomm watch` command creates the /dev/rfcomm0 device.
                 with serial.Serial(port_name, baudrate=115200, timeout=10) as ser:
-                    print("\n>>> Connection established! Reading header...")
+                    print("\n>>> Connection established! Waiting for SYNC...")
+                    
+                    # Wait for sender to say SYNC
+                    sync_data = ser.read(4)
+                    if sync_data != b"SYNC":
+                        continue
+                        
+                    # Tell sender we are ready
+                    ser.write(b"READY")
                     
                     header = ser.read(8)
                     if not header or len(header) != 8:
@@ -49,17 +57,33 @@ def main():
                     file_size = struct.unpack("<Q", header)[0]
                     print(f"Expecting file of size {file_size} bytes...")
                     
+                    # Tell sender we got the header
+                    ser.write(b"ACK")
+                    
                     zip_path = os.path.join(base_dir, "temp_received.zip")
                     received_bytes = 0
+                    CHUNK_SIZE = 4096
                 
                     with open(zip_path, "wb") as f:
                         while received_bytes < file_size:
-                            chunk_size = min(4096, file_size - received_bytes)
-                            data = ser.read(chunk_size)
-                            if not data:
+                            chunk_size = min(CHUNK_SIZE, file_size - received_bytes)
+                            
+                            # Read exact chunk size to ensure alignment
+                            data = b""
+                            while len(data) < chunk_size:
+                                packet = ser.read(chunk_size - len(data))
+                                if not packet:
+                                    break
+                                data += packet
+                                
+                            if len(data) < chunk_size:
                                 break
+                                
                             f.write(data)
                             received_bytes += len(data)
+                            
+                            # Acknowledge this chunk so sender can send the next one
+                            ser.write(b"K")
                         
                     if received_bytes == file_size:
                         print("File received successfully. Extracting...")
