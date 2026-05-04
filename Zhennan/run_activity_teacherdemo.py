@@ -234,7 +234,7 @@ for i, step in enumerate(steps):
             t_process.start()
 
             # Main thread speaks filler so GUI/Viseme works correctly
-            robot_speak(random.choice(gigi.conversation.waiting_options))
+            #robot_speak(random.choice(gigi.conversation.waiting_options))
 
             t_process.join()
             _loop_end_time = time.time()

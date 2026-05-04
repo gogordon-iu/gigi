@@ -209,9 +209,6 @@ class Conversation:
         if rag_content:
             final_system += f"\n\nContext information:\n{rag_content}"
 
-        print(f"DEBUG: Sending prompt of length 2 items")
-        print(f"DEBUG: RAG context length: {len(rag_content)} characters")
-
         messages = [
             {"role": "system", "content": final_system},
             {"role": "user",   "content": user_prompt}
