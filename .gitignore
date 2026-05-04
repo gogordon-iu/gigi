@@ -194,3 +194,6 @@ Resources/rkn-llm/*
 
 # 3. Specifically track the Flask server script
 !Resources/rkn-llm/examples/rkllm_server_demo/rkllm_server/flask_server.py
+
+
+/Assets/bluetooth_test/
