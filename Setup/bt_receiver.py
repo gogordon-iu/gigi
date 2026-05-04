@@ -27,6 +27,11 @@ def main():
     # Kill any existing stray rfcomm processes on this port
     subprocess.run(["sudo", "pkill", "-f", f"rfcomm watch {port_name}"], stderr=subprocess.DEVNULL)
     
+    # Register the Serial Port Profile (SPP) with the SDP daemon
+    # This is required so the sender can discover the Bluetooth serial port
+    print("Registering Serial Port Profile (SPP) via sdptool...")
+    subprocess.run(["sudo", "sdptool", "add", "SP"], stderr=subprocess.DEVNULL)
+    
     # Start rfcomm watch (may prompt for sudo password)
     rfcomm_proc = subprocess.Popen(["sudo", "rfcomm", "watch", port_name, "1"])
     
