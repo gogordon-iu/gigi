@@ -612,6 +612,6 @@ class VisionHelpers:
         result_container['data'] = None
         result_container['done'] = True
 
-# if __name__ == "__main__":
-#     fd = FaceDatabase()
-#     fd.save_face_img_to_db("Stephanie", "../temp/StephanieKim.jpg.webp")
+if __name__ == "__main__":
+    fd = FaceDatabase()
+    fd.save_face_img_to_db("Stephanie", "../temp/StephanieKim.jpg.webp")

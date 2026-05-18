@@ -49,6 +49,7 @@ IS_WINDOWS = platform.system() == "Windows"
 if IS_WINDOWS:
     ESPEAK_PATH     = r"C:/Program Files/eSpeak NG/espeak-ng.exe"
     ESPEAK_LIBRARY  = r"C:/Program Files/eSpeak NG/libespeak-ng.dll"
+    TTS_MODEL = "silero"
 else:
     ESPEAK_PATH     = "/usr/bin/espeak-ng"
     ESPEAK_LIBRARY  = None

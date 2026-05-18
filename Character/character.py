@@ -226,19 +226,27 @@ class Character():
                 self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
             hearing_thread.join()
 
-    def listen_fluid(self, timeout=30, n_transcripts=2):
-        if self.hearing and self.face and self.conversation:
+    def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None):
+        if self.hearing and self.face:
             stop_event = threading.Event()
             # Timeout handler
             threading.Timer(timeout, stop_event.set).start()
             
-            def check_callback(text):
-                return self.conversation.check_fluid_done(text)
+            cb = check_callback
+            if cb is None:
+                if self.conversation:
+                    def default_check_callback(text):
+                        return self.conversation.check_fluid_done(text)
+                    cb = default_check_callback
+                else:
+                    def dummy_callback(text):
+                        return False
+                    cb = dummy_callback
             
             # Use the new hearing_fluid_thread
             hearing_thread = self.hearing.hearing_fluid_thread(
                 stop_event=stop_event, 
-                check_callback=check_callback, 
+                check_callback=cb, 
                 n_transcripts=n_transcripts
             )
             hearing_thread.start()
