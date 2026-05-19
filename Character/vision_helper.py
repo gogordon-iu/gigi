@@ -614,4 +614,5 @@ class VisionHelpers:
 
 if __name__ == "__main__":
     fd = FaceDatabase()
-    fd.save_face_img_to_db("Stephanie", "../temp/StephanieKim.jpg.webp")
+    # fd.save_face_img_to_db("Goren", "../temp/Gordon.jpg")
+    print(f"Faces in database: {fd.known_names}")

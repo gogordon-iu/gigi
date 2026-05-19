@@ -4,14 +4,22 @@ import threading
 import json
 import webrtcvad
 import numpy as np
+import platform
 
 language_models = None
-HEARING_OPTION = "whisper"
+
+# ── Backend selection ─────────────────────────────────────────────────────────
+# On Windows:  use faster-whisper (CPU, int8)
+# On OrangePi (Linux/aarch64): use SenseVoiceSmall-RKNN2 (NPU)
+IS_WINDOWS = platform.system() == "Windows"
+IS_RKNN_PLATFORM = (platform.system() == "Linux" and platform.machine() in ("aarch64", "armv7l"))
+
+HEARING_OPTION = "whisper"  # "whisper" | "sr" | "vosk"
+
 if HEARING_OPTION == "sr":
     import speech_recognition as sr
+
 elif HEARING_OPTION == "whisper":
-    from faster_whisper import WhisperModel
-    import numpy as np
     import queue
     import time
     from hearingDefinitions import (
@@ -19,7 +27,120 @@ elif HEARING_OPTION == "whisper":
         NO_SPEECH_THRESHOLD, VAD_FILTER, REPETITION_PENALTY,
         BEAM_SIZE, BEST_OF
     )
-    from whisper_helper import WhisperAudioProcessor, transcribe_optimized, calibrate_energy_threshold
+
+    if IS_RKNN_PLATFORM:
+        # ── OrangePi / RK3588: SenseVoiceSmall-RKNN2 backend ─────────────────
+        # Requires on the OrangePi:
+        #   pip install kaldi_native_fbank onnxruntime sentencepiece soundfile pyyaml "numpy<2"
+        #   pip install rknn_toolkit_lite2-*.whl   (matching your Python/board version)
+        #   librknnrt.so must be present in /usr/lib/
+        # Model file: ../Resources/sense-voice-encoder.rknn
+        # Download from: https://huggingface.co/ThomasTheMaker/SenseVoiceSmall-RKNN2
+        RKNN_MODEL_PATH = "../Resources/sense-voice-encoder.rknn"
+        # SPEECH_SCALE reduces input magnitude to prevent FP16 overflow on NPU
+        SPEECH_SCALE = 0.1
+
+        try:
+            from rknnlite.api import RKNNLite
+            import kaldi_native_fbank as knf
+            _rknn_available = True
+        except ImportError:
+            print("[Hearing] WARNING: rknnlite or kaldi_native_fbank not found. "
+                  "Falling back to faster-whisper on CPU.")
+            _rknn_available = False
+
+        if _rknn_available:
+            class SenseVoiceRKNNTranscriber:
+                """
+                Wraps the SenseVoiceSmall-RKNN2 model for local NPU inference.
+                Provides a single `transcribe(audio_float16k) -> str` method
+                that matches the interface used by the Whisper backend.
+
+                Setup on OrangePi:
+                  1. Convert model on x86 PC:
+                       git clone https://huggingface.co/ThomasTheMaker/SenseVoiceSmall-RKNN2
+                       python convert_rknn.py   # produces sense-voice-encoder.rknn
+                  2. Copy sense-voice-encoder.rknn to ../Resources/
+                  3. Install dependencies listed above.
+                """
+
+                def __init__(self, model_path=RKNN_MODEL_PATH):
+                    self.rknn = RKNNLite()
+                    ret = self.rknn.load_rknn(model_path)
+                    if ret != 0:
+                        raise RuntimeError(f"Failed to load RKNN model from {model_path} (code {ret})")
+                    ret = self.rknn.init_runtime()
+                    if ret != 0:
+                        raise RuntimeError(f"Failed to init RKNN runtime (code {ret})")
+                    print(f"[Hearing] SenseVoiceSmall-RKNN2 loaded from {model_path}")
+
+                def _extract_fbank(self, audio_float: np.ndarray) -> np.ndarray:
+                    """Extract 80-dim log-Mel filterbank features at 16 kHz."""
+                    opts = knf.FbankOptions()
+                    opts.frame_opts.dither = 0
+                    opts.frame_opts.snip_edges = False
+                    opts.mel_opts.num_bins = 80
+                    fbank = knf.OnlineFbank(opts)
+                    # kaldi_native_fbank expects int16-scaled floats
+                    samples = (audio_float * 32768.0).astype(np.float32)
+                    fbank.accept_waveform(16000, samples.tolist())
+                    fbank.input_finished()
+                    frames = [fbank.get_frame(i) for i in range(fbank.num_frames_ready)]
+                    if not frames:
+                        return np.zeros((1, 80), dtype=np.float32)
+                    return np.array(frames, dtype=np.float32)  # (T, 80)
+
+                def transcribe(self, audio_float: np.ndarray) -> str:
+                    """
+                    Run NPU inference on a float32 audio chunk (16 kHz, mono).
+                    Returns the recognised text string (English only by default).
+                    """
+                    try:
+                        feats = self._extract_fbank(audio_float)          # (T, 80)
+                        feats = feats[np.newaxis, :, :]                    # (1, T, 80)
+                        feats = feats * SPEECH_SCALE                       # prevent FP16 overflow
+                        outputs = self.rknn.inference(inputs=[feats])
+                        if outputs is None or len(outputs) == 0:
+                            return ""
+                        # outputs[0] is logits: (1, T', vocab_size)
+                        # Greedy decode — token IDs to text via a simple lookup
+                        logits = outputs[0][0]                             # (T', vocab_size)
+                        token_ids = np.argmax(logits, axis=-1).tolist()
+                        # Basic CTC blank (id=0) collapse
+                        prev = None
+                        decoded = []
+                        for tid in token_ids:
+                            if tid != 0 and tid != prev:
+                                decoded.append(tid)
+                            prev = tid
+                        # Token-to-text mapping: SenseVoiceSmall uses byte-pair encoding.
+                        # For a full mapping, load the sentencepiece model bundled with the repo.
+                        # Here we attempt to import the bundled tokeniser if available.
+                        try:
+                            import sentencepiece as spm
+                            sp = spm.SentencePieceProcessor()
+                            sp.Load("../Resources/chn_jpn_yue_eng_ko_spectok.bpe.model")
+                            text = sp.Decode(decoded)
+                        except Exception:
+                            # Fallback: return raw token IDs (useful for debugging)
+                            text = " ".join(str(t) for t in decoded)
+                        return text.strip()
+                    except Exception as e:
+                        print(f"[Hearing] RKNN inference error: {e}")
+                        return ""
+
+                def release(self):
+                    self.rknn.release()
+
+        else:
+            # rknnlite not available on this Linux board — fall back to CPU whisper
+            IS_RKNN_PLATFORM = False
+
+    if not IS_RKNN_PLATFORM:
+        # ── Windows / CPU fallback: faster-whisper ────────────────────────────
+        from faster_whisper import WhisperModel
+        from whisper_helper import WhisperAudioProcessor, transcribe_optimized, calibrate_energy_threshold
+
 elif HEARING_OPTION == "vosk":
     from vosk import Model, KaldiRecognizer
     import pyaudio
@@ -45,32 +166,50 @@ class Hearing():
         if HEARING_OPTION == "sr":
             self.recognizer = sr.Recognizer()
         elif HEARING_OPTION == "whisper":
-            self.model = WhisperModel("base", device="cpu", compute_type="int8")
+            if IS_RKNN_PLATFORM and _rknn_available:
+                # ── OrangePi: NPU-accelerated SenseVoiceSmall ─────────────────
+                self.model = SenseVoiceRKNNTranscriber()
+                self.use_rknn = True
+                # RKNN backend handles its own audio processing; still need VAD
+                self.vad = webrtcvad.Vad(2)
+                self.vad_frame_duration = 30
+                self.vad_frame_size = int(TARGET_SAMPLE_RATE * self.vad_frame_duration / 1000)
+                self.speech_threshold = 0.10
+                self.last_vad_speech_time = None
+                self.last_segment_words = []
+                self.audio_queue = queue.Queue(maxsize=5)
+                # Lightweight audio buffer (no WhisperAudioProcessor needed)
+                self._raw_buffer = []
+                self._raw_buf_duration = 2.0  # seconds of audio to accumulate before transcribing
+            else:
+                # ── Windows / CPU: faster-whisper ─────────────────────────────
+                self.use_rknn = False
+                self.model = WhisperModel("base", device="cpu", compute_type="int8")
 
-            self.audio_processor = WhisperAudioProcessor(
-                native_sample_rate=INPUT_SAMPLE_RATE,
-                target_sample_rate=TARGET_SAMPLE_RATE,
-                energy_threshold=500,
-                buffer_duration=2.0,
-                min_audio_length=0.75,
-                silence_duration=SILENCE_DURATION,
-                debug=verbose
-            )
+                self.audio_processor = WhisperAudioProcessor(
+                    native_sample_rate=INPUT_SAMPLE_RATE,
+                    target_sample_rate=TARGET_SAMPLE_RATE,
+                    energy_threshold=500,
+                    buffer_duration=2.0,
+                    min_audio_length=0.75,
+                    silence_duration=SILENCE_DURATION,
+                    debug=verbose
+                )
 
-            # WebRTC VAD configuration
-            self.vad = webrtcvad.Vad(2)  # Aggressiveness level 2 — more robust to noise than 1
-            self.vad_frame_duration = 30  # ms (10, 20, or 30)
-            self.vad_frame_size = int(TARGET_SAMPLE_RATE * self.vad_frame_duration / 1000)
-            self.speech_threshold = 0.10
+                # WebRTC VAD configuration
+                self.vad = webrtcvad.Vad(2)  # Aggressiveness level 2
+                self.vad_frame_duration = 30  # ms (10, 20, or 30)
+                self.vad_frame_size = int(TARGET_SAMPLE_RATE * self.vad_frame_duration / 1000)
+                self.speech_threshold = 0.10
 
-            # Single VAD-driven silence timer — updated only when WebRTC confirms speech
-            self.last_vad_speech_time = None
+                # Single VAD-driven silence timer
+                self.last_vad_speech_time = None
 
-            # Word-level deduplication
-            self.last_segment_words = []
+                # Word-level deduplication
+                self.last_segment_words = []
 
-            # Queue to hold audio chunks
-            self.audio_queue = queue.Queue(maxsize=5)
+                # Queue to hold audio chunks
+                self.audio_queue = queue.Queue(maxsize=5)
 
         elif HEARING_OPTION == "vosk":
             self.languages = []
@@ -165,52 +304,76 @@ class Hearing():
 
     def transcribe_with_dedup(self, audio_float, language="en"):
         """
-        Transcribe audio with Whisper using parameters from hearingDefinitions,
-        plus word-level deduplication and hallucination guard.
+        Transcribe audio, routing to either:
+          - SenseVoiceSmall-RKNN2 (OrangePi NPU)
+          - faster-whisper (Windows / CPU fallback)
+        Applies word-level deduplication and hallucination guard on both paths.
         """
         if len(audio_float) < 8000:  # Skip clips shorter than ~0.5s at 16kHz
             return ""
 
-        try:
-            segments, info = self.model.transcribe(
-                audio_float,
-                beam_size=BEAM_SIZE,
-                best_of=BEST_OF,
-                language=language,
-                condition_on_previous_text=False,
-                word_timestamps=True,
-                vad_filter=VAD_FILTER,
-                no_speech_threshold=NO_SPEECH_THRESHOLD,
-                repetition_penalty=REPETITION_PENALTY,
-                compression_ratio_threshold=2.4,
-                temperature=0.0
-            )
-
-            current_words = []
-            for segment in segments:
-                words = segment.text.strip().split()
-                current_words.extend(words)
-
-            if not current_words:
-                return ""
-
-            unique_words = self.remove_duplicate_words(current_words)
-            if not unique_words:
-                return ""
-
-            result = " ".join(unique_words)
-
-            if self._is_hallucination(result):
+        if getattr(self, 'use_rknn', False):
+            # ── RKNN path ─────────────────────────────────────────────────────
+            try:
+                result = self.model.transcribe(audio_float)
+                if not result:
+                    return ""
+                current_words = result.strip().split()
+                unique_words = self.remove_duplicate_words(current_words)
+                if not unique_words:
+                    return ""
+                result = " ".join(unique_words)
+                if self._is_hallucination(result):
+                    if self.verbose:
+                        print("[RKNN] Hallucination detected, discarding.")
+                    return ""
+                return result
+            except Exception as e:
                 if self.verbose:
-                    print("[VAD] Hallucination detected, discarding.")
+                    print(f"[RKNN] Transcription error: {e}")
                 return ""
+        else:
+            # ── faster-whisper path ───────────────────────────────────────────
+            try:
+                segments, info = self.model.transcribe(
+                    audio_float,
+                    beam_size=BEAM_SIZE,
+                    best_of=BEST_OF,
+                    language=language,
+                    condition_on_previous_text=False,
+                    word_timestamps=True,
+                    vad_filter=VAD_FILTER,
+                    no_speech_threshold=NO_SPEECH_THRESHOLD,
+                    repetition_penalty=REPETITION_PENALTY,
+                    compression_ratio_threshold=2.4,
+                    temperature=0.0
+                )
 
-            return result
+                current_words = []
+                for segment in segments:
+                    words = segment.text.strip().split()
+                    current_words.extend(words)
 
-        except Exception as e:
-            if self.verbose:
-                print(f"Transcription error: {e}")
-            return ""
+                if not current_words:
+                    return ""
+
+                unique_words = self.remove_duplicate_words(current_words)
+                if not unique_words:
+                    return ""
+
+                result = " ".join(unique_words)
+
+                if self._is_hallucination(result):
+                    if self.verbose:
+                        print("[VAD] Hallucination detected, discarding.")
+                    return ""
+
+                return result
+
+            except Exception as e:
+                if self.verbose:
+                    print(f"Transcription error: {e}")
+                return ""
 
     def merge_confidence_generic(self, all_words, min_interval=0.01):
         """
@@ -394,30 +557,55 @@ class Hearing():
     def audio_callback_optimized(self, indata, frames, time_info, status):
         """
         Audio callback with WebRTC VAD and buffering.
+        On faster-whisper path: uses WhisperAudioProcessor.
+        On RKNN path: accumulates raw float32 into a rolling buffer.
         Only queues audio chunks that pass the VAD speech check.
         """
         audio_data = indata.flatten().copy()
         if len(audio_data) == 0:
             return
 
-        self.audio_processor.add_to_buffer(audio_data)
+        if getattr(self, 'use_rknn', False):
+            # ── RKNN path: simple rolling buffer ─────────────────────────────
+            audio_float = audio_data.astype(np.float32) / 32768.0
+            self._raw_buffer.append(audio_float)
 
-        if self.audio_processor.should_process_buffer():
-            audio_float = self.audio_processor.get_buffered_audio()
-
-            if audio_float is not None and len(audio_float) > 0:
-                audio_int16 = (audio_float * 32768.0).astype(np.int16)
-
+            # Check how many seconds we have buffered
+            total_samples = sum(len(c) for c in self._raw_buffer)
+            if total_samples >= int(TARGET_SAMPLE_RATE * self._raw_buf_duration):
+                audio_chunk = np.concatenate(self._raw_buffer)
+                self._raw_buffer = []
+                audio_int16 = (audio_chunk * 32768.0).astype(np.int16)
                 if self.contains_speech(audio_int16):
-                    self.last_vad_speech_time = time.time()  # VAD-driven timer
+                    self.last_vad_speech_time = time.time()
                     try:
-                        self.audio_queue.put_nowait(audio_float)
+                        self.audio_queue.put_nowait(audio_chunk)
                     except queue.Full:
                         try:
                             self.audio_queue.get_nowait()
-                            self.audio_queue.put_nowait(audio_float)
+                            self.audio_queue.put_nowait(audio_chunk)
                         except:
                             pass
+        else:
+            # ── Whisper path: WhisperAudioProcessor ───────────────────────────
+            self.audio_processor.add_to_buffer(audio_data)
+
+            if self.audio_processor.should_process_buffer():
+                audio_float = self.audio_processor.get_buffered_audio()
+
+                if audio_float is not None and len(audio_float) > 0:
+                    audio_int16 = (audio_float * 32768.0).astype(np.int16)
+
+                    if self.contains_speech(audio_int16):
+                        self.last_vad_speech_time = time.time()  # VAD-driven timer
+                        try:
+                            self.audio_queue.put_nowait(audio_float)
+                        except queue.Full:
+                            try:
+                                self.audio_queue.get_nowait()
+                                self.audio_queue.put_nowait(audio_float)
+                            except:
+                                pass
 
     def is_silent(self, audio):
         """Detect if audio chunk is silent."""

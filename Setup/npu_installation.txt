@@ -1,0 +1,16 @@
+1. Install Python dependencies on the OrangePi:
+
+bash
+pip install kaldi_native_fbank sentencepiece soundfile pyyaml "numpy<2"
+pip install rknn_toolkit_lite2-*.whl  # get the aarch64 wheel for your Python version
+2. Convert the model on a PC (x86 Linux):
+
+bash
+git clone https://huggingface.co/ThomasTheMaker/SenseVoiceSmall-RKNN2
+cd SenseVoiceSmall-RKNN2
+python convert_rknn.py   # produces sense-voice-encoder.rknn
+3. Copy files to the OrangePi:
+
+Resources/sense-voice-encoder.rknn
+Resources/chn_jpn_yue_eng_ko_spectok.bpe.model  # bundled in the repo above
+No code changes needed on the OrangePi — the platform detection is fully automatic.

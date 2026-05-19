@@ -120,24 +120,58 @@ def readingFluencyDemo():
         while current_word_idx < len(passage_words):
             gigi.hearing.texts = []
             
+            from difflib import SequenceMatcher
+            def is_match(w1, w2):
+                return w1 == w2 or SequenceMatcher(None, w1, w2).ratio() > 0.75
+
+            fillers = {"um", "uh", "ah", "like", "so", "well", "and", "i", "mean"}
+            
             # Fluid listening callback to interrupt on mistakes
             def check_fluency(text):
                 nonlocal current_word_idx
-                words_heard = text.lower().split()
+                words_heard = [w.translate(str.maketrans('', '', string.punctuation)).lower() for w in text.split()]
                 if not words_heard:
                     return False
                     
-                # Check the latest word in the current transcribed chunk
-                idx = current_word_idx + len(words_heard) - 1
-                if idx < len(passage_words):
-                    expected = passage_words[idx]
-                    expected_clean = expected.translate(str.maketrans('', '', string.punctuation)).lower()
-                    latest_clean = words_heard[-1].translate(str.maketrans('', '', string.punctuation))
-                    
-                    if expected_clean and latest_clean and expected_clean != latest_clean:
-                        return True # Mistake found, stop listening
+                # Detect if the student restarted from the beginning
+                if current_word_idx > 0 and len(words_heard) >= 2 and len(passage_words) >= 2:
+                    p0 = passage_words[0].translate(str.maketrans('', '', string.punctuation)).lower()
+                    p1 = passage_words[1].translate(str.maketrans('', '', string.punctuation)).lower()
+                    if is_match(words_heard[0], p0) and is_match(words_heard[1], p1):
+                        print("\n[Restart detected. Resetting to the beginning of the passage.]")
+                        current_word_idx = 0
                         
-                if current_word_idx + len(words_heard) >= len(passage_words):
+                matched_idx = current_word_idx
+                unmatched_count = 0
+                
+                for i, h_word in enumerate(words_heard):
+                    if not h_word: continue
+                    is_last_word = (i == len(words_heard) - 1)
+                    
+                    window_size = 3
+                    found_match = False
+                    for offset in range(window_size):
+                        check_idx = matched_idx + offset
+                        if check_idx < len(passage_words):
+                            expected = passage_words[check_idx].translate(str.maketrans('', '', string.punctuation)).lower()
+                            if is_match(h_word, expected):
+                                matched_idx = check_idx + 1
+                                found_match = True
+                                unmatched_count = 0
+                                break
+                                
+                    if not found_match:
+                        if h_word not in fillers:
+                            if is_last_word:
+                                # Might be a partial transcription delay. Ignore it for now.
+                                pass
+                            else:
+                                unmatched_count += 1
+                            
+                if unmatched_count >= 1:
+                    return True # Mistake found, stop listening
+                    
+                if matched_idx >= len(passage_words):
                     return True # Finished reading passage, stop listening
                     
                 return False
@@ -146,33 +180,52 @@ def readingFluencyDemo():
             gigi.listen_fluid(timeout=15, n_transcripts=1, check_callback=check_fluency)
             
             if not gigi.hearing.texts:
-                print("No speech detected. Stopping reading check.")
-                break
+                print("No speech detected. Pausing...")
+                continue
                 
             last_text = gigi.hearing.texts[-1]
-            words_heard = last_text.lower().split()
+            words_heard = [w.translate(str.maketrans('', '', string.punctuation)).lower() for w in last_text.split()]
             
+            # Re-check restart in the post loop in case it timed out immediately after they said it
+            if current_word_idx > 0 and len(words_heard) >= 2 and len(passage_words) >= 2:
+                p0 = passage_words[0].translate(str.maketrans('', '', string.punctuation)).lower()
+                p1 = passage_words[1].translate(str.maketrans('', '', string.punctuation)).lower()
+                if is_match(words_heard[0], p0) and is_match(words_heard[1], p1):
+                    current_word_idx = 0
+                    
+            matched_idx = current_word_idx
             mistake_found = False
-            for i, w in enumerate(words_heard):
-                if current_word_idx >= len(passage_words):
-                    break
-                    
-                expected = passage_words[current_word_idx]
-                expected_clean = expected.translate(str.maketrans('', '', string.punctuation)).lower()
-                w_clean = w.translate(str.maketrans('', '', string.punctuation))
+            
+            for h_word in words_heard:
+                if not h_word: continue
                 
-                if expected_clean and w_clean and expected_clean != w_clean:
-                    print(f"Mistake found: heard '{w_clean}', expected '{expected_clean}'")
-                    # Gigi speaks the correct word
-                    gigi.run_character(
-                        viseme_data={'text': f'The correct word is {expected_clean}.', 'file': None}
-                    )
-                    mistake_found = True
-                    current_word_idx += 1 # Move past the mistake
-                    break
-                else:
-                    current_word_idx += 1
-                    
+                window_size = 3
+                found_match = False
+                for offset in range(window_size):
+                    check_idx = matched_idx + offset
+                    if check_idx < len(passage_words):
+                        expected = passage_words[check_idx].translate(str.maketrans('', '', string.punctuation)).lower()
+                        if is_match(h_word, expected):
+                            matched_idx = check_idx + 1
+                            found_match = True
+                            break
+                            
+                if not found_match:
+                    if h_word not in fillers:
+                        if matched_idx < len(passage_words):
+                            expected_clean = passage_words[matched_idx].translate(str.maketrans('', '', string.punctuation)).lower()
+                            print(f"Mistake found: heard '{h_word}', expected '{expected_clean}'")
+                            # Gigi speaks the correct word
+                            gigi.run_character(
+                                viseme_data={'text': f'The correct word is {expected_clean}.', 'file': None}
+                            )
+                            mistake_found = True
+                            current_word_idx = matched_idx + 1 # Move past the mistake
+                        break
+                        
+            if not mistake_found:
+                current_word_idx = matched_idx
+                
             if current_word_idx >= len(passage_words) and not mistake_found:
                 print("Student finished reading the passage successfully.")
                 break
