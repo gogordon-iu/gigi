@@ -1,5 +1,8 @@
-# Path to the directory containing the images
-image_folder_path = '../Assets/face/'
+import os
+char_dir = os.path.dirname(os.path.abspath(__file__))
+gigi_dir = os.path.dirname(char_dir)
+image_folder_path = os.path.join(gigi_dir, 'Assets', 'face', '').replace('\\', '/')
+
 
 global_parts = ["Eyes", "Nose", "Mouth"]
 

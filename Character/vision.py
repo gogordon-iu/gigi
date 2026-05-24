@@ -45,6 +45,16 @@ class Vision:
         if auto_start:
             self.run_vision()
     
+    @property
+    def found(self):
+        class FoundDict(dict):
+            def __missing__(self, key):
+                return self['face']
+        
+        fd = FoundDict()
+        fd['face'] = self.last_data
+        return fd
+    
     def open_camera(self, port):
         if port is None:
             ports = range(10)
@@ -320,7 +330,7 @@ class Vision:
             if face_detection and current_time % 30 == 0:
                 self.face_cache.cleanup_old_faces()
             
-            vh.VisionHelpers.update_data_structure(self.face_cache, self.last_data, self.timestamped_data)
+            vh.VisionHelpers.update_data_structure(self.face_cache, self.last_data, self.timestamped_data, w, h)
             return frame, self.get_last_data()
         except:
             return frame, self.get_last_data()

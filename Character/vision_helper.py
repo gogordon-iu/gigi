@@ -528,7 +528,7 @@ class VisionHelpers:
             return None
     
     @staticmethod
-    def update_data_structure(face_cache, last_data, timestamped_data):
+    def update_data_structure(face_cache, last_data, timestamped_data, w=640, h=480):
         timestamp = time.strftime("%H:%M:%S")
         current_data = {}
         all_faces = face_cache.get_all_faces()
@@ -572,6 +572,13 @@ class VisionHelpers:
             current_face_data['center_y'] = face_data.get('y', 0)
             last_data[face_id_str]['center_x'] = current_face_data['center_x']
             last_data[face_id_str]['center_y'] = current_face_data['center_y']
+            
+            # Torso-mounted camera offset calculation:
+            # offset_x is positive if face is to the left of the image center (requires positive motor movement)
+            offset_x = (w / 2.0 - face_data.get('x', 0)) / float(w)
+            offset_y = (h / 2.0 - face_data.get('y', 0)) / float(h)
+            current_face_data['offset'] = [offset_x, offset_y]
+            last_data[face_id_str]['offset'] = current_face_data['offset']
             
             current_data[face_id_str] = current_face_data
         

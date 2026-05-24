@@ -68,16 +68,16 @@ if IS_ROBOT:
             """
             self.interface = interface
             self.address = address
+            self.bus = SMBus(self.interface)
 
             # self.set_all_pwm(0, 0)
-            with SMBus(self.interface) as bus:
-                bus.write_byte_data(self.address, MODE2, OUTDRV)
-                bus.write_byte_data(self.address, MODE1, ALLCALL)
-                time.sleep(0.005) # wait for oscillator
-                mode1 = bus.read_byte_data(self.address, MODE1)
-                mode1 = mode1 & ~SLEEP # wake up (reset sleep)
-                bus.write_byte_data(self.address, MODE1, mode1)
-                time.sleep(0.005) # wait for oscillator
+            self.bus.write_byte_data(self.address, MODE2, OUTDRV)
+            self.bus.write_byte_data(self.address, MODE1, ALLCALL)
+            time.sleep(0.005) # wait for oscillator
+            mode1 = self.bus.read_byte_data(self.address, MODE1)
+            mode1 = mode1 & ~SLEEP # wake up (reset sleep)
+            self.bus.write_byte_data(self.address, MODE1, mode1)
+            time.sleep(0.005) # wait for oscillator
 
             """
             Set the PWM frequency of the PCA9685 module.
@@ -91,14 +91,14 @@ if IS_ROBOT:
             logger.debug('Estimated pre-scale: {0}'.format(prescaleval))
             prescale = int(math.floor(prescaleval + 0.5))
             logger.debug('Final pre-scale: {0}'.format(prescale))
-            with SMBus(self.interface) as bus:
-                oldmode = bus.read_byte_data(self.address, MODE1)
-                newmode = (oldmode & 0x7F) | 0x10    # sleep
-                bus.write_byte_data(self.address, MODE1, newmode)  # go to sleep
-                bus.write_byte_data(self.address, PRESCALE, prescale)
-                bus.write_byte_data(self.address, MODE1, oldmode)
-                time.sleep(0.005)
-                bus.write_byte_data(self.address, MODE1, oldmode | 0x80)
+            
+            oldmode = self.bus.read_byte_data(self.address, MODE1)
+            newmode = (oldmode & 0x7F) | 0x10    # sleep
+            self.bus.write_byte_data(self.address, MODE1, newmode)  # go to sleep
+            self.bus.write_byte_data(self.address, PRESCALE, prescale)
+            self.bus.write_byte_data(self.address, MODE1, oldmode)
+            time.sleep(0.005)
+            self.bus.write_byte_data(self.address, MODE1, oldmode | 0x80)
 
         def set_pwm(self, channel, on, off):
                 """
@@ -108,12 +108,11 @@ if IS_ROBOT:
                     channel (int): The channel number to set the on and off time for.
                     on (int): The value for the on time of the PWM signal.
                     off (int): The value for the off time of the PWM signal.
-                """
-                with SMBus(self.interface) as bus:
-                    bus.write_byte_data(self.address, LED0_ON_L+4*channel, on & 0xFF)
-                    bus.write_byte_data(self.address, LED0_ON_H+4*channel, on >> 8)
-                    bus.write_byte_data(self.address, LED0_OFF_L+4*channel, off & 0xFF)
-                    bus.write_byte_data(self.address, LED0_OFF_H+4*channel, off >> 8)
+                    """
+                self.bus.write_byte_data(self.address, LED0_ON_L+4*channel, on & 0xFF)
+                self.bus.write_byte_data(self.address, LED0_ON_H+4*channel, on >> 8)
+                self.bus.write_byte_data(self.address, LED0_OFF_L+4*channel, off & 0xFF)
+                self.bus.write_byte_data(self.address, LED0_OFF_H+4*channel, off >> 8)
 
         def set_all_pwm(self, on, off):
                 """
@@ -123,22 +122,41 @@ if IS_ROBOT:
                     on (int): The value to set the on time for all channels.
                     off (int): The value to set the off time for all channels.
                 """
-                with SMBus(self.interface) as bus:
-                    bus.write_byte_data(self.address, ALL_LED_ON_L, on & 0xFF)
-                    bus.write_byte_data(self.address, ALL_LED_ON_H, on >> 8)
-                    bus.write_byte_data(self.address, ALL_LED_OFF_L, off & 0xFF)
-                    bus.write_byte_data(self.address, ALL_LED_OFF_H, off >> 8)
+                self.bus.write_byte_data(self.address, ALL_LED_ON_L, on & 0xFF)
+                self.bus.write_byte_data(self.address, ALL_LED_ON_H, on >> 8)
+                self.bus.write_byte_data(self.address, ALL_LED_OFF_L, off & 0xFF)
+                self.bus.write_byte_data(self.address, ALL_LED_OFF_H, off >> 8)
 
         def software_reset(self):
             """Sends a software reset (SWRST) command to all servo drivers on the bus."""
             #self._device.writeRaw8(0x06)
-            with SMBus(self.interface) as bus:
-                bus.write_byte_data(self.address, 0x06, 0x00)
+            self.bus.write_byte_data(self.address, 0x06, 0x00)
 
         def reset_motor(self, channel):
             self.set_pwm(channel, 0, -1)
         
         def reset_all_motors(self):
             self.set_all_pwm(0, -1)
+
+        def __del__(self):
+            try:
+                self.bus.close()
+            except:
+                pass
+else:
+    class Motors(object):
+        def __init__(self, freq_hz=50, interface=5, address=0x40):
+            pass
+        def set_pwm(self, channel, on, off):
+            pass
+        def set_all_pwm(self, on, off):
+            pass
+        def software_reset(self):
+            pass
+        def reset_motor(self, channel):
+            pass
+        def reset_all_motors(self):
+            pass
+
 
 

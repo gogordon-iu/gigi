@@ -25,6 +25,21 @@ def clean_response(text: str) -> str:
     return text.strip() or "That sounds really interesting — tell me more!"
 
 
+def _first_sentence(text: str) -> str:
+    """
+    Extract and return the first sentence from text.
+    """
+    if not text:
+        return text
+    cleaned = clean_response(text)
+    # Split on sentence boundaries (. ! ?) followed by whitespace or string end
+    sentences = re.split(r'(?<=[.!?])\s+', cleaned)
+    if sentences:
+        return sentences[0].strip()
+    return cleaned
+
+
+
 # ------------------------------------------------------------------
 # Conversation
 # ------------------------------------------------------------------
@@ -135,9 +150,9 @@ class Conversation:
             data = response.json()
             if "choices" in data and data["choices"]:
                 return data["choices"][0]["message"]["content"]
-            print(f"⚠️  NPU returned empty choices: {data}")
+            print(f"[Warning] NPU returned empty choices: {data}")
         except Exception as e:
-            print(f"❌ NPU Server Error: {e}")
+            print(f"[Error] NPU Server Error: {e}")
         return random.choice(self.timeout_options)
 
     # ------------------------------------------------------------------
@@ -204,6 +219,12 @@ class Conversation:
         Stateless call: builds a fresh 2-message payload, returns ONE sentence.
         Does NOT touch conversation_history.
         """
+        speaker_name = None
+        if hasattr(self, 'character') and self.character:
+            speaker_name = getattr(self.character, 'current_speaker', None)
+        
+        tagged_prompt = f"{speaker_name}: {user_prompt}" if speaker_name else user_prompt
+
         rag_content = self.retrieve_rag_context(user_prompt)
         final_system = system_prompt
         if rag_content:
@@ -211,12 +232,12 @@ class Conversation:
 
         messages = [
             {"role": "system", "content": final_system},
-            {"role": "user",   "content": user_prompt}
+            {"role": "user",   "content": tagged_prompt}
         ]
 
         raw    = self._call_npu(messages)
         result = clean_response(raw)          # ← basic cleaning only, no sentence truncation
-        print(f"🤖 Gigi: {result}")
+        print(f"[Gigi] Gigi: {result}")
         return result
 
     # ------------------------------------------------------------------
@@ -230,7 +251,13 @@ class Conversation:
             return "I didn't understand that."
 
         try:
-            self.conversation_history.append({"role": "user", "content": text})
+            speaker_name = None
+            if hasattr(self, 'character') and self.character:
+                speaker_name = getattr(self.character, 'current_speaker', None)
+            
+            tagged_text = f"{speaker_name}: {text}" if speaker_name else text
+
+            self.conversation_history.append({"role": "user", "content": tagged_text})
 
             # Trim history, keeping the system message
             if len(self.conversation_history) > (self.max_history * 2):
@@ -261,12 +288,12 @@ class Conversation:
 
             self.conversation_history.append({"role": "assistant", "content": result})
 
-            print(f"🤖 Gigi: {result}")
-            print(f"💾 History: {len(self.conversation_history)} messages")
+            print(f"[Gigi] Gigi: {result}")
+            print(f"[History] History: {len(self.conversation_history)} messages")
             return result
 
         except Exception as e:
-            print(f"❌ LLM error: {e}")
+            print(f"[Error] LLM error: {e}")
             return "Connection issue."
 
     # ------------------------------------------------------------------

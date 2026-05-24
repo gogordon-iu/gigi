@@ -12,31 +12,51 @@ from resemblyzer import VoiceEncoder, preprocess_wav
 from scipy.spatial.distance import cosine
 
 class SpeakerDatabase:
-    """Simple database to store speaker embeddings alongside names."""
+    """Simple database to store speaker embeddings alongside names and transcription history."""
     def __init__(self, db_path="../Resources/speaker_db.pkl"):
         self.db_path = db_path
         self.speaker_data = {}  # {name: embedding}
+        self.transcription_records = {}  # {name: [{"timestamp": float, "formatted_time": str, "text": str}]}
         self.load_database()
     
     def load_database(self):
-        """Load speaker database from disk."""
+        """Load speaker database from disk, supporting both old and new formats."""
         if os.path.exists(self.db_path):
             try:
                 with open(self.db_path, 'rb') as f:
-                    self.speaker_data = pickle.load(f)
-                print(f"✓ Loaded {len(self.speaker_data)} speaker profiles from {self.db_path}")
+                    data = pickle.load(f)
+                if isinstance(data, dict):
+                    # Check if it is the new structured format
+                    if 'embeddings' in data:
+                        self.speaker_data = data['embeddings']
+                        self.transcription_records = data.get('transcriptions', {})
+                    else:
+                        # Old format: mapping of name to embedding
+                        self.speaker_data = data
+                        self.transcription_records = {}
+                else:
+                    self.speaker_data = {}
+                    self.transcription_records = {}
+                print(f"[OK] Loaded {len(self.speaker_data)} speaker profiles and {len(self.transcription_records)} transcription history keys from {self.db_path}")
             except Exception as e:
                 print(f"⚠ Error loading speaker database: {e}")
                 self.speaker_data = {}
+                self.transcription_records = {}
         else:
             print(f"No existing speaker database found at {self.db_path}")
     
     def save_database(self):
-        """Save speaker database to disk."""
+        """Save speaker database to disk in structured format."""
         try:
+            # Ensure parent directories exist
+            os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
             with open(self.db_path, 'wb') as f:
-                pickle.dump(self.speaker_data, f)
-            print(f"✓ Saved speaker database to {self.db_path}")
+                data = {
+                    'embeddings': self.speaker_data,
+                    'transcriptions': self.transcription_records
+                }
+                pickle.dump(data, f)
+            print(f"[OK] Saved speaker database to {self.db_path}")
         except Exception as e:
             print(f"✗ Error saving speaker database: {e}")
     
@@ -44,6 +64,22 @@ class SpeakerDatabase:
         """Add or update a speaker embedding."""
         self.speaker_data[name] = embedding
         self.save_database()
+
+    def add_transcription_record(self, name, text):
+        """Add a time-stamped transcription record for the recognized speaker."""
+        if not name or not text or not text.strip():
+            return
+        if name not in self.transcription_records:
+            self.transcription_records[name] = []
+        
+        record = {
+            "timestamp": time.time(),
+            "formatted_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+            "text": text.strip()
+        }
+        self.transcription_records[name].append(record)
+        self.save_database()
+        print(f"[Speaker Database] Added time-stamped record for '{name}': '{text.strip()}'")
     
     def identify_speaker(self, embedding, threshold=0.75):
         """

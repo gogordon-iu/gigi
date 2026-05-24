@@ -1,4 +1,4 @@
-import librosa
+# librosa removed for OrangePi 5 Pro optimization
 
 IS_FFMPEG = False
 try:
@@ -8,6 +8,40 @@ except:
     IS_FFMPEG = False
 
 import numpy as np
+
+def resample_linear(y, orig_sr, target_sr):
+    if orig_sr == target_sr:
+        return y
+    if y.ndim == 1:
+        duration = len(y) / orig_sr
+        num_samples = int(duration * target_sr)
+        old_x = np.linspace(0, duration, len(y))
+        new_x = np.linspace(0, duration, num_samples)
+        return np.interp(new_x, old_x, y)
+    else:
+        if y.shape[0] < y.shape[1]:
+            channels = y.shape[0]
+            length = y.shape[1]
+            duration = length / orig_sr
+            num_samples = int(duration * target_sr)
+            old_x = np.linspace(0, duration, length)
+            new_x = np.linspace(0, duration, num_samples)
+            resampled = np.zeros((channels, num_samples), dtype=y.dtype)
+            for i in range(channels):
+                resampled[i] = np.interp(new_x, old_x, y[i])
+            return resampled
+        else:
+            length = y.shape[0]
+            channels = y.shape[1]
+            duration = length / orig_sr
+            num_samples = int(duration * target_sr)
+            old_x = np.linspace(0, duration, length)
+            new_x = np.linspace(0, duration, num_samples)
+            resampled = np.zeros((num_samples, channels), dtype=y.dtype)
+            for i in range(channels):
+                resampled[:, i] = np.interp(new_x, old_x, y[:, i])
+            return resampled
+
 import os
 import time as sleep_time
 from speechDefinitions import *
@@ -305,7 +339,7 @@ class Speech():
         if SOUND_OPTION == "sounddevice":
             play_data = stereo_audio[:, 0] if stereo_audio.ndim > 1 else stereo_audio
             if self.wav_sr != self.speaker_sample_rate:
-                play_data = librosa.resample(
+                play_data = resample_linear(
                     play_data, orig_sr=self.wav_sr, target_sr=self.speaker_sample_rate)
             self.save_audio_file(audio_file, play_data)
             envelope = self.get_envelope(audio_file, y=wav, sr=self.speaker_sample_rate)
@@ -322,7 +356,7 @@ class Speech():
             play_data = stereo_audio
             if self.wav_sr != self.speaker_sample_rate:
                 mono = stereo_audio[:, 0] if stereo_audio.ndim > 1 else stereo_audio
-                resampled = librosa.resample(
+                resampled = resample_linear(
                     mono, orig_sr=self.wav_sr, target_sr=self.speaker_sample_rate)
                 play_data = np.column_stack((resampled, resampled))
 
@@ -352,7 +386,7 @@ class Speech():
             print("DEBUG: samplerate", samplerate)
 
         if samplerate != self.speaker_sample_rate:
-            data = librosa.resample(data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
+            data = resample_linear(data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
             self.save_audio_file(file, data)
 
         envelope = self.get_envelope(file, y=data, sr=samplerate)
@@ -423,7 +457,7 @@ class Speech():
 
                     if loaded_audio:
                         if samplerate != self.speaker_sample_rate:
-                            data = librosa.resample(
+                            data = resample_linear(
                                 data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
                             self.save_audio_file(audio_file, data)
 
@@ -463,7 +497,7 @@ class Speech():
                 data, samplerate = sf.read(file)
 
                 if samplerate != self.speaker_sample_rate:
-                    data = librosa.resample(
+                    data = resample_linear(
                         data.T if data.ndim > 1 else data,
                         orig_sr=samplerate, target_sr=self.speaker_sample_rate).T
                     sf.write(file, data, self.speaker_sample_rate)
@@ -491,20 +525,38 @@ class Speech():
     # ── Envelope extraction ───────────────────────────────────────────────────
     def get_envelope(self, file, max_length=-1, y=None, sr=None):
         if y is None and sr is None:
-            y, sr = librosa.load(file, sr=None)
+            y, sr = sf.read(file)
         if max_length > 0:
             y = y[:sr * max_length]
-        envelope = librosa.onset.onset_strength(
-            y=y, sr=sr, hop_length=int(sr * self.sample_rate))
+            
+        # Ensure y is mono
+        if y.ndim > 1:
+            y = y.mean(axis=1) if y.shape[0] > y.shape[1] else y.mean(axis=0)
+
+        # Calculate RMS envelope
+        hop_length = int(sr * self.sample_rate)
+        if hop_length <= 0:
+            return np.array([0.0])
+
+        num_frames = int(np.ceil(len(y) / hop_length))
+        envelope = np.zeros(num_frames)
+        for i in range(num_frames):
+            start = i * hop_length
+            end = min(start + hop_length, len(y))
+            frame = y[start:end]
+            if len(frame) > 0:
+                envelope[i] = np.sqrt(np.mean(frame**2))
 
         stretch_factor = 1.5
-        if stretch_factor != 1.0:
+        if stretch_factor != 1.0 and len(envelope) > 1:
             old_indices = np.arange(len(envelope))
             new_length  = int(len(envelope) * stretch_factor)
             new_indices = np.linspace(0, len(envelope) - 1, new_length)
             envelope    = np.interp(new_indices, old_indices, envelope)
 
-        envelope = envelope / np.max(envelope)
+        max_val = np.max(envelope)
+        if max_val > 0:
+            envelope = envelope / max_val
         envelope = np.minimum(envelope * 4, 1.0)
         return envelope
 
@@ -557,11 +609,13 @@ class Speech():
         data     = self.audio_objects[file]["data"]
         src_rate = self.audio_objects[file]["samplerate"]
         if src_rate != self.device_samplerate:
-            data = librosa.resample(
+            data = resample_linear(
                 data.T if data.ndim > 1 else data,
                 orig_sr=src_rate, target_sr=self.device_samplerate)
             if data.ndim > 1:
-                data = data.T
+                # If resample_linear returned (channels, length), transpose back to (length, channels)
+                if data.shape[0] < data.shape[1]:
+                    data = data.T
         sd.play(data, samplerate=self.device_samplerate)
         while sd.get_stream().active:
             if stop_event is not None and stop_event.is_set():

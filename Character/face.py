@@ -141,7 +141,16 @@ class Face():
                         sliced_image.save(f"{file_name}")
                     else:
                         sliced_image = Image.open(f"{file_name}")
-                    self.character["images"][part][part_data[0]][str(i)] = sliced_image
+                    
+                    if self.IMAGE_OPTION == "pygame":
+                        pg_img = pygame.image.fromstring(sliced_image.tobytes(), sliced_image.size, sliced_image.mode).convert()
+                        self.character["images"][part][part_data[0]][str(i)] = pg_img
+                    elif self.IMAGE_OPTION == "cv":
+                        cv_img = np.array(sliced_image.convert("RGB"))
+                        cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
+                        self.character["images"][part][part_data[0]][str(i)] = cv_img
+                    else:
+                        self.character["images"][part][part_data[0]][str(i)] = sliced_image
         return self.character
 
     def set_face(self, parts_selected):
@@ -153,35 +162,43 @@ class Face():
         for part, sequence in parts_selected.items():
             images[part] = character["images"][part][sequence[0]][sequence[1]]
         for part in global_parts:
-            if not images[part]:
+            if images[part] is None:
                 images[part] = character["images"][part]["idle"]["1"]
                 
-        # Get the maximum width among all images
-        max_width = max(img.width for img in images.values())
+        if self.IMAGE_OPTION == "cv":
+            # Direct numpy vertical concatenation is extremely fast!
+            if isinstance(images["Eyes"], np.ndarray):
+                return np.concatenate([images[part] for part in global_parts], axis=0)
+            else:
+                # Fallback for PIL Images
+                cv_images = []
+                for part in global_parts:
+                    cv_img = np.array(images[part].convert("RGB"))
+                    cv_images.append(cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR))
+                return np.concatenate(cv_images, axis=0)
+                
+        elif self.IMAGE_OPTION == "pygame":
+            # Direct pygame surface blitting
+            if not isinstance(images["Eyes"], Image.Image):
+                width = images["Eyes"].get_width()
+                total_height = sum(images[part].get_height() for part in global_parts)
+                stacked_surface = pygame.Surface((width, total_height))
+                y_offset = 0
+                for part in global_parts:
+                    stacked_surface.blit(images[part], (0, y_offset))
+                    y_offset += images[part].get_height()
+                return stacked_surface
+            else:
+                # Fallback for PIL Images
+                max_width = max(img.width for img in images.values())
+                total_height = sum(img.height for img in images.values())
+                stacked_image = Image.new('RGB', (max_width, total_height), color='white')
+                y_offset = 0
+                for part in global_parts:
+                    stacked_image.paste(images[part], (0, y_offset))
+                    y_offset += images[part].height
+                return pygame.image.fromstring(stacked_image.tobytes(), stacked_image.size, stacked_image.mode)
 
-        # Resize images to have the same width (optional)
-        for part in global_parts:
-            images[part] = images[part].resize((max_width, images[part].height))
-
-        # Calculate the total height of the stacked images
-        total_height = sum(img.height for img in images.values())
-
-        # Create a new blank image with the maximum width and total height
-        stacked_image = Image.new('RGB', (max_width, total_height), color='white')
-
-        # Paste each image onto the new image
-        y_offset = 0
-        for part in global_parts:
-            stacked_image.paste(images[part], (0, y_offset))
-            y_offset += images[part].height
-
-        if IMAGE_OPTION == "pygame":
-            # convert to pygame_image
-            pygame_image = pygame.image.fromstring(stacked_image.tobytes(), stacked_image.size, stacked_image.mode)
-            return pygame_image
-        elif IMAGE_OPTION == "cv":
-            cv_image = np.array(stacked_image)
-            return cv_image
 
     def display_face(self, image_):
         # Scale the image to fill the screen

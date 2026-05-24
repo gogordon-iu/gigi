@@ -31,6 +31,54 @@ import json
 import time
 import random
 
+class VoiceEncoderRKNN:
+    """
+    RKNN implementation of Resemblyzer VoiceEncoder for the Orange Pi 5 Pro NPU.
+    Loads a compiled 'voice-encoder.rknn' model and runs NPU inference.
+    """
+    def __init__(self, model_path=None):
+        if model_path is None:
+            model_path = CHARACTER_FOLDER + "../Resources/voice-encoder.rknn"
+        
+        from rknnlite.api import RKNNLite
+        self.rknn = RKNNLite()
+        print(f"[Speaker Recognition] Loading VoiceEncoder RKNN model from {model_path}...")
+        ret = self.rknn.load_rknn(model_path)
+        if ret != 0:
+            raise RuntimeError(f"Failed to load VoiceEncoder RKNN model (code {ret})")
+        ret = self.rknn.init_runtime()
+        if ret != 0:
+            raise RuntimeError(f"Failed to init RKNN runtime (code {ret})")
+        print("[Speaker Recognition] VoiceEncoder RKNN loaded successfully.")
+
+    def embed_utterance(self, wav: np.ndarray) -> np.ndarray:
+        """Extract speaker embedding from processed wav using RKNN NPU."""
+        try:
+            # Feature extraction on CPU: Wav to Mel Spectrogram using Resemblyzer if installed
+            from resemblyzer.audio import wav_to_mel_spectrogram
+            mel = wav_to_mel_spectrogram(wav)  # Shape (frames, 40)
+            
+            # Most RKNN models require float32 and batch dimension
+            feats = mel[np.newaxis, :, :].astype(np.float32)  # Shape: (1, T, 40)
+            
+            outputs = self.rknn.inference(inputs=[feats])
+            if outputs is None or len(outputs) == 0:
+                return np.zeros(256, dtype=np.float32)
+                
+            embedding = outputs[0].flatten().copy()
+            norm = np.linalg.norm(embedding)
+            if norm > 0:
+                embedding = embedding / norm
+            return embedding
+        except Exception as e:
+            print(f"[Speaker Recognition] NPU inference error: {e}")
+            return np.zeros(256, dtype=np.float32)
+
+    def release(self):
+        if hasattr(self, 'rknn'):
+            self.rknn.release()
+
+
 class Character():
     def __init__(self, character_name="fuzzy", child=False, gender='female',
                  full_screen=True, wakeup=False, activity=None, languages=['en']):
@@ -47,6 +95,7 @@ class Character():
             self.speech = None
         if HAS_VISEME:
             self.viseme = Viseme(face=self.face, speech=self.speech)
+            self.viseme.character = self
         else:
             self.viseme = None
         
@@ -74,8 +123,13 @@ class Character():
 
         if HAS_CONVERSATION:
             self.conversation = Conversation()
+            self.conversation.character = self
+            self.conv = self.conversation
         else:
             self.conversation = None
+            self.conv = None
+
+        self.current_speaker = None
 
         self.lookat_calibration = None
         if self.face and self.movement and self.vision:
@@ -85,6 +139,47 @@ class Character():
                 # values = detected face offset (-1.0, 1.0)
         
         self.set_activity(activity_name=activity)
+        
+        self.egocentric_db = {}
+        if exists(CHARACTER_FOLDER + "egocentric_locations.json"):
+            try:
+                with open(CHARACTER_FOLDER + "egocentric_locations.json", "r") as f:
+                    self.egocentric_db = json.load(f)
+                print(f"Loaded {len(self.egocentric_db)} egocentric location entries.")
+            except Exception as e:
+                print(f"Error loading egocentric locations: {e}")
+
+        # Speaker recognition database and encoder lazy load
+        self.speaker_gaze_target = None
+        self.voice_encoder = None
+        self.speaker_db = None
+        
+        # Load NPU execution flags from characterDefinitions
+        from characterDefinitions import USE_NPU_SPEAKER
+        self.use_npu_speaker = USE_NPU_SPEAKER
+        
+        try:
+            from make_friends import SpeakerDatabase
+            db_path = CHARACTER_FOLDER + "../Resources/speaker_db.pkl"
+            self.speaker_db = SpeakerDatabase(db_path=db_path)
+            
+            if self.use_npu_speaker:
+                try:
+                    self.voice_encoder = VoiceEncoderRKNN()
+                    print("[OK] NPU-accelerated Speaker Recognition VoiceEncoder initialized.")
+                except Exception as npu_err:
+                    print(f"Warning: Failed to load NPU speaker encoder ({npu_err}). Falling back to CPU.")
+                    self.use_npu_speaker = False
+            
+            if not self.use_npu_speaker:
+                from resemblyzer import VoiceEncoder
+                print("Loading CPU speaker recognition model in Character...")
+                self.voice_encoder = VoiceEncoder()
+                print("[OK] CPU Speaker recognition components initialized.")
+                
+        except Exception as e:
+            print(f"Warning: Could not load speaker recognition: {e}")
+
         time.sleep(1)       # wait for all the initializations to complete
         print("Done initializing character!")
 
@@ -103,6 +198,24 @@ class Character():
                       viseme_data=None, movement_data=None, 
                       caption_data=None,
                       image_data=None, video_data=None):
+        # Check if the robot talks to a specific person in egocentric DB
+        text_to_check = None
+        if viseme_data and viseme_data.get('text'):
+            text_to_check = viseme_data['text']
+        elif audio_data and audio_data.get('text'):
+            text_to_check = audio_data['text']
+            
+        if text_to_check:
+            import re
+            matched_name = None
+            for name in self.egocentric_db.keys():
+                if re.search(r'\b' + re.escape(name) + r'\b', text_to_check, re.IGNORECASE):
+                    matched_name = name
+                    break
+            if matched_name:
+                print(f"[Gaze Redirection] Matched '{matched_name}' in spoken text: '{text_to_check}'. Redirecting gaze.")
+                self.lookat_person(matched_name)
+
         speech_thread = None
         movement_thread = None
         viseme_sequence = None
@@ -197,38 +310,71 @@ class Character():
             self.face.stop_face()
 
     def lookat_coordinate(self, offset=0.0):
+        # Because the camera is mounted on the torso, any face offset detected in the image
+        # represents a relative angle with respect to the torso.
+        T_c = self.movement.calc_normalized_angle(motor="torso") if self.movement else 0.0
+        
         if self.lookat_calibration:
+            # calibration keys are neck positions, which (at torso=0.0) correspond to absolute face angle
+            # calibration values are list offsets [offset_x, offset_y]
             vision_coor = np.array([float(i[0]) for i in list(self.lookat_calibration.values())])
             motor_coor = np.array([float(i) for i in list(self.lookat_calibration.keys())])            
-
-            # First, calculate the torso-vision transformation
-            motor_y = self.movement.calc_normalized_angle(motor="torso")
-            rbf_interpolator = Rbf(motor_coor, vision_coor, smooth=0.05)
-            motor_x = rbf_interpolator(motor_y)
-
-            # Calculate the vision part, based on vision, what should the motor be
-            # But subtrack the torso-based vision
-            vision_x = offset + motor_x
+            
+            # Map face offset to relative angle (neck coordinate space)
             rbf_interpolator = Rbf(vision_coor, motor_coor, smooth=0.05)
-            vision_y = rbf_interpolator(vision_x)
-            vision_y = np.clip(vision_y, -0.9, 0.9)
-
-            return vision_y
-        return None
+            relative_angle = float(rbf_interpolator(offset))
+            
+            # Target room-relative coordinate is current torso position + relative offset angle
+            target_gaze_angle = T_c + relative_angle
+            return np.clip(target_gaze_angle, -0.9, 0.9)
+        
+        # Fallback if not calibrated: assume offset is in [-0.5, 0.5] range, map to approx [-1.0, 1.0] motor space
+        target_gaze_angle = T_c + (offset * 2.0)
+        return np.clip(target_gaze_angle, -0.9, 0.9)
 
     def listen_backchannel(self, timeout=15):
         if self.hearing and self.face:
+            self.speaker_gaze_target = None
+            self.current_speaker = None
+            self.hearing.clear_audio_buffer()
             stop_event = threading.Event()
+            
+            recognition_stop = threading.Event()
+            rec_thread = threading.Thread(target=self._speaker_recognition_worker, args=(recognition_stop,), daemon=True)
+            rec_thread.start()
+            
             threading.Timer(timeout, stop_event.set).start()
             hearing_thread = self.hearing.hearing_thread(stop_event=stop_event)
             hearing_thread.start()
-            while not stop_event.is_set():
-                self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
-            hearing_thread.join()
+            try:
+                while not stop_event.is_set():
+                    if self.speaker_gaze_target is not None:
+                        target_name = self.speaker_gaze_target
+                        self.speaker_gaze_target = None
+                        self.lookat_person(target_name)
+                    self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
+            finally:
+                recognition_stop.set()
+                rec_thread.join(timeout=1.0)
+                hearing_thread.join()
+                
+                # Record transcription under the recognized speaker
+                if self.current_speaker and self.hearing.texts:
+                    final_text = self.hearing.texts[-1]
+                    if self.speaker_db:
+                        self.speaker_db.add_transcription_record(self.current_speaker, final_text)
 
     def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None):
         if self.hearing and self.face:
+            self.speaker_gaze_target = None
+            self.current_speaker = None
+            self.hearing.clear_audio_buffer()
             stop_event = threading.Event()
+            
+            recognition_stop = threading.Event()
+            rec_thread = threading.Thread(target=self._speaker_recognition_worker, args=(recognition_stop,), daemon=True)
+            rec_thread.start()
+            
             # Timeout handler
             threading.Timer(timeout, stop_event.set).start()
             
@@ -251,10 +397,75 @@ class Character():
             )
             hearing_thread.start()
             
-            while not stop_event.is_set():
-                self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
+            try:
+                while not stop_event.is_set():
+                    if self.speaker_gaze_target is not None:
+                        target_name = self.speaker_gaze_target
+                        self.speaker_gaze_target = None
+                        self.lookat_person(target_name)
+                    self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
+            finally:
+                recognition_stop.set()
+                rec_thread.join(timeout=1.0)
+                hearing_thread.join()
+                
+                # Record transcription under the recognized speaker
+                if self.current_speaker and self.hearing.texts:
+                    final_text = self.hearing.texts[-1]
+                    if self.speaker_db:
+                        self.speaker_db.add_transcription_record(self.current_speaker, final_text)
+
+    def _speaker_recognition_worker(self, stop_event):
+        """
+        Background worker that periodically runs speaker recognition on the accumulated
+        audio in the hearing buffer, matching against the speaker database.
+        """
+        if not self.voice_encoder or not self.speaker_db:
+            return
+
+        import numpy as np
+        from resemblyzer import preprocess_wav
+        
+        print("[Speaker Recognition] Thread started.")
+        last_recognized_name = None
+        last_processed_len = 0
+        
+        while not stop_event.is_set():
+            # Check every 1.0 second
+            time.sleep(1.0)
             
-            hearing_thread.join()
+            if stop_event.is_set() or not self.hearing:
+                break
+                
+            raw_audio = self.hearing.get_full_audio()
+            if raw_audio is None or len(raw_audio) < 16000:
+                continue
+                
+            # Only process if new audio has been accumulated
+            if len(raw_audio) == last_processed_len:
+                continue
+            last_processed_len = len(raw_audio)
+            
+            try:
+                # Limit to the last 3.0 seconds (48,000 samples at 16kHz)
+                # to keep embedding extraction real-time and constant-time (O(1)).
+                raw_audio_slice = raw_audio[-48000:] if len(raw_audio) > 48000 else raw_audio
+                
+                # Preprocess and get embedding
+                wav = preprocess_wav(raw_audio_slice)
+                embedding = self.voice_encoder.embed_utterance(wav)
+                
+                # Identify speaker
+                name, similarity = self.speaker_db.identify_speaker(embedding, threshold=0.75)
+                if name:
+                    self.current_speaker = name
+                    if name != last_recognized_name:
+                        print(f"[Speaker Recognition] Identified '{name}' (similarity: {similarity:.3f})")
+                        last_recognized_name = name
+                        self.speaker_gaze_target = name
+            except Exception as e:
+                print(f"[Speaker Recognition] Error: {e}")
+        print("[Speaker Recognition] Thread stopped.")
 
     def idle(self, duration=-1.0):
         if self.face:
@@ -275,21 +486,92 @@ class Character():
     #         vision_thread.join()
 
     def lookat_behavior(self, target_coor=0.0):
-        side = "left" if target_coor > 0 else "right"
-        if np.abs(target_coor) > FOLLOW_EYES_OFFSET:
-            # move eyes, to show things have changed
-            self.face.run_sequence(face_sequence_name=f"look_{side}")
-            if np.abs(target_coor) > FOLLOW_NECK_OFFSET:
-                # move the head in the direction of the face
-                neck_seq = self.movement.smooth_sequence(motors_={"neck": target_coor}, duration=NECK_FOLLOW_DURATION)
-                self.movement.move_sequence(motor_seq=neck_seq)
-                if np.abs(target_coor) > FOLLOW_TORSO_OFFSET:
-                    # move the torso
-                    # return the head, since the body is now facing the face, so the head can be straight
-                    torso_seq = self.movement.smooth_sequence(motors_={"torso": target_coor, "neck": 0.0}, duration=TORSO_FOLLOW_DURATION)
-                    self.movement.move_sequence(motor_seq=torso_seq)
-            # return the eyes, since we don't have fluid continuous eyes position.
-            self.face.run_sequence(face_sequence_name="idle")
+        """
+        Coordinated Eye-Head-Torso gaze redirection based on physiological models.
+        Citations:
+        - Guitton, D. (1992). Control of eye-head coordination during orienting gaze shifts.
+        - Land, M. F. (2004). The coordination of eye, head, and body movements in systematic tasks.
+        - Flash, T., & Hogan, N. (1985). The coordination of arm movements: an experimentally confirmed mathematical model.
+        """
+        if not self.face or not self.movement:
+            return
+
+        # Current positions of torso and neck
+        T_c = self.movement.calc_normalized_angle(motor="torso")
+        N_c = self.movement.calc_normalized_angle(motor="neck")
+        H_c = T_c + N_c
+        
+        # Target coordinate (total gaze angle)
+        theta_target = target_coor
+        
+        # Distribute final angles between Torso and Neck
+        # Torso aligns for large angles; Neck aligns for small angles
+        if np.abs(theta_target) > 0.25:
+            T_final = np.clip(theta_target, -0.9, 0.9)
+            N_final = 0.0
+        else:
+            T_final = 0.0
+            N_final = np.clip(theta_target, -0.9, 0.9)
+            
+        H_target = T_final + N_final
+
+        # Profile parameters (30Hz trajectory)
+        fps = 30
+        duration = 1.2
+        num_steps = int(duration * fps)
+        dt = 1.0 / fps
+        
+        # Eye direction threshold (VOR activation)
+        eye_threshold = 0.12
+        
+        # Trajectory execution loop
+        for i in range(num_steps):
+            u = i / (num_steps - 1)
+            
+            # Minimum-jerk profile: S(u) = 10u^3 - 15u^4 + 6u^5
+            S_u = 10 * (u**3) - 15 * (u**4) + 6 * (u**5)
+            
+            # Head orientation moves faster (simulating lower neck inertia and saccadic leading)
+            u_head = min(1.0, u * 1.5)
+            S_head = 10 * (u_head**3) - 15 * (u_head**4) + 6 * (u_head**5)
+            
+            # Compute current angles along the trajectory
+            T_t = T_c + (T_final - T_c) * S_u
+            H_t = H_c + (H_target - H_c) * S_head
+            N_t = H_t - T_t
+            
+            # Send movement commands to motors (non-blocking)
+            self.movement.move_motors({"torso": T_t, "neck": N_t})
+            
+            # VOR Eye control:
+            # Check the error between head orientation and target
+            gaze_error = H_target - H_t
+            
+            if gaze_error > eye_threshold:
+                eye_seq = basic_sequences.get("look_left", basic_sequences["idle"])
+            elif gaze_error < -eye_threshold:
+                eye_seq = basic_sequences.get("look_right", basic_sequences["idle"])
+            else:
+                eye_seq = basic_sequences["idle"]
+                
+            # Render and display face frame in real-time
+            face_state = {}
+            for part in global_parts:
+                if part in eye_seq:
+                    part_data = eye_seq[part]
+                    face_state[part] = (part_data[0], part_data[1][0])
+                else:
+                    face_state[part] = ("idle", "1")
+            
+            face_image = self.face.set_face(face_state)
+            self.face.display_face(face_image)
+            
+            time.sleep(dt)
+            
+        # Final safety check: set exact target positions
+        self.movement.move_motors({"torso": T_final, "neck": N_final})
+        # Set face back to idle
+        self.face.run_sequence(face_sequence_name="idle")
 
     def lookat_something(self, what="face", timeout=-1):
         # timeout - how long (seconds) to look for a face if one is not found
@@ -299,6 +581,7 @@ class Character():
                 self.vision.look_and_stop(what=what, timeout=1)
                 print("DEBUG: ", what, self.vision.found)                
                 if len(self.vision.found[what]) > 0:
+                    self.update_egocentric_locations()
                     self.vision.stop_vision()
                     offset = next(iter(self.vision.found[what].values()))["offset"][0]     # the x-offset of the first face
                     head_coor = self.lookat_coordinate(offset=offset)
@@ -322,6 +605,175 @@ class Character():
                 self.vision.look_and_stop(what=what, timeout=timeout)
                 return len(self.vision.found[what]) > 0
         return False
+
+    def follow_face(self, timeout=-1, stop_event=None):
+        """
+        Face-tracking loop that minimizes servomotor noise.
+        - Silent gaze (screen eyes) reacts immediately (30Hz) to track small face movements.
+        - Neck moves only when face eccentricity relative to the head exceeds a deadband (0.12).
+        - Torso moves only when face eccentricity relative to the camera exceeds a large deadband (0.25).
+        - Both neck and torso movements are throttled by cooldowns and damping factors to minimize noise.
+        """
+        if not self.vision:
+            print("Vision not enabled, cannot follow face.")
+            return
+
+        print("Starting noise-minimizing face tracking...")
+        was_running = self.vision.running
+        if not was_running:
+            self.vision.run_vision()
+
+        # Control timing and state variables
+        dt = 0.05  # 20 Hz tracking rate
+        last_torso_move_time = 0.0
+        last_neck_move_time = 0.0
+        torso_cooldown = 2.5
+        neck_cooldown = 1.0
+        
+        lost_face_start = None
+        home_returned = False
+        start_time = time.time()
+
+        try:
+            while True:
+                # Check cancellation signals
+                if stop_event and stop_event.is_set():
+                    print("Face tracking stopped via stop event.")
+                    break
+                if timeout > 0 and (time.time() - start_time) > timeout:
+                    print("Face tracking timed out.")
+                    break
+
+                last_data = self.vision.get_last_data()
+                if len(last_data) > 0:
+                    self.update_egocentric_locations()
+                    # Reset face lost tracking
+                    lost_face_start = None
+                    home_returned = False
+
+                    # Extract face info and offset (x-offset of the first face in frame)
+                    face_info = next(iter(last_data.values()))
+                    offset_x = face_info.get('offset', [0.0, 0.0])[0]
+                    
+                    # Normalize offset to [-1.0, 1.0] range
+                    norm_offset = offset_x * 2.0
+
+                    # Read current motor angles
+                    T_c = self.movement.calc_normalized_angle(motor="torso") if self.movement else 0.0
+                    N_c = self.movement.calc_normalized_angle(motor="neck") if self.movement else 0.0
+
+                    # Calculate target coordinates and errors
+                    error_head = norm_offset - N_c
+
+                    # 1. Silent Eye Gaze Update (render immediately, 0 motor noise)
+                    if self.face:
+                        if error_head > 0.12:
+                            eye_seq = basic_sequences.get("look_left", basic_sequences["idle"])
+                        elif error_head < -0.12:
+                            eye_seq = basic_sequences.get("look_right", basic_sequences["idle"])
+                        else:
+                            eye_seq = basic_sequences["idle"]
+
+                        face_state = {}
+                        for part in global_parts:
+                            if part in eye_seq:
+                                part_data = eye_seq[part]
+                                face_state[part] = (part_data[0], part_data[1][0])
+                            else:
+                                face_state[part] = ("idle", "1")
+                        
+                        face_image = self.face.set_face(face_state)
+                        self.face.display_face(face_image)
+
+                    # 2. Torso Movement Decision (large deadband, heavy damping, long cooldown)
+                    T_new = T_c
+                    if abs(norm_offset) > 0.25:
+                        if time.time() - last_torso_move_time > torso_cooldown:
+                            delta_T = norm_offset * 0.7
+                            T_new = np.clip(T_c + delta_T, -0.9, 0.9)
+                            last_torso_move_time = time.time()
+
+                    # 3. Neck Movement Decision (medium deadband, medium cooldown)
+                    # Neck aligns head orientation relative to the torso
+                    N_target = norm_offset - (T_new - T_c)
+                    N_new = N_c
+                    if abs(N_target - N_c) > 0.12:
+                        if time.time() - last_neck_move_time > neck_cooldown:
+                            N_new = np.clip(N_c + (N_target - N_c) * 0.5, -0.9, 0.9)
+                            last_neck_move_time = time.time()
+
+                    # Commit movements if updated
+                    if (T_new != T_c or N_new != N_c) and self.movement:
+                        self.movement.move_motors({"torso": T_new, "neck": N_new})
+
+                else:
+                    # No face detected
+                    if self.face:
+                        self.face.run_sequence(face_sequence_name="idle")
+
+                    if lost_face_start is None:
+                        lost_face_start = time.time()
+                    elif time.time() - lost_face_start > 5.0 and not home_returned:
+                        print("Face lost for >5s, returning motors to home position.")
+                        if self.movement:
+                            self.movement.move_motors({"torso": 0.0, "neck": 0.0})
+                        home_returned = True
+
+                # OpenCV wait to keep GUI responsive, otherwise standard sleep
+                if self.face and self.face.IMAGE_OPTION == "cv":
+                    import cv2
+                    cv2.waitKey(int(dt * 1000))
+                else:
+                    time.sleep(dt)
+
+        finally:
+            if not was_running:
+                self.vision.stop_vision()
+            if self.face:
+                self.face.run_sequence(face_sequence_name="idle")
+
+    def update_egocentric_locations(self):
+        """
+        Scans current face tracking data, and if any recognized face is present,
+        updates the persistent egocentric location database with their room angle.
+        """
+        if not self.vision:
+            return
+        last_data = self.vision.get_last_data()
+        updated = False
+        for face_id, face_info in last_data.items():
+            name = face_info.get('name', 'Unknown')
+            if name not in ['Unknown', 'Recognizing...']:
+                offset = face_info.get('offset', [0.0, 0.0])
+                offset_x = offset[0]
+                # Calculate absolute egocentric angle (combining current torso angle and calibrated face offset)
+                target_gaze_angle = self.lookat_coordinate(offset=offset_x)
+                if target_gaze_angle is not None:
+                    self.egocentric_db[name] = {
+                        "angle": float(target_gaze_angle),
+                        "timestamp": time.time()
+                    }
+                    updated = True
+        if updated:
+            try:
+                with open(CHARACTER_FOLDER + "egocentric_locations.json", "w") as f:
+                    json.dump(self.egocentric_db, f, indent=4)
+            except Exception as e:
+                print(f"Error saving egocentric locations: {e}")
+
+    def lookat_person(self, name):
+        """
+        Looks up a person by name in the egocentric database, and moves the robot's
+        gaze (neck and torso) to look at their last known physical location.
+        """
+        if name in self.egocentric_db:
+            target_angle = self.egocentric_db[name]["angle"]
+            print(f"Looking at '{name}' at last known egocentric location: {target_angle:.3f}")
+            self.lookat_behavior(target_coor=target_angle)
+            return True
+        else:
+            print(f"Person '{name}' not found in egocentric database.")
+            return False
 
     def conversational_turn(self, file):
         if self.viseme:

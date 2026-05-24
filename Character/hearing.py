@@ -28,118 +28,82 @@ elif HEARING_OPTION == "whisper":
         BEAM_SIZE, BEST_OF
     )
 
-    if IS_RKNN_PLATFORM:
-        # ── OrangePi / RK3588: SenseVoiceSmall-RKNN2 backend ─────────────────
-        # Requires on the OrangePi:
-        #   pip install kaldi_native_fbank onnxruntime sentencepiece soundfile pyyaml "numpy<2"
-        #   pip install rknn_toolkit_lite2-*.whl   (matching your Python/board version)
-        #   librknnrt.so must be present in /usr/lib/
-        # Model file: ../Resources/sense-voice-encoder.rknn
-        # Download from: https://huggingface.co/ThomasTheMaker/SenseVoiceSmall-RKNN2
-        RKNN_MODEL_PATH = "../Resources/sense-voice-encoder.rknn"
-        # SPEECH_SCALE reduces input magnitude to prevent FP16 overflow on NPU
-        SPEECH_SCALE = 0.1
+    # ── Try loading RKNNLite dependencies ──
+    _rknn_available = False
+    RKNN_MODEL_PATH = "../Resources/sense-voice-encoder.rknn"
+    SPEECH_SCALE = 0.1
 
-        try:
+    try:
+        from rknnlite.api import RKNNLite
+        import kaldi_native_fbank as knf
+        _rknn_available = True
+    except ImportError:
+        _rknn_available = False
+
+    class SenseVoiceRKNNTranscriber:
+        """
+        Wraps the SenseVoiceSmall-RKNN2 model for local NPU inference.
+        Provides a single `transcribe(audio_float16k) -> str` method.
+        """
+        def __init__(self, model_path=RKNN_MODEL_PATH):
             from rknnlite.api import RKNNLite
+            self.rknn = RKNNLite()
+            ret = self.rknn.load_rknn(model_path)
+            if ret != 0:
+                raise RuntimeError(f"Failed to load RKNN model from {model_path} (code {ret})")
+            ret = self.rknn.init_runtime()
+            if ret != 0:
+                raise RuntimeError(f"Failed to init RKNN runtime (code {ret})")
+            print(f"[Hearing] SenseVoiceSmall-RKNN2 loaded from {model_path}")
+
+        def _extract_fbank(self, audio_float: np.ndarray) -> np.ndarray:
+            """Extract 80-dim log-Mel filterbank features at 16 kHz."""
             import kaldi_native_fbank as knf
-            _rknn_available = True
-        except ImportError:
-            print("[Hearing] WARNING: rknnlite or kaldi_native_fbank not found. "
-                  "Falling back to faster-whisper on CPU.")
-            _rknn_available = False
+            opts = knf.FbankOptions()
+            opts.frame_opts.dither = 0
+            opts.frame_opts.snip_edges = False
+            opts.mel_opts.num_bins = 80
+            fbank = knf.OnlineFbank(opts)
+            # kaldi_native_fbank expects int16-scaled floats
+            samples = (audio_float * 32768.0).astype(np.float32)
+            fbank.accept_waveform(16000, samples.tolist())
+            fbank.input_finished()
+            frames = [fbank.get_frame(i) for i in range(fbank.num_frames_ready)]
+            if not frames:
+                return np.zeros((1, 80), dtype=np.float32)
+            return np.array(frames, dtype=np.float32)  # (T, 80)
 
-        if _rknn_available:
-            class SenseVoiceRKNNTranscriber:
-                """
-                Wraps the SenseVoiceSmall-RKNN2 model for local NPU inference.
-                Provides a single `transcribe(audio_float16k) -> str` method
-                that matches the interface used by the Whisper backend.
+        def transcribe(self, audio_float: np.ndarray) -> str:
+            """Run NPU inference on a float32 audio chunk (16 kHz, mono)."""
+            try:
+                feats = self._extract_fbank(audio_float)          # (T, 80)
+                feats = feats[np.newaxis, :, :]                    # (1, T, 80)
+                feats = feats * SPEECH_SCALE                       # prevent FP16 overflow
+                outputs = self.rknn.inference(inputs=[feats])
+                if outputs is None or len(outputs) == 0:
+                    return ""
+                logits = outputs[0][0]                             # (T', vocab_size)
+                token_ids = np.argmax(logits, axis=-1).tolist()
+                prev = None
+                decoded = []
+                for tid in token_ids:
+                    if tid != 0 and tid != prev:
+                        decoded.append(tid)
+                    prev = tid
+                try:
+                    import sentencepiece as spm
+                    sp = spm.SentencePieceProcessor()
+                    sp.Load("../Resources/chn_jpn_yue_eng_ko_spectok.bpe.model")
+                    text = sp.Decode(decoded)
+                except Exception:
+                    text = " ".join(str(t) for t in decoded)
+                return text.strip()
+            except Exception as e:
+                print(f"[Hearing] RKNN inference error: {e}")
+                return ""
 
-                Setup on OrangePi:
-                  1. Convert model on x86 PC:
-                       git clone https://huggingface.co/ThomasTheMaker/SenseVoiceSmall-RKNN2
-                       python convert_rknn.py   # produces sense-voice-encoder.rknn
-                  2. Copy sense-voice-encoder.rknn to ../Resources/
-                  3. Install dependencies listed above.
-                """
-
-                def __init__(self, model_path=RKNN_MODEL_PATH):
-                    self.rknn = RKNNLite()
-                    ret = self.rknn.load_rknn(model_path)
-                    if ret != 0:
-                        raise RuntimeError(f"Failed to load RKNN model from {model_path} (code {ret})")
-                    ret = self.rknn.init_runtime()
-                    if ret != 0:
-                        raise RuntimeError(f"Failed to init RKNN runtime (code {ret})")
-                    print(f"[Hearing] SenseVoiceSmall-RKNN2 loaded from {model_path}")
-
-                def _extract_fbank(self, audio_float: np.ndarray) -> np.ndarray:
-                    """Extract 80-dim log-Mel filterbank features at 16 kHz."""
-                    opts = knf.FbankOptions()
-                    opts.frame_opts.dither = 0
-                    opts.frame_opts.snip_edges = False
-                    opts.mel_opts.num_bins = 80
-                    fbank = knf.OnlineFbank(opts)
-                    # kaldi_native_fbank expects int16-scaled floats
-                    samples = (audio_float * 32768.0).astype(np.float32)
-                    fbank.accept_waveform(16000, samples.tolist())
-                    fbank.input_finished()
-                    frames = [fbank.get_frame(i) for i in range(fbank.num_frames_ready)]
-                    if not frames:
-                        return np.zeros((1, 80), dtype=np.float32)
-                    return np.array(frames, dtype=np.float32)  # (T, 80)
-
-                def transcribe(self, audio_float: np.ndarray) -> str:
-                    """
-                    Run NPU inference on a float32 audio chunk (16 kHz, mono).
-                    Returns the recognised text string (English only by default).
-                    """
-                    try:
-                        feats = self._extract_fbank(audio_float)          # (T, 80)
-                        feats = feats[np.newaxis, :, :]                    # (1, T, 80)
-                        feats = feats * SPEECH_SCALE                       # prevent FP16 overflow
-                        outputs = self.rknn.inference(inputs=[feats])
-                        if outputs is None or len(outputs) == 0:
-                            return ""
-                        # outputs[0] is logits: (1, T', vocab_size)
-                        # Greedy decode — token IDs to text via a simple lookup
-                        logits = outputs[0][0]                             # (T', vocab_size)
-                        token_ids = np.argmax(logits, axis=-1).tolist()
-                        # Basic CTC blank (id=0) collapse
-                        prev = None
-                        decoded = []
-                        for tid in token_ids:
-                            if tid != 0 and tid != prev:
-                                decoded.append(tid)
-                            prev = tid
-                        # Token-to-text mapping: SenseVoiceSmall uses byte-pair encoding.
-                        # For a full mapping, load the sentencepiece model bundled with the repo.
-                        # Here we attempt to import the bundled tokeniser if available.
-                        try:
-                            import sentencepiece as spm
-                            sp = spm.SentencePieceProcessor()
-                            sp.Load("../Resources/chn_jpn_yue_eng_ko_spectok.bpe.model")
-                            text = sp.Decode(decoded)
-                        except Exception:
-                            # Fallback: return raw token IDs (useful for debugging)
-                            text = " ".join(str(t) for t in decoded)
-                        return text.strip()
-                    except Exception as e:
-                        print(f"[Hearing] RKNN inference error: {e}")
-                        return ""
-
-                def release(self):
-                    self.rknn.release()
-
-        else:
-            # rknnlite not available on this Linux board — fall back to CPU whisper
-            IS_RKNN_PLATFORM = False
-
-    if not IS_RKNN_PLATFORM:
-        # ── Windows / CPU fallback: faster-whisper ────────────────────────────
-        from faster_whisper import WhisperModel
-        from whisper_helper import WhisperAudioProcessor, transcribe_optimized, calibrate_energy_threshold
+        def release(self):
+            self.rknn.release()
 
 elif HEARING_OPTION == "vosk":
     from vosk import Model, KaldiRecognizer
@@ -154,6 +118,7 @@ elif HEARING_OPTION == "vosk":
 class Hearing():
     def __init__(self, languages="en", verbose=False):
         print("Initializing hearing ...")
+        from characterDefinitions import USE_NPU_TRANSCRIPTION
         self.verbose = verbose
         self.recognizer = None
         self.words = None
@@ -166,7 +131,7 @@ class Hearing():
         if HEARING_OPTION == "sr":
             self.recognizer = sr.Recognizer()
         elif HEARING_OPTION == "whisper":
-            if IS_RKNN_PLATFORM and _rknn_available:
+            if USE_NPU_TRANSCRIPTION and _rknn_available:
                 # ── OrangePi: NPU-accelerated SenseVoiceSmall ─────────────────
                 self.model = SenseVoiceRKNNTranscriber()
                 self.use_rknn = True
@@ -183,6 +148,8 @@ class Hearing():
                 self._raw_buf_duration = 2.0  # seconds of audio to accumulate before transcribing
             else:
                 # ── Windows / CPU: faster-whisper ─────────────────────────────
+                from faster_whisper import WhisperModel
+                from whisper_helper import WhisperAudioProcessor
                 self.use_rknn = False
                 self.model = WhisperModel("base", device="cpu", compute_type="int8")
 

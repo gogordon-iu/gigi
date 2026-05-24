@@ -43,6 +43,17 @@ class Viseme():
         self.face.generate_face(parts_selected=talk_sequence, stop_event=stop_event, stop_condition="face", delay=self.speech.sample_rate)
 
     def run_viseme(self, text=None, file=None):
+        if text and hasattr(self, 'character') and self.character:
+            import re
+            matched_name = None
+            for name in self.character.egocentric_db.keys():
+                if re.search(r'\b' + re.escape(name) + r'\b', text, re.IGNORECASE):
+                    matched_name = name
+                    break
+            if matched_name:
+                print(f"[Gaze Redirection] Matched '{matched_name}' in viseme text: '{text}'. Redirecting gaze.")
+                self.character.lookat_person(matched_name)
+
         speech_thread = self.speech.audio_thread(file=file, text=text)
         speech_thread.start()
         self.generate_viseme(file=file, text=text)
