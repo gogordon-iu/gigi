@@ -324,6 +324,9 @@ class Character():
         # represents a relative angle with respect to the torso.
         T_c = self.movement.calc_normalized_angle(motor="torso") if self.movement else 0.0
         
+        print(f"\n[LookAt Path] Input Face Offset (centered x-coord): {offset:.4f}")
+        print(f"[LookAt Path] Current Torso Angle: {T_c:.4f}")
+        
         if self.lookat_calibration:
             # calibration keys are neck positions, which (at torso=0.0) correspond to absolute face angle
             # calibration values are list offsets [offset_x, offset_y]
@@ -333,14 +336,19 @@ class Character():
             # Map face offset to relative angle (neck coordinate space)
             rbf_interpolator = Rbf(vision_coor, motor_coor, smooth=0.05)
             relative_angle = float(rbf_interpolator(offset))
+            print(f"[LookAt Path] Calibrated relative angle (mapped): {relative_angle:.4f}")
             
             # Target room-relative coordinate is current torso position + relative offset angle
             target_gaze_angle = T_c + relative_angle
-            return np.clip(target_gaze_angle, -0.9, 0.9)
-        
-        # Fallback if not calibrated: assume offset is in [-0.5, 0.5] range, map to approx [-1.0, 1.0] motor space
-        target_gaze_angle = T_c + (offset * 2.0)
-        return np.clip(target_gaze_angle, -0.9, 0.9)
+        else:
+            # Fallback if not calibrated: assume offset is in [-0.5, 0.5] range, map to approx [-1.0, 1.0] motor space
+            relative_angle = offset * 2.0
+            print(f"[LookAt Path] Uncalibrated relative angle (fallback): {relative_angle:.4f}")
+            target_gaze_angle = T_c + relative_angle
+            
+        target_gaze_angle = np.clip(target_gaze_angle, -0.9, 0.9)
+        print(f"[LookAt Path] Target Torso Angle: {target_gaze_angle:.4f}")
+        return target_gaze_angle
 
     def listen_backchannel(self, timeout=15):
         if self.hearing and self.face:
@@ -536,16 +544,18 @@ class Character():
         # Target coordinate (total gaze angle)
         theta_target = target_coor
         
-        # Distribute final angles between Torso and Neck
-        # Torso aligns for large angles; Neck aligns for small angles
-        if np.abs(theta_target) > 0.25:
-            T_final = np.clip(theta_target, -0.9, 0.9)
-            N_final = 0.0
-        else:
-            T_final = 0.0
-            N_final = np.clip(theta_target, -0.9, 0.9)
+        # To put the face in the center of the camera image by moving the torso correctly,
+        # the torso (which carries the camera) must align directly with the target coordinate.
+        # This completely centers the face in the camera frame.
+        T_final = np.clip(theta_target, -0.9, 0.9)
+        N_final = 0.0
             
         H_target = T_final + N_final
+
+        print(f"\n[LookAt Behavior] Start Motion Trajectory:")
+        print(f"  Target coordinate: {theta_target:.4f}")
+        print(f"  Current -> Torso: {T_c:.4f}, Neck: {N_c:.4f}, Head: {H_c:.4f}")
+        print(f"  Target  -> Torso: {T_final:.4f}, Neck: {N_final:.4f}, Head: {H_target:.4f}")
 
         # Profile parameters (30Hz trajectory)
         fps = 30
@@ -572,6 +582,9 @@ class Character():
             H_t = H_c + (H_target - H_c) * S_head
             N_t = H_t - T_t
             
+            if i % 10 == 0 or i == num_steps - 1:
+                print(f"  Step {i:02d}/{num_steps}: Torso={T_t:.4f}, Neck={N_t:.4f}, Head={H_t:.4f}")
+
             # Send movement commands to motors (non-blocking)
             self.movement.move_motors({"torso": T_t, "neck": N_t})
             
@@ -604,6 +617,7 @@ class Character():
         self.movement.move_motors({"torso": T_final, "neck": N_final})
         # Set face back to idle
         self.face.run_sequence(face_sequence_name="idle")
+        print(f"[LookAt Behavior] Motion finished. final Torso={T_final:.4f}, Neck={N_final:.4f}\n")
 
     def lookat_something(self, what="face", timeout=-1):
         # timeout - how long (seconds) to look for a face if one is not found
@@ -615,9 +629,11 @@ class Character():
                 if len(self.vision.found[what]) > 0:
                     self.update_egocentric_locations()
                     self.vision.stop_vision()
-                    offset = next(iter(self.vision.found[what].values()))["offset"][0]     # the x-offset of the first face
-                    head_coor = self.lookat_coordinate(offset=offset)
-                    # DEBUG
+                    offset_data = next(iter(self.vision.found[what].values()))["offset"]
+                    offset_x, offset_y = offset_data[0], offset_data[1]
+                    print(f"\n[LookAt Something] Detected target '{what}':")
+                    print(f"  Raw screen offset: X={offset_x:.4f}, Y={offset_y:.4f} (centered coords)")
+                    head_coor = self.lookat_coordinate(offset=offset_x)
                     self.lookat_behavior(target_coor=head_coor)
                     print("Found something!")
                     return True
@@ -627,7 +643,7 @@ class Character():
                         return False
                     else:       # select a random side a look for that
                         head_coor = random.choice([1, 0, -1]) * FOLLOW_TORSO_OFFSET * 1.01
-                        # DEBUG
+                        print(f"[LookAt Something] Target '{what}' not seen. Scanning at: {head_coor:.4f}")
                         self.lookat_behavior(target_coor=head_coor)
                         duration = time.time() - start_time
                         remaining_timeout = timeout - duration
@@ -665,6 +681,7 @@ class Character():
         lost_face_start = None
         home_returned = False
         start_time = time.time()
+        frame_count = 0
 
         try:
             while True:
@@ -682,10 +699,12 @@ class Character():
                     # Reset face lost tracking
                     lost_face_start = None
                     home_returned = False
+                    frame_count += 1
 
                     # Extract face info and offset (x-offset of the first face in frame)
                     face_info = next(iter(last_data.values()))
                     offset_x = face_info.get('offset', [0.0, 0.0])[0]
+                    offset_y = face_info.get('offset', [0.0, 0.0])[1]
                     
                     # Normalize offset to [-1.0, 1.0] range
                     norm_offset = offset_x * 2.0
@@ -693,6 +712,11 @@ class Character():
                     # Read current motor angles
                     T_c = self.movement.calc_normalized_angle(motor="torso") if self.movement else 0.0
                     N_c = self.movement.calc_normalized_angle(motor="neck") if self.movement else 0.0
+
+                    # Print variables during face tracking
+                    if frame_count % 10 == 0:
+                        print(f"[Follow Face Log] Screen Offset: X={offset_x:+.4f}, Y={offset_y:+.4f} | Normalized X: {norm_offset:+.4f}")
+                        print(f"                  Current Angles: Torso={T_c:.4f}, Neck={N_c:.4f}")
 
                     # Calculate target coordinates and errors
                     error_head = norm_offset - N_c
@@ -717,13 +741,14 @@ class Character():
                         face_image = self.face.set_face(face_state)
                         self.face.display_face(face_image)
 
-                    # 2. Torso Movement Decision (large deadband, heavy damping, long cooldown)
+                    # 2. Torso Movement Decision (reduce deadband to 0.05, increase factor to 0.95 for centering)
                     T_new = T_c
-                    if abs(norm_offset) > 0.25:
+                    if abs(norm_offset) > 0.05:
                         if time.time() - last_torso_move_time > torso_cooldown:
-                            delta_T = norm_offset * 0.7
+                            delta_T = norm_offset * 0.95
                             T_new = np.clip(T_c + delta_T, -0.9, 0.9)
                             last_torso_move_time = time.time()
+                            print(f"[Follow Face Log] Torso move triggered: {T_c:.4f} -> {T_new:.4f} (delta={delta_T:+.4f})")
 
                     # 3. Neck Movement Decision (medium deadband, medium cooldown)
                     # Neck aligns head orientation relative to the torso
@@ -733,6 +758,7 @@ class Character():
                         if time.time() - last_neck_move_time > neck_cooldown:
                             N_new = np.clip(N_c + (N_target - N_c) * 0.5, -0.9, 0.9)
                             last_neck_move_time = time.time()
+                            print(f"[Follow Face Log] Neck move triggered: {N_c:.4f} -> {N_new:.4f}")
 
                     # Commit movements if updated
                     if (T_new != T_c or N_new != N_c) and self.movement:
