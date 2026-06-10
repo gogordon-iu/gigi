@@ -48,8 +48,8 @@ class Face():
             screen_width, screen_height = screen.width, screen.height
             self.win_name = "face_window"
             if full_screen:
-                cv2.namedWindow(self.win_name, cv2.WND_PROP_FULLSCREEN)
-                # cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL | cv2.WINDOW_GUI_NORMAL)
+                cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
                 
                 if IS_ROBOT:
@@ -73,7 +73,7 @@ class Face():
                     # Hide cursor (non-blocking)
                     subprocess.Popen(["unclutter", "-grab", "-idle", "0"])
             else:
-                cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL)
+                cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL | cv2.WINDOW_GUI_NORMAL)
                 self.screen_size = (int(screen_width / 2), int(screen_height / 2))
             cv2.resizeWindow(self.win_name, self.screen_size[0], self.screen_size[1])
         self.initialize_character(save=True)
