@@ -319,13 +319,14 @@ class Character():
         if self.face:
             self.face.stop_face()
 
-    def lookat_coordinate(self, offset=0.0):
+    def lookat_coordinate(self, offset=0.0, verbose=True):
         # Because the camera is mounted on the torso, any face offset detected in the image
         # represents a relative angle with respect to the torso.
         T_c = self.movement.calc_normalized_angle(motor="torso") if self.movement else 0.0
         
-        print(f"\n[LookAt Path] Input Face Offset (centered x-coord): {offset:.4f}")
-        print(f"[LookAt Path] Current Torso Angle: {T_c:.4f}")
+        if verbose:
+            print(f"\n[LookAt Path] Input Face Offset (centered x-coord): {offset:.4f}")
+            print(f"[LookAt Path] Current Torso Angle: {T_c:.4f}")
         
         if self.lookat_calibration:
             # calibration keys are neck positions, which (at torso=0.0) correspond to absolute face angle
@@ -336,18 +337,21 @@ class Character():
             # Map face offset to relative angle (neck coordinate space)
             rbf_interpolator = Rbf(vision_coor, motor_coor, smooth=0.05)
             relative_angle = float(rbf_interpolator(offset))
-            print(f"[LookAt Path] Calibrated relative angle (mapped): {relative_angle:.4f}")
+            if verbose:
+                print(f"[LookAt Path] Calibrated relative angle (mapped): {relative_angle:.4f}")
             
             # Target room-relative coordinate is current torso position + relative offset angle
             target_gaze_angle = T_c + relative_angle
         else:
             # Fallback if not calibrated: assume offset is in [-0.5, 0.5] range, map to approx [-1.0, 1.0] motor space
             relative_angle = offset * 2.0
-            print(f"[LookAt Path] Uncalibrated relative angle (fallback): {relative_angle:.4f}")
+            if verbose:
+                print(f"[LookAt Path] Uncalibrated relative angle (fallback): {relative_angle:.4f}")
             target_gaze_angle = T_c + relative_angle
             
         target_gaze_angle = np.clip(target_gaze_angle, -0.9, 0.9)
-        print(f"[LookAt Path] Target Torso Angle: {target_gaze_angle:.4f}")
+        if verbose:
+            print(f"[LookAt Path] Target Torso Angle: {target_gaze_angle:.4f}")
         return target_gaze_angle
 
     def listen_backchannel(self, timeout=15):
@@ -721,25 +725,34 @@ class Character():
                     home_returned = False
                     frame_count += 1
 
-                    # Extract face info and offset (x-offset of the first face in frame)
-                    face_info = next(iter(last_data.values()))
+                    # Prioritize recognized faces over Unknown/Recognizing ones to avoid background distraction
+                    face_info = None
+                    for f_info in last_data.values():
+                        if f_info.get('name', 'Unknown') not in ['Unknown', 'Recognizing...']:
+                            face_info = f_info
+                            break
+                    if face_info is None:
+                        face_info = next(iter(last_data.values()))
+
                     offset_x = face_info.get('offset', [0.0, 0.0])[0]
                     offset_y = face_info.get('offset', [0.0, 0.0])[1]
-                    
-                    # Normalize offset to [-1.0, 1.0] range
-                    norm_offset = offset_x * 2.0
 
                     # Read current motor angles
                     T_c = self.movement.calc_normalized_angle(motor="torso") if self.movement else 0.0
                     N_c = self.movement.calc_normalized_angle(motor="neck") if self.movement else 0.0
 
+                    # Calculate target coordinate using calibration (or fallback)
+                    # This maps offset_x to relative_angle in motor space with the correct sign
+                    T_target = self.lookat_coordinate(offset=offset_x, verbose=False)
+                    relative_angle = T_target - T_c
+
                     # Print variables during face tracking
                     if frame_count % 10 == 0:
-                        print(f"[Follow Face Log] Screen Offset: X={offset_x:+.4f}, Y={offset_y:+.4f} | Normalized X: {norm_offset:+.4f}")
+                        print(f"[Follow Face Log] Screen Offset: X={offset_x:+.4f}, Y={offset_y:+.4f} | Calibrated Relative Angle: {relative_angle:+.4f}")
                         print(f"                  Current Angles: Torso={T_c:.4f}, Neck={N_c:.4f}")
 
-                    # Calculate target coordinates and errors
-                    error_head = norm_offset - N_c
+                    # Calculate target coordinates and errors for VOR
+                    error_head = relative_angle - N_c
 
                     # 1. Silent Eye Gaze Update (render immediately, 0 motor noise)
                     if self.face:
@@ -783,16 +796,16 @@ class Character():
 
                     # 2. Torso Movement Decision (reduce deadband to 0.05, increase factor to 0.95 for centering)
                     T_new = T_c
-                    if abs(norm_offset) > 0.05:
+                    if abs(relative_angle) > 0.05:
                         if time.time() - last_torso_move_time > torso_cooldown:
-                            delta_T = norm_offset * 0.95
+                            delta_T = relative_angle * 0.95
                             T_new = np.clip(T_c + delta_T, -0.9, 0.9)
                             last_torso_move_time = time.time()
                             print(f"[Follow Face Log] Torso move triggered: {T_c:.4f} -> {T_new:.4f} (delta={delta_T:+.4f})")
 
                     # 3. Neck Movement Decision (medium deadband, medium cooldown)
                     # Neck aligns head orientation relative to the torso
-                    N_target = norm_offset - (T_new - T_c)
+                    N_target = relative_angle - (T_new - T_c)
                     N_new = N_c
                     if abs(N_target - N_c) > 0.12:
                         if time.time() - last_neck_move_time > neck_cooldown:
@@ -845,7 +858,7 @@ class Character():
                 offset = face_info.get('offset', [0.0, 0.0])
                 offset_x = offset[0]
                 # Calculate absolute egocentric angle (combining current torso angle and calibrated face offset)
-                target_gaze_angle = self.lookat_coordinate(offset=offset_x)
+                target_gaze_angle = self.lookat_coordinate(offset=offset_x, verbose=False)
                 if target_gaze_angle is not None:
                     self.egocentric_db[name] = {
                         "angle": float(target_gaze_angle),
