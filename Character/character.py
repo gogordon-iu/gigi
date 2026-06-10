@@ -609,6 +609,26 @@ class Character():
                     face_state[part] = ("idle", "1")
             
             face_image = self.face.set_face(face_state)
+            if self.vision:
+                cam_frame = self.vision.get_latest_frame()
+                if cam_frame is not None:
+                    import cv2
+                    if self.face.IMAGE_OPTION == "cv":
+                        h, w = face_image.shape[:2]
+                        cam_h, cam_w = cam_frame.shape[:2]
+                        scale_w = int(w * 0.25)
+                        scale_h = int(cam_h * scale_w / cam_w)
+                        cam_resized = cv2.resize(cam_frame, (scale_w, scale_h))
+                        face_image[h - scale_h:h, w - scale_w:w] = cam_resized
+                    elif self.face.IMAGE_OPTION == "pygame":
+                        import pygame
+                        rgb_frame = cv2.cvtColor(cam_frame, cv2.COLOR_BGR2RGB)
+                        cam_h, cam_w = rgb_frame.shape[:2]
+                        scale_w = int(face_image.get_width() * 0.25)
+                        scale_h = int(cam_h * scale_w / cam_w)
+                        rgb_resized = cv2.resize(rgb_frame, (scale_w, scale_h))
+                        pg_cam = pygame.image.fromstring(rgb_resized.tobytes(), (scale_w, scale_h), "RGB")
+                        face_image.blit(pg_cam, (face_image.get_width() - scale_w, face_image.get_height() - scale_h))
             self.face.display_face(face_image)
             
             time.sleep(dt)
@@ -739,6 +759,26 @@ class Character():
                                 face_state[part] = ("idle", "1")
                         
                         face_image = self.face.set_face(face_state)
+                        if self.vision:
+                            cam_frame = self.vision.get_latest_frame()
+                            if cam_frame is not None:
+                                import cv2
+                                if self.face.IMAGE_OPTION == "cv":
+                                    h, w = face_image.shape[:2]
+                                    cam_h, cam_w = cam_frame.shape[:2]
+                                    scale_w = int(w * 0.25)
+                                    scale_h = int(cam_h * scale_w / cam_w)
+                                    cam_resized = cv2.resize(cam_frame, (scale_w, scale_h))
+                                    face_image[h - scale_h:h, w - scale_w:w] = cam_resized
+                                elif self.face.IMAGE_OPTION == "pygame":
+                                    import pygame
+                                    rgb_frame = cv2.cvtColor(cam_frame, cv2.COLOR_BGR2RGB)
+                                    cam_h, cam_w = rgb_frame.shape[:2]
+                                    scale_w = int(face_image.get_width() * 0.25)
+                                    scale_h = int(cam_h * scale_w / cam_w)
+                                    rgb_resized = cv2.resize(rgb_frame, (scale_w, scale_h))
+                                    pg_cam = pygame.image.fromstring(rgb_resized.tobytes(), (scale_w, scale_h), "RGB")
+                                    face_image.blit(pg_cam, (face_image.get_width() - scale_w, face_image.get_height() - scale_h))
                         self.face.display_face(face_image)
 
                     # 2. Torso Movement Decision (reduce deadband to 0.05, increase factor to 0.95 for centering)
