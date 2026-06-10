@@ -80,6 +80,7 @@ class Face():
         
         # Initialize visual feedback icons
         self.feedback_state = None
+        self.overlay_text = None
         self.feedback_icons = {}
         try:
             ear_path = base_assets_path + "face/listening_ear.png"
@@ -230,6 +231,28 @@ class Face():
                 icon_resized = pygame.transform.smoothscale(icon, (scale_w, scale_h))
                 image_.blit(icon_resized, (w - scale_w - 10, h - scale_h - 10))
             
+            if getattr(self, 'overlay_text', None):
+                text = str(self.overlay_text)
+                w, h = self.screen_size
+                font = pygame.font.SysFont("Arial", 42, bold=True)
+                text_surface = font.render(text, True, (255, 255, 255))
+                text_w, text_h = text_surface.get_size()
+                
+                pad_x = 20
+                pad_y = 15
+                card_w = text_w + 2 * pad_x
+                card_h = text_h + 2 * pad_y
+                
+                margin = 15
+                x0 = w - card_w - margin
+                y0 = h - card_h - margin
+                
+                card_surf = pygame.Surface((card_w, card_h), pygame.SRCALPHA)
+                card_surf.fill((20, 30, 70, 204))  # 80% opacity dark slate
+                pygame.draw.rect(card_surf, (100, 200, 255), (0, 0, card_w, card_h), 2, border_radius=5)
+                card_surf.blit(text_surface, (pad_x, pad_y))
+                image_.blit(card_surf, (x0, y0))
+
             # Blit the image to the screen
             self.screen.blit(image_, (0, 0))
 
@@ -259,6 +282,35 @@ class Face():
                 for c in range(3):
                     roi[:, :, c] = (icon_alpha * icon_rgb[:, :, c] + (1 - icon_alpha) * roi[:, :, c]).astype(np.uint8)
                 image_[roi_y0:roi_y1, roi_x0:roi_x1] = roi
+
+            if getattr(self, 'overlay_text', None):
+                text = str(self.overlay_text)
+                h, w = image_.shape[:2]
+                font = cv2.FONT_HERSHEY_DUPLEX
+                font_scale = 1.2
+                thickness = 2
+                
+                (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+                pad_x = 20
+                pad_y = 15
+                card_w = text_w + 2 * pad_x
+                card_h = text_h + 2 * pad_y
+                
+                margin = 15
+                x0 = w - card_w - margin
+                y0 = h - card_h - margin
+                x1 = w - margin
+                y1 = h - margin
+                
+                roi = image_[y0:y1, x0:x1]
+                card_bg = np.zeros_like(roi)
+                card_bg[:] = (70, 30, 20)  # Dark slate
+                
+                alpha = 0.8
+                roi_blended = cv2.addWeighted(roi, 1 - alpha, card_bg, alpha, 0)
+                cv2.rectangle(roi_blended, (0, 0), (card_w, card_h), (255, 200, 100), 2, lineType=cv2.LINE_AA)
+                cv2.putText(roi_blended, text, (pad_x, card_h - pad_y), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+                image_[y0:y1, x0:x1] = roi_blended
 
             cv2.imshow(self.win_name, image_)
             cv2.waitKey(1)

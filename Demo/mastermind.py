@@ -104,6 +104,7 @@ def play_mastermind():
     
     # Initialize character with wakeup=True to enable startup look/position
     gigi = Character(character_name="fuzzy", wakeup=True, activity="Mastermind")
+    gigi.face.overlay_text = None
     time.sleep(2)  # Allow motors and modules to initialize
     
     try:
@@ -149,6 +150,9 @@ def play_mastermind():
                 if gigi.vision:
                     gigi.lookat_something(what="face", timeout=1.5)
                     
+                # Clear overlay text before the user guesses
+                gigi.face.overlay_text = None
+                
                 response = get_user_input(gigi, timeout=10)
                 parsed = parse_user_response(response)
                 
@@ -189,6 +193,10 @@ def play_mastermind():
                         game_over = True
                         
                 elif parsed is not None:
+                    # Display the 4 digits heard from the child
+                    gigi.face.overlay_text = " ".join(parsed)
+                    gigi.face.display_text(None) # Force face update to show digits
+                    
                     attempts += 1
                     bulls, cows = check_guess(secret, parsed)
                     print(f"[Mastermind] Attempt {attempts}: Guess '{parsed}' -> Bulls: {bulls}, Cows: {cows}")
@@ -251,6 +259,7 @@ def play_mastermind():
     finally:
         if gigi.vision:
             gigi.vision.stop_vision()
+        gigi.face.overlay_text = None
         gigi.stop_character()
         print("[Mastermind] Gigi Mastermind game demo finished cleanly.")
 
