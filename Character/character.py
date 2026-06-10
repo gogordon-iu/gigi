@@ -130,6 +130,7 @@ class Character():
             self.conv = None
 
         self.current_speaker = None
+        self.activity_log = []
 
         self.lookat_calibration = None
         if self.face and self.movement and self.vision:
@@ -206,6 +207,15 @@ class Character():
             text_to_check = audio_data['text']
             
         if text_to_check:
+            if not hasattr(self, 'activity_log'):
+                self.activity_log = []
+            if not self.activity_log or self.activity_log[-1].get('text') != text_to_check:
+                self.activity_log.append({
+                    "speaker": "Gigi",
+                    "text": text_to_check,
+                    "timestamp": time.time()
+                })
+            
             import re
             matched_name = None
             for name in self.egocentric_db.keys():
@@ -363,6 +373,17 @@ class Character():
                     final_text = self.hearing.texts[-1]
                     if self.speaker_db:
                         self.speaker_db.add_transcription_record(self.current_speaker, final_text)
+                
+                # Log transcription in activity log
+                if self.hearing.texts:
+                    final_text = self.hearing.texts[-1]
+                    if not hasattr(self, 'activity_log'):
+                        self.activity_log = []
+                    self.activity_log.append({
+                        "speaker": self.current_speaker or "Unknown",
+                        "text": final_text,
+                        "timestamp": time.time()
+                    })
 
     def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None):
         if self.hearing and self.face:
@@ -414,6 +435,17 @@ class Character():
                     final_text = self.hearing.texts[-1]
                     if self.speaker_db:
                         self.speaker_db.add_transcription_record(self.current_speaker, final_text)
+                
+                # Log transcription in activity log
+                if self.hearing.texts:
+                    final_text = self.hearing.texts[-1]
+                    if not hasattr(self, 'activity_log'):
+                        self.activity_log = []
+                    self.activity_log.append({
+                        "speaker": self.current_speaker or "Unknown",
+                        "text": final_text,
+                        "timestamp": time.time()
+                    })
 
     def _speaker_recognition_worker(self, stop_event):
         """

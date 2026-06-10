@@ -197,3 +197,14 @@ Resources/rkn-llm/*
 
 
 /Assets/bluetooth_test/
+
+# Gigi Game specific ignores
+# Ignore downloaded model files
+Resources/*.onnx
+
+# Ignore generated speech/viseme cache files
+Assets/**/*.npy
+
+# Ignore dynamic databases and logs
+Character/egocentric_locations.json
+logs/

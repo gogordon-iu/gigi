@@ -43,6 +43,26 @@ class Viseme():
         self.face.generate_face(parts_selected=talk_sequence, stop_event=stop_event, stop_condition="face", delay=self.speech.sample_rate)
 
     def run_viseme(self, text=None, file=None):
+        import time
+        if hasattr(self, 'character') and self.character:
+            if text:
+                if not hasattr(self.character, 'activity_log'):
+                    self.character.activity_log = []
+                if not self.character.activity_log or self.character.activity_log[-1].get('text') != text:
+                    self.character.activity_log.append({
+                        "speaker": "Gigi",
+                        "text": text,
+                        "timestamp": time.time()
+                    })
+            elif file:
+                if not hasattr(self.character, 'activity_log'):
+                    self.character.activity_log = []
+                self.character.activity_log.append({
+                    "speaker": "Gigi",
+                    "text": f"[Plays audio file: {file}]",
+                    "timestamp": time.time()
+                })
+
         if text and hasattr(self, 'character') and self.character:
             import re
             matched_name = None

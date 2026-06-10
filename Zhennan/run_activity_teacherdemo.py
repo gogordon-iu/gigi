@@ -6,12 +6,14 @@ import time
 import datetime
 import random
 import threading
-if os.name=="posix":
-    sys.path.append('/home/orangepi/Code/gigi')
-    sys.path.append('/home/orangepi/Code/gigi/Character')
-else:
-    sys.path.append('C:/Users/gowth/Desktop/gigi')
-    sys.path.append('C:/Users/gowth/Desktop/gigi/Character')
+current_dir = os.path.dirname(os.path.abspath(__file__))
+gigi_dir = os.path.dirname(current_dir)
+char_dir = os.path.join(gigi_dir, "Character")
+
+if gigi_dir not in sys.path:
+    sys.path.append(gigi_dir)
+if char_dir not in sys.path:
+    sys.path.append(char_dir)
 
 from Character.character import Character
 
@@ -85,6 +87,11 @@ def robot_speak(text: str, image: str = None):
     clean = strip_nonverbals(text)
     if not clean:
         return
+        
+    # Turn and look at the student we are talking to (if recently recognized by voice)
+    if getattr(gigi, "current_speaker", None):
+        gigi.lookat_person(gigi.current_speaker)
+        
     sentences = re.split(r'(?<=[.!?])\s+', clean)
     for i, sentence in enumerate(sentences):
         viseme_data   = {'text': sentence, 'file': None}
@@ -98,18 +105,52 @@ def robot_speak(text: str, image: str = None):
 
 def robot_listen() -> str:
     print("\n[Listening...]")
-    gigi.hearing.texts = []
+    if gigi.hearing:
+        gigi.hearing.texts = []
     gigi.run_character(movement_data="home")
     
     if gigi.face:
         gigi.face.display_text("Speak Now")
         
-    gigi.listen_fluid(timeout=60)
+    # Start vision to look for face / track speaker coordinates
+    if gigi.vision and not gigi.vision.running:
+        gigi.vision.run_vision()
+        
+    if gigi.hearing:
+        gigi.listen_fluid(timeout=60)
+
+    # Update database locations before shutting off camera
+    if gigi.vision and gigi.vision.running:
+        gigi.update_egocentric_locations()
+        
+        # If background speaker recognition matched their voice, link currently 
+        # visible face coordinates to their name
+        if getattr(gigi, "current_speaker", None):
+            speaker_name = gigi.current_speaker
+            last_data = gigi.vision.get_last_data()
+            if last_data:
+                face_info = next(iter(last_data.values()))
+                offset_x = face_info.get('offset', [0.0, 0.0])[0]
+                target_gaze_angle = gigi.lookat_coordinate(offset=offset_x)
+                if target_gaze_angle is not None:
+                    gigi.egocentric_db[speaker_name] = {
+                        "angle": float(target_gaze_angle),
+                        "timestamp": time.time()
+                    }
+                    try:
+                        from characterDefinitions import CHARACTER_FOLDER
+                        with open(os.path.join(CHARACTER_FOLDER, "egocentric_locations.json"), "w") as f:
+                            json.dump(gigi.egocentric_db, f, indent=4)
+                        print(f"[Activity] Dynamic registration: Linked speaker '{speaker_name}' to face coordinate {target_gaze_angle:.3f}")
+                    except Exception as e:
+                        print(f"[Activity] Error saving egocentric location: {e}")
+                        
+        gigi.vision.stop_vision()
 
     if gigi.face:
         gigi.face.display_text(None)
 
-    if gigi.hearing.texts:
+    if gigi.hearing and gigi.hearing.texts:
         heard = gigi.hearing.texts[-1]
         log("STUDENT", heard)
         return heard
@@ -120,6 +161,43 @@ def robot_listen() -> str:
         log("STUDENT (typed)", typed)
     return typed or "[no response]"
 
+
+def greet_and_recognize():
+    log("SYSTEM", "Looking around the room for familiar faces...")
+    gigi.run_character(
+        viseme_data={'text': "Hello! Let me look around the room to see who is here today.", 'file': None},
+        movement_data='look_from_side_to_side'
+    )
+    
+    recognized_names = []
+    if gigi.vision:
+        gigi.vision.run_vision()
+        start_time = time.time()
+        # Look around for 5 seconds to scan faces
+        while time.time() - start_time < 5.0:
+            gigi.update_egocentric_locations()
+            time.sleep(0.5)
+            
+        gigi.vision.stop_vision()
+        
+        # Filter names that were detected recently (in the last 10 seconds)
+        now = time.time()
+        for name, info in gigi.egocentric_db.items():
+            if now - info.get("timestamp", 0) < 10.0:
+                recognized_names.append(name)
+                
+    if recognized_names:
+        names_str = " and ".join(recognized_names)
+        gigi.run_character(
+            viseme_data={'text': f"Ah, hello {names_str}! I am so happy to see you today! Let's begin our activity.", 'file': None},
+            movement_data='wave_hello'
+        )
+    else:
+        gigi.run_character(
+            viseme_data={'text': "Hello everyone! I see some wonderful new faces. Welcome to our activity!", 'file': None},
+            movement_data='wave_hello'
+        )
+    gigi.run_character(movement_data='home')
 
 # ------------------------------------------------------------------
 # Init LLM + offline pipeline
@@ -158,6 +236,9 @@ history      = []
 steps        = plan.get("steps", plan.get("phases", []))
 
 log("STEP", "--- Activity Started ---")
+
+# Run greeting and face recognition to personalize the start of the session
+greet_and_recognize()
 
 for i, step in enumerate(steps):
     step_type = step.get("step_type", step.get("phase_type", "unknown"))
