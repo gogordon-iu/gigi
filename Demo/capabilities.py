@@ -19,17 +19,54 @@ if character_dir not in sys.path:
 from character import Character
 from characterDefinitions import IS_ROBOT
 
-def extract_name(text):
+def extract_name(text, gigi=None):
     """
-    Extracts a name from common greeting phrases.
-    E.g. "My name is Stephanie" -> "Stephanie"
-    "I am Goren" -> "Goren"
+    Extracts a name from common greeting phrases using LLM first, falling back to regex.
+    Ignores common weird words/mishearings (like "it", "this").
     """
     if not text or not text.strip():
         return "Friend"
+        
+    # Attempt LLM extraction first
+    try:
+        from conversation import Conversation
+        # Use gigi's conversation object if available, otherwise make a new one
+        llm = gigi.conversation if (gigi and hasattr(gigi, 'conversation') and gigi.conversation) else Conversation()
+        
+        system_prompt = (
+            "You are a name extraction assistant. Your job is to extract the person's name from the input text. "
+            "Return ONLY the extracted name (first name, or first and last name), capitalized. "
+            "If the text does not contain a name, or if the text is just a filler word, a pronoun, "
+            "or a common misheard word (like 'it', 'this', 'that', 'yes', 'no', 'hello', 'the', 'what', 'robot', 'is', 'me', 'hi'), "
+            "then output 'Friend'. "
+            "Do not include any extra words, punctuation, or explanations. "
+            "Examples:\n"
+            "- 'My name is Stephanie' -> 'Stephanie'\n"
+            "- 'I am Goren' -> 'Goren'\n"
+            "- 'this' -> 'Friend'\n"
+            "- 'it' -> 'Friend'\n"
+            "- 'alex' -> 'Alex'\n"
+            "- 'hello there' -> 'Friend'\n"
+            "- 'my name is' -> 'Friend'"
+        )
+        user_prompt = f"Extract the name from this text: '{text}'"
+        
+        llm_response = llm.get_response(system_prompt=system_prompt, user_prompt=user_prompt)
+        extracted = llm_response.strip().replace(".", "").replace("!", "").replace("?", "")
+        
+        if extracted and len(extracted) < 30 and extracted.lower() not in ['friend', 'unknown', 'connection issue']:
+            print(f"[Demo] LLM successfully extracted name: '{extracted}' from input '{text}'")
+            return extracted.capitalize()
+    except Exception as e:
+        print(f"[Demo] LLM name extraction failed or timed out: {e}")
     
+    # Fallback to pattern matching
+    print("[Demo] Falling back to regex name extraction...")
     # Clean text
     clean = re.sub(r'[^\w\s]', '', text).strip()
+    
+    # Exclude weird misheard/filler words
+    weird_words = ['it', 'this', 'that', 'yes', 'no', 'hello', 'the', 'what', 'robot', 'is', 'me', 'hi']
     
     # Patterns
     patterns = [
@@ -41,12 +78,16 @@ def extract_name(text):
     for pattern in patterns:
         match = re.search(pattern, clean, re.IGNORECASE)
         if match:
-            return match.group(1).capitalize()
+            extracted_word = match.group(1)
+            if extracted_word.lower() not in weird_words:
+                return extracted_word.capitalize()
             
     # Fallback to the last word if it's a short input, or a default name
     words = clean.split()
-    if len(words) <= 3:
-        return words[-1].capitalize()
+    if words:
+        last_word = words[-1]
+        if last_word.lower() not in weird_words and len(words) <= 3:
+            return last_word.capitalize()
         
     return "Friend"
 
@@ -90,7 +131,7 @@ def demoCapabilities():
             heard_text = " ".join(gigi.hearing.texts).strip()
             print(f"[Demo] Raw hearing transcript: '{heard_text}'")
             if heard_text:
-                name = extract_name(heard_text)
+                name = extract_name(heard_text, gigi=gigi)
             else:
                 # If nothing heard, choose a fun fallback
                 name = random.choice(["Superstar", "Champion", "Buddy"])
