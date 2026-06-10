@@ -1,4 +1,4 @@
-﻿Bilingual Ferris Wheel Activity Script 
+Bilingual Ferris Wheel Activity Script 
 [name] Bilingual Lego
 [Character] female
 [Speak] Hello friends! I’m Gigi the robot! [move] wave_hello
@@ -13,7 +13,7 @@
 [Speak] If you see this drawing, it is time for you to build together [move] home [face] guidance: build [pause] 1
 [Speak] Finally, you see the cards in front of each one of you, with a colored stick? [face] look_down [move] look_from_side_to_side
 [Speak] If you see this drawing, I am waiting for you to finish what you are doing and raise your card towards me so I can see it [face] guidance: show [pause] 2
-[Speak] I am so excited! [move] arms_up_and_down
+[Speak] I am so excited! [move] open_arms
 [audio] laugh [move] home
 
 [Speak] I love building with LEGO and playing with my friends. [move] open_arms [pause] 1
@@ -141,7 +141,7 @@ ________________
 
 
 Step 6-8: Build and Add the Second Tower 
-[Speak] Time to add the second tower! [move] arms_up_and_down
+[Speak] Time to add the second tower! [move] open_arms
 [speak] What parts do we need to build the tower? Who wants to be the finder? #El buscador o la buscadora?# [pause] 3
 [speak] Great! Find the yellow plate and these two orange yellow pieces. #la segunda torre amarilla, la placa amarilla y dos piezas pequeñas naranjas #. [show] image: ferris_step_08
 [Speka] Raise your card when you’re done! [show] image: ferris_step_08

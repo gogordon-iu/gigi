@@ -7,7 +7,7 @@ Demo Activity Script
 [Speak] Last time we learned about robots in general. [move] home
 [Speak] Today we are going to learn about co-bots.
 [Speak] Short of Collaborative Robots. [show] caption: Collaborative Robots
-[Speak] What do you think co-bots are? [move] arms_up_and_down
+[Speak] What do you think co-bots are? [move] open_arms
 [hear] silence: 10
 [Speak] That is a great explanation, Gaia, thank you for sharing.
 [Speak] Emma, do you want to share your thoughts? [move] look_right

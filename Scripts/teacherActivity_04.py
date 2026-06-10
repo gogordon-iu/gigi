@@ -51,7 +51,7 @@ class TeacherActivity_04(ScriptGraph) :
                             )
 
         self.graph.add_node("assemble_03", type=["move", "speak"],
-                            motors="arms_up_and_down",
+                            motors="open_arms",
                             text="We won't have time to create a whole new robot, like me.")
 
         self.graph.add_node("assemble_04", type="speak",

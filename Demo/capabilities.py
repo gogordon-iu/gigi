@@ -112,7 +112,7 @@ def demoCapabilities():
         
         gigi.run_character(
             viseme_data={'text': "I want to show you my interactive capabilities! Let's start with movement.", 'file': None},
-            movement_data='arms_up_and_down'
+            movement_data='open_arms'
         )
         
         gigi.run_character(
@@ -244,7 +244,7 @@ def demoCapabilities():
         if detected_thumbs_up:
             gigi.run_character(
                 viseme_data={'text': "Awesome! I saw your thumbs up! I think you are super cool too!", 'file': None},
-                movement_data='arms_up_and_down'
+                movement_data='clap'
             )
         else:
             gigi.run_character(

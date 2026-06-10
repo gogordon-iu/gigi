@@ -34,7 +34,7 @@ class Demo(ScriptGraph) :
         self.graph.add_edge('Node_6', 'Node_7', label='Node_6_7')
         self.graph.add_node('Node_7', type=['speak', 'show'], text='Short of Collaborative Robots.', caption='Collaborative Robots')
         self.graph.add_edge('Node_7', 'Node_8', label='Node_7_8')
-        self.graph.add_node('Node_8', type=['speak', 'move'], text='What do you think co-bots are?', motors='arms_up_and_down')
+        self.graph.add_node('Node_8', type=['speak', 'move'], text='What do you think co-bots are?', motors='open_arms')
         self.graph.add_edge('Node_8', 'Node_9', label='Node_8_9')
         self.graph.add_node('Node_9', type=['hear'], timeout=10)
         self.graph.add_edge('Node_9', 'Node_10', label='Node_9_10')
