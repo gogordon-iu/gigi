@@ -83,7 +83,6 @@ class Face():
         self.feedback_icons = {}
         try:
             ear_path = base_assets_path + "face/listening_ear.png"
-            eye_path = base_assets_path + "face/looking_eye.png"
             
             if os.path.exists(ear_path):
                 img = Image.open(ear_path)
@@ -92,14 +91,6 @@ class Face():
                     self.feedback_icons["listening"] = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGRA)
                 elif self.IMAGE_OPTION == "pygame":
                     self.feedback_icons["listening"] = pygame.image.load(ear_path).convert_alpha()
-                    
-            if os.path.exists(eye_path):
-                img = Image.open(eye_path)
-                if self.IMAGE_OPTION == "cv":
-                    img_cv = np.array(img.convert("RGBA"))
-                    self.feedback_icons["seeking_gesture"] = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGRA)
-                elif self.IMAGE_OPTION == "pygame":
-                    self.feedback_icons["seeking_gesture"] = pygame.image.load(eye_path).convert_alpha()
                     
             print(f"[Face] Loaded visual feedback icons: {list(self.feedback_icons.keys())}")
         except Exception as e:

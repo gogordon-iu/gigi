@@ -55,6 +55,10 @@ def extract_name(text, gigi=None):
         extracted = llm_response.strip().replace(".", "").replace("!", "").replace("?", "")
         
         if extracted and len(extracted) < 30 and extracted.lower() not in ['friend', 'unknown', 'connection issue']:
+            # Names can only be one word. If it's more than one word, revert to Friend.
+            if len(extracted.split()) > 1:
+                print(f"[Demo] Extracted name has multiple words: '{extracted}'. Reverting to Friend.")
+                return "Friend"
             print(f"[Demo] LLM successfully extracted name: '{extracted}' from input '{text}'")
             return extracted.capitalize()
     except Exception as e:
