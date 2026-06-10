@@ -422,6 +422,8 @@ class Hearing():
                 print("Listening... Speak into the microphone.")
 
                 while True:
+                    if stop_event and stop_event.is_set():
+                        break
                     try:
                         audio_float = self.audio_queue.get(timeout=0.3)
                     except queue.Empty:
@@ -468,6 +470,8 @@ class Hearing():
             self.stream.read(self.stream.get_read_available(), exception_on_overflow=False)
 
             while True:
+                if stop_event and stop_event.is_set():
+                    break
                 data = self.stream.read(int(INPUT_SAMPLE_RATE / 4), exception_on_overflow=False)
                 words_heard = []
                 for lang, r in recognizers.items():
