@@ -374,6 +374,8 @@ class Hearing():
         return words_detected if words_detected else None
 
     def listen(self, stop_event=None):
+        if getattr(self, 'face', None):
+            self.face.feedback_state = "listening"
         unique_words = []
         if self.words:
             all_phrase_words = {phrase: set(phrase.split()) for phrase in json.loads(self.words)}
@@ -524,6 +526,8 @@ class Hearing():
 
             if stop_event is not None:
                 stop_event.set()
+        if getattr(self, 'face', None):
+            self.face.feedback_state = None
 
     def audio_callback_optimized(self, indata, frames, time_info, status):
         """
@@ -609,8 +613,12 @@ class Hearing():
         Similar to listen, but periodically calls check_callback(text) every n_transcripts chunks.
         If the callback returns True, listening stops early.
         """
+        if getattr(self, 'face', None):
+            self.face.feedback_state = "listening"
         if HEARING_OPTION == "sr" or HEARING_OPTION == "vosk":
             self.listen(stop_event)
+            if getattr(self, 'face', None):
+                self.face.feedback_state = None
             return
 
         if HEARING_OPTION == "whisper":
@@ -675,6 +683,8 @@ class Hearing():
 
                 if stop_event is not None:
                     stop_event.set()
+        if getattr(self, 'face', None):
+            self.face.feedback_state = None
 
     def hearing_fluid_thread(self, stop_event=None, check_callback=None, n_transcripts=1):
         if stop_event is None:

@@ -101,10 +101,12 @@ class Character():
         
         if HAS_HEARING:
             self.hearing = Hearing()
+            self.hearing.face = self.face
         else:
             self.hearing = None
         if HAS_VISION:
             self.vision = Vision()
+            self.vision.face = self.face
         else:
             self.vision = None
 

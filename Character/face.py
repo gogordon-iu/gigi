@@ -77,6 +77,33 @@ class Face():
                 self.screen_size = (int(screen_width / 2), int(screen_height / 2))
             cv2.resizeWindow(self.win_name, self.screen_size[0], self.screen_size[1])
         self.initialize_character(save=True)
+        
+        # Initialize visual feedback icons
+        self.feedback_state = None
+        self.feedback_icons = {}
+        try:
+            ear_path = base_assets_path + "face/listening_ear.png"
+            eye_path = base_assets_path + "face/looking_eye.png"
+            
+            if os.path.exists(ear_path):
+                img = Image.open(ear_path)
+                if self.IMAGE_OPTION == "cv":
+                    img_cv = np.array(img.convert("RGBA"))
+                    self.feedback_icons["listening"] = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGRA)
+                elif self.IMAGE_OPTION == "pygame":
+                    self.feedback_icons["listening"] = pygame.image.load(ear_path).convert_alpha()
+                    
+            if os.path.exists(eye_path):
+                img = Image.open(eye_path)
+                if self.IMAGE_OPTION == "cv":
+                    img_cv = np.array(img.convert("RGBA"))
+                    self.feedback_icons["seeking_gesture"] = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGRA)
+                elif self.IMAGE_OPTION == "pygame":
+                    self.feedback_icons["seeking_gesture"] = pygame.image.load(eye_path).convert_alpha()
+                    
+            print(f"[Face] Loaded visual feedback icons: {list(self.feedback_icons.keys())}")
+        except Exception as e:
+            print(f"[Face] Error loading visual feedback icons: {e}")
 
     def stop_face(self):
         if IMAGE_OPTION == "pygame":
@@ -204,6 +231,14 @@ class Face():
         # Scale the image to fill the screen
         if IMAGE_OPTION == "pygame":
             image_ = pygame.transform.scale(image_, self.screen_size)
+            if self.feedback_state in self.feedback_icons:
+                icon = self.feedback_icons[self.feedback_state]
+                w, h = self.screen_size
+                scale_h = int(h * 0.15)
+                scale_w = int(icon.get_width() * scale_h / icon.get_height())
+                icon_resized = pygame.transform.smoothscale(icon, (scale_w, scale_h))
+                image_.blit(icon_resized, (w - scale_w - 10, h - scale_h - 10))
+            
             # Blit the image to the screen
             self.screen.blit(image_, (0, 0))
 
@@ -211,6 +246,29 @@ class Face():
             pygame.display.flip()
         elif IMAGE_OPTION == "cv":
             image_ = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)
+            if self.feedback_state in self.feedback_icons:
+                icon = self.feedback_icons[self.feedback_state]
+                h, w = image_.shape[:2]
+                scale_h = int(h * 0.15)
+                scale_w = int(icon.shape[1] * scale_h / icon.shape[0])
+                icon_resized = cv2.resize(icon, (scale_w, scale_h))
+                
+                # Overlay with alpha channel
+                icon_rgb = icon_resized[:, :, :3]
+                icon_alpha = icon_resized[:, :, 3] / 255.0
+                
+                # Region of interest (bottom right corner, with a 10px margin)
+                margin = 10
+                roi_y0 = h - scale_h - margin
+                roi_y1 = h - margin
+                roi_x0 = w - scale_w - margin
+                roi_x1 = w - margin
+                
+                roi = image_[roi_y0:roi_y1, roi_x0:roi_x1]
+                for c in range(3):
+                    roi[:, :, c] = (icon_alpha * icon_rgb[:, :, c] + (1 - icon_alpha) * roi[:, :, c]).astype(np.uint8)
+                image_[roi_y0:roi_y1, roi_x0:roi_x1] = roi
+
             cv2.imshow(self.win_name, image_)
             cv2.waitKey(1)
 

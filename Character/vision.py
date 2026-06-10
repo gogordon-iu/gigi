@@ -166,6 +166,9 @@ class Vision:
         return result
 
     def look_for(self, what, timeout=5.0):
+        if getattr(self, 'face', None):
+            self.face.feedback_state = "seeking_gesture"
+            
         result_container = {'found': False, 'data': None, 'done': False}
         stop_event = threading.Event()
         search_thread = threading.Thread(target=vh.VisionHelpers.look_for_worker,
@@ -174,6 +177,10 @@ class Vision:
         search_thread.start()
         while not result_container['done']:
             time.sleep(0.01)
+            
+        if getattr(self, 'face', None):
+            self.face.feedback_state = None
+            
         return {'found': result_container['found'], 'data': result_container['data']}
     
     def should_process(self, feature, fps):
