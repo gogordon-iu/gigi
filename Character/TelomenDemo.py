@@ -1,5 +1,10 @@
+import os
 import sys
-sys.path.append('../Resources')
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_file_dir)
+resources_dir = os.path.join(project_root, 'Resources')
+if resources_dir not in sys.path:
+    sys.path.insert(0, resources_dir)
 
 import cv2
 from nix.models.TTS import NixTTSInference

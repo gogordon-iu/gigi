@@ -12,6 +12,12 @@ import tempfile
 import wave
 from faster_whisper import WhisperModel
 import requests
+import sys
+_current_file_dir = os.path.dirname(os.path.abspath(__file__))
+_project_root = os.path.dirname(_current_file_dir)
+_resources_dir = os.path.join(_project_root, 'Resources')
+if _resources_dir not in sys.path:
+    sys.path.insert(0, _resources_dir)
 from nix.models.TTS import NixTTSInference
 from nix.tokenizers.tokenizer_en import NixTokenizerEN
 import warnings
@@ -26,13 +32,18 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 class VoiceCommunicator:
     def __init__(self, 
-                 nix_model_dir="/home/orangepi/Code/gigi/Resources/nix/models/",
+                 nix_model_dir=None,
                  whisper_model="tiny",
                  whisper_device="cpu",
                  ollama_model="llama3.2:1b-instruct-q4_K_M",
                  ollama_url="http://localhost:11434",
                  default_microphone=2):
         
+        if nix_model_dir is None:
+            _current_file_dir = os.path.dirname(os.path.abspath(__file__))
+            _project_root = os.path.dirname(_current_file_dir)
+            nix_model_dir = os.path.join(_project_root, 'Resources', 'nix', 'models')
+            
         print("🚀 Initializing Voice Communicator...")
         
         # Initialize ALL attributes first

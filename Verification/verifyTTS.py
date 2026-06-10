@@ -1,5 +1,10 @@
+import os
 import sys
-sys.path.append('../Resources')
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_file_dir)
+resources_dir = os.path.join(project_root, 'Resources')
+if resources_dir not in sys.path:
+    sys.path.insert(0, resources_dir)
 
 from nix.models.TTS import NixTTSInference
 from nix.tokenizers.tokenizer_en import NixTokenizerEN
@@ -13,7 +18,8 @@ import soundfile as sf
 
 
 # Initialize Nix-TTS
-nix = NixTTSInference(model_dir="../Resources/nix/models/")
+nix_model_dir = os.path.join(project_root, 'Resources', 'nix', 'models')
+nix = NixTTSInference(model_dir=nix_model_dir)
 
 # Input paragraph
 text = ("Hey, Gowtham, how are you doing today? It is nice to see you again. "
