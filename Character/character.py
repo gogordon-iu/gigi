@@ -704,6 +704,7 @@ class Character():
         
         lost_face_start = None
         home_returned = False
+        search_dir = 1.0
         start_time = time.time()
         frame_count = 0
 
@@ -824,11 +825,23 @@ class Character():
 
                     if lost_face_start is None:
                         lost_face_start = time.time()
-                    elif time.time() - lost_face_start > 5.0 and not home_returned:
-                        print("Face lost for >5s, returning motors to home position.")
+                    elif time.time() - lost_face_start > 5.0:
                         if self.movement:
-                            self.movement.move_motors({"torso": 0.0, "neck": 0.0})
-                        home_returned = True
+                            T_c = self.movement.calc_normalized_angle(motor="torso")
+                            # Slowly sweep torso between -0.9 and 0.9 to search for a face
+                            search_speed = 0.1  # units per second
+                            T_new = T_c + search_dir * search_speed * dt
+                            if T_new >= 0.9:
+                                T_new = 0.9
+                                search_dir = -1.0
+                            elif T_new <= -0.9:
+                                T_new = -0.9
+                                search_dir = 1.0
+                            
+                            # Keep neck centered during search so camera aligns with torso direction
+                            self.movement.move_motors({"torso": T_new, "neck": 0.0})
+                            if frame_count % 10 == 0:
+                                print(f"[Follow Face Log] Searching for face... Torso={T_new:.4f}, dir={search_dir}")
 
                 # OpenCV wait to keep GUI responsive, otherwise standard sleep
                 if self.face and self.face.IMAGE_OPTION == "cv":
