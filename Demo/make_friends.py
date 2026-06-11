@@ -253,7 +253,7 @@ def register_new_friend(gigi, face_id):
         
     # 5. Capture speaker recognition / voice enrollment (ask a child-friendly question)
     gigi.run_character(
-        viseme_data={'text': f"Great, {name}! Now I want to learn the sound of your voice. Tell me, what is your favorite toy or animal?", 'file': None},
+        viseme_data={'text': f"Great, {name}! Tell me, what is your favorite toy or animal?", 'file': None},
         movement_data='open_arms'
     )
     
