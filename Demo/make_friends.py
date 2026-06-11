@@ -251,17 +251,17 @@ def register_new_friend(gigi, face_id):
         )
         return False
         
-    # 5. Capture speaker recognition / voice enrollment
+    # 5. Capture speaker recognition / voice enrollment (ask a child-friendly question)
     gigi.run_character(
-        viseme_data={'text': f"Great, {name}! Now, let's register your voice. Please repeat after me: The quick brown fox jumps over the lazy dog.", 'file': None},
+        viseme_data={'text': f"Great, {name}! Now I want to learn the sound of your voice. Tell me, what is your favorite toy or animal?", 'file': None},
         movement_data='open_arms'
     )
     
     pause_vision(gigi)
     
-    # Display text on the screen for the child to read
+    # Display text on the screen for the child
     if gigi.face:
-        gigi.face.display_text("Please read:\n\nThe quick brown fox\njumps over the lazy dog.")
+        gigi.face.display_text("What is your favorite\ntoy or animal?")
         
     gigi.hearing.texts = []
     gigi.listen_backchannel(timeout=10)
