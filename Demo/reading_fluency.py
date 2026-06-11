@@ -287,11 +287,76 @@ def play_reading_fluency():
                     reading_mistakes.append(mistake_info)
                     gigi.log_variable("reading_mistakes", reading_mistakes)
                     
+                    # Choose a random hint for word attack skills
+                    hints = [
+                        "Do you see any chunks you know?",
+                        "Can you flip the vowel?",
+                        "Does that sound right?",
+                        "Does it make sense?"
+                    ]
+                    hint = random.choice(hints)
                     gigi.run_character(
-                        viseme_data={'text': f'The correct word is {first_unmatched_expected}.', 'file': None}
+                        viseme_data={'text': f"Let's try that word again. {hint}", 'file': None}
                     )
-                    tracker.start()
-                    current_word_idx = matched_idx + 1 # Move past the mistake
+                    
+                    # Listen for the child trying to correct the word
+                    success = False
+                    if gigi.hearing:
+                        tracker.start()
+                        gigi.hearing.texts = []
+                        gigi.listen_backchannel(timeout=8)
+                        tracker.stop()
+                        
+                        corrected_text = " ".join(gigi.hearing.texts).strip()
+                        corrected_words = [w.translate(str.maketrans('', '', string.punctuation)).lower() for w in corrected_text.split()]
+                        corrected_words = [w for w in corrected_words if w]
+                        
+                        # Check if they said the correct word
+                        for cw in corrected_words:
+                            if is_match(cw, first_unmatched_expected):
+                                success = True
+                                break
+                                
+                    if success:
+                        # Affirmation for solving the word + read sentence again
+                        affirmations = [
+                            "You got it! Great job!",
+                            "Perfect! You solved it!",
+                            "Awesome job! That is correct!",
+                            "Yes, that's it! Wonderful!"
+                        ]
+                        affirmation = random.choice(affirmations)
+                        
+                        # Find the sentence start to guide them back
+                        sentence_start_idx = 0
+                        for i in range(matched_idx - 1, -1, -1):
+                            w = passage_words[i]
+                            if w.endswith('.') or w.endswith('!') or w.endswith('?'):
+                                sentence_start_idx = i + 1
+                                break
+                                
+                        # Extract the words of the sentence to show/guide them
+                        sentence_words_list = []
+                        for i in range(sentence_start_idx, len(passage_words)):
+                            sentence_words_list.append(passage_words[i])
+                            if passage_words[i].endswith('.') or passage_words[i].endswith('!') or passage_words[i].endswith('?'):
+                                break
+                        sentence_str = " ".join(sentence_words_list)
+                        print(f"Sentence to re-read: '{sentence_str}'")
+                        
+                        gigi.run_character(
+                            viseme_data={'text': f"{affirmation} Now, please read the sentence again with the correct word.", 'file': None},
+                            face_data={'sequence': 'smile'}
+                        )
+                        tracker.start()
+                        current_word_idx = sentence_start_idx
+                    else:
+                        # Fallback if they couldn't get it: tell them the word and move past
+                        gigi.run_character(
+                            viseme_data={'text': f"The word is {first_unmatched_expected}. Let's keep reading!", 'file': None}
+                        )
+                        tracker.start()
+                        current_word_idx = matched_idx + 1 # Move past the mistake
                 else:
                     current_word_idx = matched_idx
                     
