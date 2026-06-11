@@ -113,9 +113,30 @@ if __name__ == "__main__":
     sg.add_function("generate", sg.generate)               
         
 
+    import threading
+
     fuzzy = Character(child=False, gender='female', activity='Game_Multiplication', languages=['en'])
-    script = Script(graph=sg, character=fuzzy)
-    script.generateAllSpeech()
-    script.check_assets()
-    script.run(start_node=start_node)
+    
+    # Start background face tracking thread to look at the child and drive face recognition/logging
+    stop_event = threading.Event()
+    tracker_thread = None
+    if fuzzy.vision:
+        print("[Game_Multiplication] Starting background face follow tracking...")
+        tracker_thread = threading.Thread(
+            target=fuzzy.follow_face,
+            kwargs={'stop_event': stop_event},
+            daemon=True
+        )
+        tracker_thread.start()
+        
+    try:
+        script = Script(graph=sg, character=fuzzy)
+        script.generateAllSpeech()
+        script.check_assets()
+        script.run(start_node=start_node)
+    finally:
+        if tracker_thread:
+            print("[Game_Multiplication] Stopping background face follow tracking...")
+            stop_event.set()
+            tracker_thread.join(timeout=1.5)
 

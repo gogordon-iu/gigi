@@ -207,4 +207,5 @@ Assets/**/*.npy
 
 # Ignore dynamic databases and logs
 Character/egocentric_locations.json
-logs/
+logs/
+Users/

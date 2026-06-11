@@ -119,6 +119,30 @@ class Script:
                             if data['label'] == output:
                                 next_node = v
                                 break
+                                
+                    # If this is Game_Multiplication, log the round details
+                    if self.character and self.character.activity_name == 'Game_Multiplication' and is_conversation:
+                        import time
+                        q_text = self.data['types'].get('text', '')
+                        correct_val = self.data['types'].get('the_answer', '')
+                        
+                        # Check if next_node corresponds to YES edge
+                        is_correct = "NO"
+                        for u, v, data in edges:
+                            if data['label'] == 'YES' and next_node == v:
+                                is_correct = "YES"
+                                break
+                                
+                        mult_logs = self.data.get('_mult_logs', [])
+                        mult_logs.append({
+                            "question": q_text,
+                            "correct_answer": correct_val,
+                            "user_response": output,
+                            "is_correct": is_correct,
+                            "timestamp": time.strftime("%H:%M:%S")
+                        })
+                        self.data['_mult_logs'] = mult_logs
+                        self.character.log_variable("math_rounds", mult_logs)
             elif "find" in current_data['type']:
                 print("Looking for %s..." % current_data['what'])
                 if self.character:

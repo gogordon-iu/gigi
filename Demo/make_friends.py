@@ -293,6 +293,11 @@ def register_new_friend(gigi, face_id):
     except Exception as e:
         print(f"[Subroutine] Error saving face encoding: {e}")
         
+    # Start logging session now that the name is officially verified and registered
+    gigi.log_user_name(name)
+    gigi.log_variable("registered_name", name)
+    gigi.log_variable("voice_enrolled", speaker_embedding is not None)
+        
     if speaker_embedding is not None:
         print("[Subroutine] Saving speaker embedding to database...")
         try:

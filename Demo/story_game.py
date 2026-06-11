@@ -231,6 +231,7 @@ def play_story_game():
                 detected_prop = "magic toy"
                 
         print(f"[Story Game] Confirmed prop: {detected_prop}")
+        gigi.log_variable("prop", detected_prop)
         
         # Start story
         gigi.run_character(
@@ -319,6 +320,9 @@ def play_story_game():
                     movement_data='open_arms'
                 )
                 story_history.append({"role": "assistant", "content": f"Gigi: {fallback_continuation}"})
+            
+            # Log current progress of story turns
+            gigi.log_variable("story_turns", [item for item in story_history if item["role"] != "system"])
                 
         # Goodbye
         gigi.run_character(

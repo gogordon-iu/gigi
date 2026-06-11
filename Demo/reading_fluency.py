@@ -135,6 +135,9 @@ def play_reading_fluency():
                 viseme_data={'text': f"It is wonderful to meet you, {name}!", 'file': None},
                 face_data={'sequence': 'smile'}
             )
+            
+        # Initialize logging session with the resolved user name
+        gigi.log_user_name(name)
 
         # Gigi asks the student to read
         gigi.run_character(
@@ -151,8 +154,12 @@ def play_reading_fluency():
             passage_text = f.read().strip()
             print(f"\n--- Please read the following passage ---\n{passage_text}\n-----------------------------------------\n")
             
+        # Log passage text and initialize mistakes tracking
+        gigi.log_variable("passage_text", passage_text)
         passage_words = passage_text.split()
         current_word_idx = 0
+        reading_mistakes = []
+        gigi.log_variable("reading_mistakes", reading_mistakes)
         
         if gigi.hearing:
             # Dynamically set shorter buffer size for rapid real-time corrections
@@ -269,6 +276,17 @@ def play_reading_fluency():
                     print(f"Mistake found: heard '{first_unmatched_word}', expected '{first_unmatched_expected}'")
                     # Stop tracking briefly to animate correction response cleanly
                     tracker.stop()
+                    
+                    # Log the mistake details
+                    mistake_info = {
+                        "word_index": matched_idx,
+                        "expected": first_unmatched_expected,
+                        "heard": first_unmatched_word,
+                        "timestamp": time.strftime("%H:%M:%S")
+                    }
+                    reading_mistakes.append(mistake_info)
+                    gigi.log_variable("reading_mistakes", reading_mistakes)
+                    
                     gigi.run_character(
                         viseme_data={'text': f'The correct word is {first_unmatched_expected}.', 'file': None}
                     )
@@ -292,6 +310,7 @@ def play_reading_fluency():
             viseme_data={'text': 'Great job reading the passage! Now, let us answer some questions.', 'file': None}
         )
         
+        discussion_responses = []
         with open(questions_file, 'r') as f:
             questions = f.readlines()
             
@@ -319,6 +338,8 @@ def play_reading_fluency():
                 if gigi.hearing.texts:
                     answer = " ".join(gigi.hearing.texts)
                     print(f"Student answered: {answer}")
+                    discussion_responses.append({"question": q, "answer": answer})
+                    gigi.log_variable("discussion", discussion_responses)
                     
                     # Asynchronous LLM processing with filler speech latency hiding
                     if gigi.conversation:
@@ -372,10 +393,14 @@ def play_reading_fluency():
                         )
                 else:
                     print("No answer received.")
+                    discussion_responses.append({"question": q, "answer": None})
+                    gigi.log_variable("discussion", discussion_responses)
                     gigi.run_character(
                         viseme_data={'text': 'Okay, let us move on.', 'file': None}
                     )
             else:
+                discussion_responses.append({"question": q, "answer": None})
+                gigi.log_variable("discussion", discussion_responses)
                 time.sleep(3)
                 
         # Goodbye

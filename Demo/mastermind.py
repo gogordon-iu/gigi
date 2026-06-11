@@ -136,6 +136,9 @@ def play_mastermind():
             # Generate secret code
             secret = "".join(str(d) for d in random.sample(range(10), 4))
             print(f"[DEBUG] Secret code generated: {secret}")
+            local_guesses = []
+            gigi.log_variable("secret_code", secret)
+            gigi.log_variable("guesses", local_guesses)
             
             gigi.run_character(
                 viseme_data={'text': "Okay! I have chosen my secret numbers. Tell me your first guess of four digits!", 'file': None},
@@ -200,6 +203,14 @@ def play_mastermind():
                     attempts += 1
                     bulls, cows = check_guess(secret, parsed)
                     print(f"[Mastermind] Attempt {attempts}: Guess '{parsed}' -> Bulls: {bulls}, Cows: {cows}")
+                    local_guesses.append({
+                        "attempt": attempts,
+                        "guess": parsed,
+                        "raw_heard": response,
+                        "bulls": bulls,
+                        "cows": cows
+                    })
+                    gigi.log_variable("guesses", local_guesses)
                     
                     if bulls == 4:
                         # Success celebration!

@@ -23,6 +23,7 @@ if HAS_MOVEMENT:
 if HAS_CONVERSATION:
     print('Importing Conversation module')
     from conversation import Conversation
+from logger import InteractionLogger
 import threading
 import numpy as np
 from scipy.interpolate import Rbf
@@ -133,6 +134,7 @@ class Character():
 
         self.current_speaker = None
         self.activity_log = []
+        self.logger = InteractionLogger(self)
 
         self.lookat_calibration = None
         if self.face and self.movement and self.vision:
@@ -217,6 +219,8 @@ class Character():
                     "text": text_to_check,
                     "timestamp": time.time()
                 })
+                if hasattr(self, 'logger'):
+                    self.logger.log_conversation("Gigi", text_to_check)
             
             import re
             matched_name = None
@@ -320,6 +324,10 @@ class Character():
                 self.vision.stop_vision()
         if self.face:
             self.face.stop_face()
+        # Flush any remaining logs under a guest session if never initialized
+        if hasattr(self, 'logger') and not self.logger.is_initialized:
+            if self.logger.conversation_buffer or self.logger.visuals_buffer or self.logger.variables_buffer:
+                self.logger.initialize_session("Friend", self.activity_name)
 
     def lookat_coordinate(self, offset=0.0, verbose=True):
         # Because the camera is mounted on the torso, any face offset detected in the image
@@ -398,6 +406,8 @@ class Character():
                         "text": final_text,
                         "timestamp": time.time()
                     })
+                    if hasattr(self, 'logger'):
+                        self.logger.log_conversation(self.current_speaker or "User", final_text)
 
     def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None):
         if self.hearing and self.face:
@@ -460,6 +470,8 @@ class Character():
                         "text": final_text,
                         "timestamp": time.time()
                     })
+                    if hasattr(self, 'logger'):
+                        self.logger.log_conversation(self.current_speaker or "User", final_text)
 
     def _speaker_recognition_worker(self, stop_event):
         """
@@ -862,6 +874,7 @@ class Character():
         """
         Scans current face tracking data, and if any recognized face is present,
         updates the persistent egocentric location database with their room angle.
+        Also triggers logging and records visual events.
         """
         if not self.vision:
             return
@@ -869,7 +882,15 @@ class Character():
         updated = False
         for face_id, face_info in last_data.items():
             name = face_info.get('name', 'Unknown')
+            
+            # Log visual state transitions
+            if hasattr(self, 'logger'):
+                self.logger.log_visuals(emotion=face_info.get('emotion'), gesture=face_info.get('gesture'))
+                
             if name not in ['Unknown', 'Recognizing...']:
+                # Trigger session logging on first recognized face
+                self.log_user_name(name)
+                
                 offset = face_info.get('offset', [0.0, 0.0])
                 offset_x = offset[0]
                 # Calculate absolute egocentric angle (combining current torso angle and calibrated face offset)
@@ -886,6 +907,21 @@ class Character():
                     json.dump(self.egocentric_db, f, indent=4)
             except Exception as e:
                 print(f"Error saving egocentric locations: {e}")
+
+    def log_user_name(self, name):
+        """Initializes logging session when user name is resolved/recognized."""
+        if hasattr(self, 'logger'):
+            self.logger.initialize_session(name, self.activity_name)
+
+    def log_variable(self, name, value):
+        """Logs a single script-specific variable."""
+        if hasattr(self, 'logger'):
+            self.logger.log_variable(name, value)
+            
+    def log_interaction_variables(self, dict_vars):
+        """Logs multiple script-specific variables."""
+        if hasattr(self, 'logger'):
+            self.logger.log_interaction_variables(dict_vars)
 
     def lookat_person(self, name):
         """
