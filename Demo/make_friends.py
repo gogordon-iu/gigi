@@ -258,9 +258,19 @@ def register_new_friend(gigi, face_id):
     )
     
     pause_vision(gigi)
+    
+    # Display text on the screen for the child to read
+    if gigi.face:
+        gigi.face.display_text("Please read:\n\nThe quick brown fox\njumps over the lazy dog.")
+        
     gigi.hearing.texts = []
     gigi.listen_backchannel(timeout=10)
     raw_audio = gigi.hearing.get_full_audio()
+    
+    # Clear display text
+    if gigi.face:
+        gigi.face.display_text(None)
+        
     resume_vision(gigi)
     
     speaker_embedding = None
