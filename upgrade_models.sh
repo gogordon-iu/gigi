@@ -14,7 +14,7 @@ LLM_MODEL_URL="https://huggingface.co/c01zaut/Qwen2.5-3B-Instruct-rk3588-1.1.1/r
 LLM_SERVER_SH="/home/orangepi/Code/gigi/llm_server.sh"
 
 YOLO_MODEL_PATH="${RESOURCES_DIR}/yolo11n.onnx"
-YOLO_MODEL_URL="https://huggingface.co/unity/inference-engine-yolo/resolve/main/yolo11n.onnx?download=true"
+YOLO_MODEL_URL="https://huggingface.co/aaurelions/yolo11n.onnx/resolve/main/yolo11n.onnx?download=true"
 
 echo "=== [Gigi Model Upgrade] Creating Resources directory if missing ==="
 mkdir -p "${RESOURCES_DIR}"

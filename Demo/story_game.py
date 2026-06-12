@@ -49,10 +49,11 @@ def download_model_if_needed():
     if not os.path.exists(YOLO_MODEL_PATH):
         print(f"[Object Detection] Model not found. Downloading YOLOv11-nano ONNX model to {YOLO_MODEL_PATH} (approx. 22MB)...")
         os.makedirs(RESOURCES_DIR, exist_ok=True)
-        url = "https://huggingface.co/unity/inference-engine-yolo/resolve/main/yolo11n.onnx"
+        url = "https://huggingface.co/aaurelions/yolo11n.onnx/resolve/main/yolo11n.onnx?download=true"
         urllib.request.urlretrieve(url, YOLO_MODEL_PATH)
         print("[Object Detection] Model downloaded successfully.")
     else:
+        echo_path = YOLO_MODEL_PATH
         print(f"[Object Detection] Model already exists at {YOLO_MODEL_PATH}")
     return YOLO_MODEL_PATH
 
