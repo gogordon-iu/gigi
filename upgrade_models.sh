@@ -10,7 +10,7 @@ set -e
 
 RESOURCES_DIR="/home/orangepi/Code/gigi/Resources"
 LLM_MODEL_PATH="${RESOURCES_DIR}/qwen2.5_3b.rkllm"
-LLM_MODEL_URL="https://huggingface.co/c01zaut/Qwen2.5-3B-Instruct-rk3588-1.1.1/resolve/main/qwen2.5_3b_instruct_w8a8.rkllm?download=true"
+LLM_MODEL_URL="https://huggingface.co/c01zaut/Qwen2.5-3B-Instruct-rk3588-1.1.1/resolve/main/Qwen2.5-3B-Instruct-rk3588-w8a8-opt-0-hybrid-ratio-0.5.rkllm?download=true"
 LLM_SERVER_SH="/home/orangepi/Code/gigi/llm_server.sh"
 
 YOLO_MODEL_PATH="${RESOURCES_DIR}/yolo11n.onnx"
