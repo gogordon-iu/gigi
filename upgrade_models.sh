@@ -10,11 +10,11 @@ set -e
 
 RESOURCES_DIR="/home/orangepi/Code/gigi/Resources"
 LLM_MODEL_PATH="${RESOURCES_DIR}/qwen2.5_3b.rkllm"
-LLM_MODEL_URL="https://huggingface.co/c01zaut/Qwen2.5-3B-Instruct-rk3588-1.1.1/resolve/main/qwen2.5_3b_instruct_w8a8.rkllm"
+LLM_MODEL_URL="https://huggingface.co/c01zaut/Qwen2.5-3B-Instruct-rk3588-1.1.1/resolve/main/qwen2.5_3b_instruct_w8a8.rkllm?download=true"
 LLM_SERVER_SH="/home/orangepi/Code/gigi/llm_server.sh"
 
 YOLO_MODEL_PATH="${RESOURCES_DIR}/yolo11n.onnx"
-YOLO_MODEL_URL="https://huggingface.co/unity/inference-engine-yolo/resolve/main/yolo11n.onnx"
+YOLO_MODEL_URL="https://huggingface.co/unity/inference-engine-yolo/resolve/main/yolo11n.onnx?download=true"
 
 echo "=== [Gigi Model Upgrade] Creating Resources directory if missing ==="
 mkdir -p "${RESOURCES_DIR}"
@@ -22,12 +22,20 @@ mkdir -p "${RESOURCES_DIR}"
 echo "=== [Gigi Model Upgrade] Downloading Qwen-2.5-3B-Instruct (.rkllm) ==="
 echo "From: ${LLM_MODEL_URL}"
 echo "To:   ${LLM_MODEL_PATH}"
-echo "This might take several minutes (approx. 3.2 GB)..."
+
+# Check for invalid/interrupted LLM model downloads (e.g. LFS pointers)
+if [ -f "${LLM_MODEL_PATH}" ]; then
+    FILE_SIZE=$(wc -c < "${LLM_MODEL_PATH}")
+    if [ "$FILE_SIZE" -lt 10000000 ]; then  # Less than 10 MB
+        echo "[!] Existing LLM file is too small ($FILE_SIZE bytes), likely a Git LFS pointer. Deleting..."
+        rm -f "${LLM_MODEL_PATH}"
+    fi
+fi
 
 if [ -f "${LLM_MODEL_PATH}" ]; then
-    echo "[!] LLM model file already exists at ${LLM_MODEL_PATH}. Skipping download."
+    echo "[!] LLM model file already exists and looks valid. Skipping download."
 else
-    # Download with progress bar, resume capability
+    echo "Downloading LLM model (approx. 3.2 GB)..."
     wget -c -O "${LLM_MODEL_PATH}" "${LLM_MODEL_URL}"
     echo "[+] LLM model downloaded successfully!"
 fi
@@ -35,11 +43,20 @@ fi
 echo "=== [Gigi Model Upgrade] Downloading YOLOv11-nano ONNX ==="
 echo "From: ${YOLO_MODEL_URL}"
 echo "To:   ${YOLO_MODEL_PATH}"
-echo "This might take a moment (approx. 22 MB)..."
+
+# Check for invalid/interrupted YOLO model downloads (e.g. LFS pointers)
+if [ -f "${YOLO_MODEL_PATH}" ]; then
+    FILE_SIZE=$(wc -c < "${YOLO_MODEL_PATH}")
+    if [ "$FILE_SIZE" -lt 100000 ]; then  # Less than 100 KB
+        echo "[!] Existing YOLO file is too small ($FILE_SIZE bytes), likely a Git LFS pointer. Deleting..."
+        rm -f "${YOLO_MODEL_PATH}"
+    fi
+fi
 
 if [ -f "${YOLO_MODEL_PATH}" ]; then
-    echo "[!] YOLO model file already exists at ${YOLO_MODEL_PATH}. Skipping download."
+    echo "[!] YOLO model file already exists and looks valid. Skipping download."
 else
+    echo "Downloading YOLO model (approx. 22 MB)..."
     wget -c -O "${YOLO_MODEL_PATH}" "${YOLO_MODEL_URL}"
     echo "[+] YOLO model downloaded successfully!"
 fi
