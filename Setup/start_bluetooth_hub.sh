@@ -26,6 +26,13 @@ if [ "$EUID" -ne 0 ]; then
   echo "    Some commands like sdptool and rfcomm require root privileges."
 fi
 
+# Ensure Bluetooth is unblocked and powered on
+echo "[*] Ensuring Bluetooth is unblocked and powered on..."
+rfkill unblock bluetooth || true
+bluetoothctl power on || true
+hciconfig hci0 up || true
+sleep 1
+
 # 2. Clean up any existing instances
 echo "[*] Cleaning up old processes..."
 pkill -f "rfcomm watch" || true
