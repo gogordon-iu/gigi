@@ -380,7 +380,7 @@ def start_server():
     is_bluetooth = False
     
     # Try RFCOMM first
-    if hasattr(socket, 'AF_BLUETOOTH'):
+    if False:  # Disabled to avoid collision with dedicated gigi-bluetooth service
         try:
             print("[WakeUp] Binding classical Bluetooth RFCOMM socket...")
             server_sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
