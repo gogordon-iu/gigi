@@ -60,7 +60,15 @@ EOF
 chmod +x "${LLM_SERVER_SH}"
 
 echo "=== [Gigi Model Upgrade] Verifying YOLOv11-nano ONNX Model ==="
-python3 -c "
+PYTHON_BIN="python3"
+if [ -f ".venv/bin/python3" ]; then
+    PYTHON_BIN=".venv/bin/python3"
+elif [ -f "venv/bin/python3" ]; then
+    PYTHON_BIN="venv/bin/python3"
+fi
+
+echo "Using Python: $PYTHON_BIN"
+$PYTHON_BIN -c "
 import cv2
 import sys
 try:
