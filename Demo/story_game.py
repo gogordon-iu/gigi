@@ -21,9 +21,9 @@ if character_dir not in sys.path:
 from character import Character
 from characterDefinitions import IS_ROBOT
 
-# YOLOv8-nano ONNX Model Paths
+# YOLOv11-nano ONNX Model Paths
 RESOURCES_DIR = os.path.join(parent_dir, "Resources")
-YOLO_MODEL_PATH = os.path.join(RESOURCES_DIR, "yolov8n.onnx")
+YOLO_MODEL_PATH = os.path.join(RESOURCES_DIR, "yolo11n.onnx")
 
 # COCO classes representing toys/dolls/common props
 PROP_CLASSES = {
@@ -47,9 +47,9 @@ PROP_CLASSES = {
 
 def download_model_if_needed():
     if not os.path.exists(YOLO_MODEL_PATH):
-        print(f"[Object Detection] Model not found. Downloading YOLOv8-nano ONNX model to {YOLO_MODEL_PATH} (approx. 24MB)...")
+        print(f"[Object Detection] Model not found. Downloading YOLOv11-nano ONNX model to {YOLO_MODEL_PATH} (approx. 22MB)...")
         os.makedirs(RESOURCES_DIR, exist_ok=True)
-        url = "https://huggingface.co/kimhyunwoo/jetson_orin_nano_yolov8/resolve/main/yolov8n.onnx"
+        url = "https://huggingface.co/unity/inference-engine-yolo/resolve/main/yolo11n.onnx"
         urllib.request.urlretrieve(url, YOLO_MODEL_PATH)
         print("[Object Detection] Model downloaded successfully.")
     else:
