@@ -8,6 +8,12 @@ BASE_DIR="$( dirname "$SCRIPT_DIR" )"
 LOG_DIR="$BASE_DIR/Logs"
 mkdir -p "$LOG_DIR"
 
+# Activate Python Virtual Environment if it exists
+if [ -f "$BASE_DIR/venv/bin/activate" ]; then
+  echo "[*] Activating Python virtual environment..."
+  source "$BASE_DIR/venv/bin/activate"
+fi
+
 echo "============================================================"
 echo "          Starting Gigi Robotics Bluetooth Hub"
 echo "============================================================"
