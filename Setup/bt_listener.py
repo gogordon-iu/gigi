@@ -540,9 +540,8 @@ def main():
     threads.append(bt_thread)
 
     # 3. Optional Serial/COM Port Listener (SPP)
-    # On Linux/Orange Pi, check if default /dev/rfcomm0 exists and user didn't specify one
     serial_port = args.serial_port
-    if not serial_port and os.path.exists("/dev/rfcomm0"):
+    if not serial_port and sys.platform.startswith("linux"):
         serial_port = "/dev/rfcomm0"
 
     if serial_port:
