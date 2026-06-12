@@ -526,6 +526,14 @@ def main():
     # Initialize subprocess execution manager
     execution_manager = ExecutionManager()
 
+    # Register SDP Serial Port profile on Linux
+    if sys.platform.startswith("linux"):
+        print("[BluetoothListener] Registering Bluetooth SPP profile via sdptool...")
+        try:
+            subprocess.run(["sudo", "sdptool", "add", "SP"], stderr=subprocess.DEVNULL)
+        except Exception as e:
+            print(f"[BluetoothListener] Failed to register SPP profile: {e}")
+
     # Launch parallel listener threads
     threads = []
     
