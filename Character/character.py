@@ -305,20 +305,36 @@ class Character():
 
     def _cv_wait(self, seconds):
         """Sleep while keeping the OpenCV event loop alive."""
-        if self.face and self.face.IMAGE_OPTION == "cv":
+        if self.face and self.face.IMAGE_OPTION == "cv" and getattr(self.face, 'show_face', True):
             import cv2
             end = time.time() + seconds
             while time.time() < end:
-                cv2.waitKey(30)
+                if not getattr(self.face, 'show_face', True):
+                    time.sleep(max(0.0, end - time.time()))
+                    break
+                try:
+                    cv2.waitKey(30)
+                except Exception as e:
+                    print(f"[Character] Warning: Error during _cv_wait waitKey: {e}")
+                    time.sleep(max(0.0, end - time.time()))
+                    break
         else:
             time.sleep(seconds)
 
     def _join_with_cv_loop(self, thread):
         """Join a thread while keeping the OpenCV event loop alive (required on Linux/OrangePi)."""
-        if self.face and self.face.IMAGE_OPTION == "cv":
+        if self.face and self.face.IMAGE_OPTION == "cv" and getattr(self.face, 'show_face', True):
             import cv2
             while thread.is_alive():
-                cv2.waitKey(30)
+                if not getattr(self.face, 'show_face', True):
+                    thread.join()
+                    return
+                try:
+                    cv2.waitKey(30)
+                except Exception as e:
+                    print(f"[Character] Warning: Error during _join_with_cv_loop waitKey: {e}")
+                    thread.join()
+                    return
         thread.join()
 
     def stop_character(self):
@@ -734,6 +750,9 @@ class Character():
                 if timeout > 0 and (time.time() - start_time) > timeout:
                     print("Face tracking timed out.")
                     break
+                if self.face and not getattr(self.face, 'show_face', True):
+                    print("Face tracking stopped because face window was closed.")
+                    break
 
                 last_data = self.vision.get_last_data()
                 if len(last_data) > 0:
@@ -861,17 +880,24 @@ class Character():
                                 print(f"[Follow Face Log] Searching for face... Torso={T_new:.4f}, dir={search_dir}")
 
                 # OpenCV wait to keep GUI responsive, otherwise standard sleep
-                if self.face and self.face.IMAGE_OPTION == "cv":
+                if self.face and self.face.IMAGE_OPTION == "cv" and getattr(self.face, 'show_face', True):
                     import cv2
-                    cv2.waitKey(int(dt * 1000))
+                    try:
+                        cv2.waitKey(int(dt * 1000))
+                    except Exception as e:
+                        print(f"[Character] Warning: Error during follow_face waitKey: {e}")
+                        time.sleep(dt)
                 else:
                     time.sleep(dt)
 
         finally:
             if not was_running:
                 self.vision.stop_vision()
-            if self.face:
-                self.face.run_sequence(face_sequence_name="idle")
+            if self.face and getattr(self.face, 'show_face', True):
+                try:
+                    self.face.run_sequence(face_sequence_name="idle")
+                except Exception as e:
+                    print(f"[Character] Warning: Error during follow_face teardown idle sequence: {e}")
 
     def update_egocentric_locations(self):
         """
