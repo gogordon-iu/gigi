@@ -46,7 +46,10 @@ class InteractionLogger:
         
         # Create Users directory
         users_root = os.path.join(self.gigi_dir, "Users")
-        os.makedirs(users_root, exist_ok=True)
+        try:
+            os.makedirs(users_root, exist_ok=True)
+        except Exception as e:
+            print(f"[Logger] Warning: Could not create Users root directory '{users_root}': {e}")
         
         # Load or create user mappings
         mapping_path = os.path.join(users_root, "user_mapping.json")
@@ -78,22 +81,50 @@ class InteractionLogger:
                 with open(mapping_path, 'w') as f:
                     json.dump(mapping, f, indent=4)
             except Exception as e:
-                print(f"[Logger] Error writing user mapping: {e}")
+                print(f"[Logger] Warning: Error writing user mapping: {e}")
                 
-        self.user_id = mapping[clean_name]
+        self.user_id = mapping.get(clean_name, f"guest_{clean_name}")
         
         # Set up unique session folder
         timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
         # Sanitize script name for path compatibility
         safe_script_name = re.sub(r'[^\w\-]', '_', script_name)
-        self.session_dir = os.path.join(users_root, self.user_id, f"{timestamp}_{safe_script_name}")
-        os.makedirs(self.session_dir, exist_ok=True)
-        self.is_initialized = True
         
-        print(f"[Logger] Session folder initialized: {self.session_dir}")
+        primary_dir = os.path.join(users_root, self.user_id, f"{timestamp}_{safe_script_name}")
         
-        # Flush buffers
-        self._flush_buffers()
+        # Try primary directory, then home directory, then global temp directory, then system temp directory
+        success = False
+        import tempfile
+        
+        fallback_paths = [
+            primary_dir,
+            os.path.join(os.path.expanduser("~"), ".gigi", "Users", self.user_id, f"{timestamp}_{safe_script_name}"),
+            os.path.join(os.path.abspath(os.sep), "tmp", "gigi_logs", self.user_id, f"{timestamp}_{safe_script_name}"),
+            os.path.join(tempfile.gettempdir(), "gigi_logs", self.user_id, f"{timestamp}_{safe_script_name}")
+        ]
+        
+        for target_dir in fallback_paths:
+            try:
+                os.makedirs(target_dir, exist_ok=True)
+                # Test write permission in target directory
+                test_file = os.path.join(target_dir, ".write_test")
+                with open(test_file, 'w') as f:
+                    f.write("test")
+                os.remove(test_file)
+                
+                self.session_dir = target_dir
+                success = True
+                break
+            except Exception as e:
+                print(f"[Logger] Warning: Target directory '{target_dir}' is not writable: {e}")
+                
+        if success:
+            self.is_initialized = True
+            print(f"[Logger] Session folder initialized: {self.session_dir}")
+            # Flush buffers
+            self._flush_buffers()
+        else:
+            print("[Logger] Critical Error: Could not initialize any writable session folder. Logging to disk is disabled.")
 
     def _flush_buffers(self):
         """Flushes in-memory buffers to disk."""
