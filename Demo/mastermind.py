@@ -366,22 +366,28 @@ def play_mastermind():
                 candidates = get_all_candidates()
                 attempts = 0
                 game_over = False
+                candidates_history = []
+                reprompt_last_guess = False
+                guess = None
                 
                 while not game_over:
-                    if len(candidates) == 0:
-                        gigi.run_character(
-                            viseme_data={'text': "Oh dear! It seems some of the clues might have been a bit mixed up, because no numbers can fit that feedback! Let's restart our game.", 'file': None},
-                            movement_data='look_from_side_to_side'
-                        )
-                        game_over = True
-                        break
+                    if not reprompt_last_guess:
+                        if len(candidates) == 0:
+                            gigi.run_character(
+                                viseme_data={'text': "Oh dear! It seems some of the clues might have been a bit mixed up, because no numbers can fit that feedback! Let's restart our game.", 'file': None},
+                                movement_data='look_from_side_to_side'
+                            )
+                            game_over = True
+                            break
+                            
+                        if attempts == 0:
+                            guess = "0123"  # Standard optimal first guess
+                        else:
+                            guess = random.choice(candidates)
+                            
+                        attempts += 1
                         
-                    if attempts == 0:
-                        guess = "0123"  # Standard optimal first guess
-                    else:
-                        guess = random.choice(candidates)
-                        
-                    attempts += 1
+                    reprompt_last_guess = False
                     print(f"[Mastermind Solver] Attempt {attempts}: Gigi guesses '{guess}' (Candidates left: {len(candidates)})")
                     
                     # Display guess on screen
@@ -389,8 +395,13 @@ def play_mastermind():
                     gigi.face.display_text(None)
                     
                     # Say the guess
+                    if attempts == 1:
+                        guess_text = f"My first guess is {', '.join(guess)}."
+                    else:
+                        guess_text = f"My guess number {attempts} is {', '.join(guess)}."
+                        
                     gigi.run_character(
-                        viseme_data={'text': f"My guess number {attempts} is {', '.join(guess)}. How many black and white indicators do I have?", 'file': None},
+                        viseme_data={'text': f"{guess_text} How many black and white indicators do I have?", 'file': None},
                         movement_data='open_arms'
                     )
                     
@@ -445,7 +456,20 @@ def play_mastermind():
                             playing = False
                             game_over = True
                     else:
-                        candidates = filter_candidates(candidates, guess, black, white)
+                        # Save state to history before filtering
+                        candidates_history.append((list(candidates), guess))
+                        new_candidates = filter_candidates(candidates, guess, black, white)
+                        
+                        if len(new_candidates) == 0:
+                            # Warn the child and backtrack
+                            gigi.run_character(
+                                viseme_data={'text': f"Oh, wait a second! If my guess was {', '.join(guess)} and you said {black} black and {white} white, no numbers can fit that feedback. Could you please check your last answer?", 'file': None},
+                                movement_data='look_from_side_to_side'
+                            )
+                            candidates, guess = candidates_history.pop()
+                            reprompt_last_guess = True
+                        else:
+                            candidates = new_candidates
                     
         # Outro
         gigi.run_character(

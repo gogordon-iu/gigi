@@ -8,7 +8,15 @@ from vision import Vision
 from speech import Speech
 from hearing import Hearing
 from conversation import Conversation
-from resemblyzer import VoiceEncoder, preprocess_wav
+try:
+    from resemblyzer import VoiceEncoder, preprocess_wav
+except ImportError:
+    print("[Speaker Database] Warning: 'resemblyzer' module not found. Voice embedding features will be disabled.")
+    class VoiceEncoder:
+        def embed_utterance(self, wav):
+            return None
+    def preprocess_wav(wav):
+        return wav
 from scipy.spatial.distance import cosine
 
 class SpeakerDatabase:
