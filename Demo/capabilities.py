@@ -51,7 +51,7 @@ def extract_name(text, gigi=None):
         )
         user_prompt = f"Extract the name from this text: '{text}'"
         
-        llm_response = llm.get_response(system_prompt=system_prompt, user_prompt=user_prompt)
+        llm_response = llm.get_response(system_prompt=system_prompt, user_prompt=user_prompt, raise_on_error=True)
         extracted = llm_response.strip().replace(".", "").replace("!", "").replace("?", "")
         
         if extracted and len(extracted) < 30 and extracted.lower() not in ['friend', 'unknown', 'connection issue']:

@@ -134,7 +134,7 @@ class Conversation:
     # ------------------------------------------------------------------
     # Core response helper — shared by both public methods
     # ------------------------------------------------------------------
-    def _call_npu(self, messages: list, model: str = None) -> str:
+    def _call_npu(self, messages: list, model: str = None, raise_on_error: bool = False) -> str:
         """
         Send `messages` to the NPU server and return the raw text response.
         Falls back to a timeout phrase on any error.
@@ -153,6 +153,8 @@ class Conversation:
             print(f"[Warning] NPU returned empty choices: {data}")
         except Exception as e:
             print(f"[Error] NPU Server Error: {e}")
+            if raise_on_error:
+                raise e
         return random.choice(self.timeout_options)
 
     # ------------------------------------------------------------------
@@ -214,7 +216,7 @@ class Conversation:
             print(f"Error in check_fluid_done: {e}")
             return False
 
-    def get_response(self, system_prompt: str, user_prompt: str) -> str:
+    def get_response(self, system_prompt: str, user_prompt: str, raise_on_error: bool = False) -> str:
         """
         Stateless call: builds a fresh 2-message payload, returns ONE sentence.
         Does NOT touch conversation_history.
@@ -235,7 +237,7 @@ class Conversation:
             {"role": "user",   "content": tagged_prompt}
         ]
 
-        raw    = self._call_npu(messages)
+        raw    = self._call_npu(messages, raise_on_error=raise_on_error)
         result = clean_response(raw)          # ← basic cleaning only, no sentence truncation
         print(f"[Gigi] Gigi: {result}")
         return result
