@@ -10,15 +10,21 @@ mkdir -p "$LOG_DIR"
 
 # Activate Python Virtual Environment if it exists
 if [ -f "$BASE_DIR/venv/bin/activate" ]; then
-  echo "[*] Activating Python virtual environment..."
+  echo "[*] Activating Python virtual environment (venv)..."
   source "$BASE_DIR/venv/bin/activate"
+elif [ -f "$BASE_DIR/.venv/bin/activate" ]; then
+  echo "[*] Activating Python virtual environment (.venv)..."
+  source "$BASE_DIR/.venv/bin/activate"
 fi
 
-# Define Python executable path (explicitly using venv if present)
+# Define Python executable path (explicitly using venv/.venv if present)
 PYTHON_EXEC="python3"
 if [ -f "$BASE_DIR/venv/bin/python" ]; then
   PYTHON_EXEC="$BASE_DIR/venv/bin/python"
+elif [ -f "$BASE_DIR/.venv/bin/python" ]; then
+  PYTHON_EXEC="$BASE_DIR/.venv/bin/python"
 fi
+
 
 echo "============================================================"
 echo "          Starting Gigi Robotics Bluetooth Hub"
