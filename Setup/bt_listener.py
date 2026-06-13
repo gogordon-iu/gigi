@@ -111,10 +111,11 @@ class ConnectionWrapper:
         try:
             if self.is_serial:
                 # Read from serial port
-                # We block until data is available or port is closed
+                # Direct read using the serial port's timeout
                 while not self.closed:
-                    if hasattr(self.conn, 'in_waiting') and self.conn.in_waiting > 0:
-                        return self.conn.read(min(limit, self.conn.in_waiting))
+                    data = self.conn.read(limit)
+                    if data:
+                        return data
                     time.sleep(0.05)
                 return b""
             else:
