@@ -164,7 +164,10 @@ class Character():
         self.use_npu_speaker = USE_NPU_SPEAKER
         
         try:
-            from make_friends import SpeakerDatabase
+            try:
+                from Character.make_friends import SpeakerDatabase
+            except ImportError:
+                from make_friends import SpeakerDatabase
             db_path = CHARACTER_FOLDER + "../Resources/speaker_db.pkl"
             self.speaker_db = SpeakerDatabase(db_path=db_path)
             

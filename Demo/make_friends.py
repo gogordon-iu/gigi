@@ -22,7 +22,10 @@ if current_dir not in sys.path:
 
 from character import Character
 from capabilities import extract_name
-from make_friends import SpeakerDatabase
+try:
+    from Character.make_friends import SpeakerDatabase
+except ImportError:
+    from make_friends import SpeakerDatabase
 
 def pause_vision(gigi):
     """Temporarily pause vision processing to optimize STT performance."""
