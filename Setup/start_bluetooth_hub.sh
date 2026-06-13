@@ -14,6 +14,12 @@ if [ -f "$BASE_DIR/venv/bin/activate" ]; then
   source "$BASE_DIR/venv/bin/activate"
 fi
 
+# Define Python executable path (explicitly using venv if present)
+PYTHON_EXEC="python3"
+if [ -f "$BASE_DIR/venv/bin/python" ]; then
+  PYTHON_EXEC="$BASE_DIR/venv/bin/python"
+fi
+
 echo "============================================================"
 echo "          Starting Gigi Robotics Bluetooth Hub"
 echo "============================================================"
@@ -46,7 +52,7 @@ sdptool add SP > /dev/null 2>&1 || true
 
 # 4. Start the Auto-Pairing Agent
 echo "[*] Starting Bluetooth Auto-Pairing Agent (PIN: 198420)..."
-python3 -u "$SCRIPT_DIR/bt_agent.py" > "$LOG_DIR/bt_agent.log" 2>&1 &
+"$PYTHON_EXEC" -u "$SCRIPT_DIR/bt_agent.py" > "$LOG_DIR/bt_agent.log" 2>&1 &
 AGENT_PID=$!
 echo "    -> Agent started in background (PID: $AGENT_PID). Logs: $LOG_DIR/bt_agent.log"
 
@@ -58,7 +64,7 @@ echo "    -> RFCOMM Watcher started in background (PID: $WATCHER_PID). Logs: $LO
 
 # 6. Start Bluetooth Command Listener
 echo "[*] Starting Bluetooth Command Listener..."
-python3 -u "$SCRIPT_DIR/bt_listener.py" > "$LOG_DIR/bt_listener.log" 2>&1 &
+"$PYTHON_EXEC" -u "$SCRIPT_DIR/bt_listener.py" > "$LOG_DIR/bt_listener.log" 2>&1 &
 LISTENER_PID=$!
 echo "    -> Listener started in background (PID: $LISTENER_PID). Logs: $LOG_DIR/bt_listener.log"
 
