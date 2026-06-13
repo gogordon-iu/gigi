@@ -428,16 +428,18 @@ class Character():
                     if hasattr(self, 'logger'):
                         self.logger.log_conversation(self.current_speaker or "User", final_text)
 
-    def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None):
+    def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None, run_speaker_recognition=True):
         if self.hearing and self.face:
             self.speaker_gaze_target = None
             self.current_speaker = None
             self.hearing.clear_audio_buffer()
             stop_event = threading.Event()
             
-            recognition_stop = threading.Event()
-            rec_thread = threading.Thread(target=self._speaker_recognition_worker, args=(recognition_stop,), daemon=True)
-            rec_thread.start()
+            rec_thread = None
+            if run_speaker_recognition:
+                recognition_stop = threading.Event()
+                rec_thread = threading.Thread(target=self._speaker_recognition_worker, args=(recognition_stop,), daemon=True)
+                rec_thread.start()
             
             # Timeout handler
             threading.Timer(timeout, stop_event.set).start()
@@ -469,8 +471,9 @@ class Character():
                         self.lookat_person(target_name)
                     self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
             finally:
-                recognition_stop.set()
-                rec_thread.join(timeout=1.0)
+                if rec_thread is not None:
+                    recognition_stop.set()
+                    rec_thread.join(timeout=1.0)
                 hearing_thread.join()
                 
                 # Record transcription under the recognized speaker
@@ -957,6 +960,33 @@ class Character():
         Looks up a person by name in the egocentric database, and moves the robot's
         gaze (neck and torso) to look at their last known physical location.
         """
+        # First, check if there is an active face detected in the camera right now.
+        # If so, look at the actively detected face instead of the stale database angle!
+        if self.vision and self.vision.running:
+            last_data = self.vision.get_last_data()
+            if len(last_data) > 0:
+                # Get the detected face (try matching by name, or fallback to first one)
+                face_info = None
+                for f_info in last_data.values():
+                    if f_info.get('name', 'Unknown') == name:
+                        face_info = f_info
+                        break
+                if face_info is None:
+                    face_info = next(iter(last_data.values()))
+                
+                offset_x = face_info.get('offset', [0.0, 0.0])[0]
+                target_angle = self.lookat_coordinate(offset=offset_x, verbose=False)
+                print(f"Looking at '{name}' using active camera detection (offset={offset_x:.3f}, target_angle={target_angle:.3f})")
+                self.lookat_behavior(target_coor=target_angle)
+                
+                # Update the database location with the new angle
+                self.egocentric_db[name] = {
+                    "angle": float(target_angle),
+                    "timestamp": time.time()
+                }
+                self.update_egocentric_locations()
+                return True
+
         if name in self.egocentric_db:
             target_angle = self.egocentric_db[name]["angle"]
             print(f"Looking at '{name}' at last known egocentric location: {target_angle:.3f}")

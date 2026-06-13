@@ -30,7 +30,10 @@ elif HEARING_OPTION == "whisper":
 
     # ── Try loading RKNNLite dependencies ──
     _rknn_available = False
-    RKNN_MODEL_PATH = "../Resources/sense-voice-encoder.rknn"
+    import os
+    _hearing_dir = os.path.dirname(os.path.abspath(__file__))
+    _resources_dir = os.path.abspath(os.path.join(_hearing_dir, "..", "Resources"))
+    RKNN_MODEL_PATH = os.path.join(_resources_dir, "sense-voice-encoder.rknn")
     SPEECH_SCALE = 0.1
 
     try:
@@ -93,7 +96,7 @@ elif HEARING_OPTION == "whisper":
                 try:
                     import sentencepiece as spm
                     sp = spm.SentencePieceProcessor()
-                    sp.Load("../Resources/chn_jpn_yue_eng_ko_spectok.bpe.model")
+                    sp.Load(os.path.join(_resources_dir, "chn_jpn_yue_eng_ko_spectok.bpe.model"))
                     text = sp.Decode(decoded)
                 except Exception:
                     text = " ".join(str(t) for t in decoded)

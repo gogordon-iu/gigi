@@ -249,7 +249,7 @@ def play_reading_fluency(show_karaoke=True):
             while current_word_idx < len(passage_words):
                 gigi.hearing.texts = []
                 print(f"Listening for words starting from index {current_word_idx}...")
-                gigi.listen_fluid(timeout=15, n_transcripts=1, check_callback=check_fluency)
+                gigi.listen_fluid(timeout=15, n_transcripts=1, check_callback=check_fluency, run_speaker_recognition=False)
                 
                 if not gigi.hearing.texts:
                     print("No speech detected. Pausing...")
