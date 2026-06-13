@@ -4,6 +4,10 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BASE_DIR="$( dirname "$SCRIPT_DIR" )"
 
+# Export X11 display variables so child processes can render GUI windows on the screen
+export DISPLAY=:0
+export XAUTHORITY=/home/orangepi/.Xauthority
+
 # Make sure log directory exists
 LOG_DIR="$BASE_DIR/Logs"
 mkdir -p "$LOG_DIR"
