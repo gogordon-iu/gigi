@@ -115,13 +115,18 @@ class ConnectionWrapper:
                 while not self.closed:
                     data = self.conn.read(limit)
                     if data:
+                        print(f"[ConnectionWrapper] Recv serial data: {data}")
                         return data
                     time.sleep(0.05)
                 return b""
             else:
                 # Read from socket
-                return self.conn.recv(limit)
-        except Exception:
+                data = self.conn.recv(limit)
+                if data:
+                    print(f"[ConnectionWrapper] Recv socket data: {data}")
+                return data
+        except Exception as e:
+            print(f"[ConnectionWrapper] Recv error: {e}")
             self.closed = True
             return b""
 
@@ -129,6 +134,7 @@ class ConnectionWrapper:
         if self.closed:
             return
         try:
+            print(f"[ConnectionWrapper] Sending data: {data}")
             if self.is_serial:
                 self.conn.write(data)
                 self.conn.flush()
