@@ -78,6 +78,14 @@ class Face():
             cv2.resizeWindow(self.win_name, self.screen_size[0], self.screen_size[1])
         self.initialize_character(save=True)
         
+        # Reading Fluency Karaoke variables
+        self.reading_fluency_active = False
+        self.reading_passage_words = []
+        self.reading_current_word_idx = 0
+        self.reading_word_states = []
+        self.reading_last_wrong_heard = None
+        self.last_face_image = None
+        
         # Initialize visual feedback icons
         self.feedback_state = None
         self.overlay_text = None
@@ -220,99 +228,99 @@ class Face():
 
 
     def display_face(self, image_):
-        # Scale the image to fill the screen
+        self.last_face_image = image_
+        
+        # Scale/Draw the image to fill the screen
         if IMAGE_OPTION == "pygame":
-            image_ = pygame.transform.scale(image_, self.screen_size)
+            W, H = self.screen_size
+            image_resized = pygame.transform.scale(image_, self.screen_size)
+            
+            # Overlay feedback state on the face
             if self.feedback_state in self.feedback_icons:
                 icon = self.feedback_icons[self.feedback_state]
-                w, h = self.screen_size
-                scale_h = int(h * 0.15)
+                scale_h = int(H * 0.15)
                 scale_w = int(icon.get_width() * scale_h / icon.get_height())
                 icon_resized = pygame.transform.smoothscale(icon, (scale_w, scale_h))
-                image_.blit(icon_resized, (w - scale_w - 10, h - scale_h - 10))
+                # Position it on top-right to avoid bottom overlay area
+                image_resized.blit(icon_resized, (W - scale_w - 10, 10))
+            
+            if getattr(self, 'reading_fluency_active', False):
+                self.draw_reading_fluency_overlay_pygame(image_resized)
             
             if getattr(self, 'overlay_text', None):
                 text = str(self.overlay_text)
-                w, h = self.screen_size
                 font = pygame.font.SysFont("Arial", 42, bold=True)
                 text_surface = font.render(text, True, (255, 255, 255))
                 text_w, text_h = text_surface.get_size()
-                
                 pad_x = 20
                 pad_y = 15
                 card_w = text_w + 2 * pad_x
                 card_h = text_h + 2 * pad_y
-                
                 margin = 15
-                x0 = w - card_w - margin
-                y0 = h - card_h - margin
+                x0 = (W - card_w) // 2
+                y0 = (H * 2 // 3) - card_h - margin if getattr(self, 'reading_fluency_active', False) else H - card_h - margin
                 
                 card_surf = pygame.Surface((card_w, card_h), pygame.SRCALPHA)
-                card_surf.fill((20, 30, 70, 204))  # 80% opacity dark slate
+                card_surf.fill((20, 30, 70, 204))
                 pygame.draw.rect(card_surf, (100, 200, 255), (0, 0, card_w, card_h), 2, border_radius=5)
                 card_surf.blit(text_surface, (pad_x, pad_y))
-                image_.blit(card_surf, (x0, y0))
-
-            # Blit the image to the screen
-            self.screen.blit(image_, (0, 0))
-
-            # Update the display
+                image_resized.blit(card_surf, (x0, y0))
+                
+            self.screen.blit(image_resized, (0, 0))
             pygame.display.flip()
+            
         elif IMAGE_OPTION == "cv":
-            image_ = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)
+            W, H = self.screen_size
+            image_resized = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)
+            
+            # Overlay feedback state on the face
             if self.feedback_state in self.feedback_icons:
                 icon = self.feedback_icons[self.feedback_state]
-                h, w = image_.shape[:2]
-                scale_h = int(h * 0.15)
+                scale_h = int(H * 0.15)
                 scale_w = int(icon.shape[1] * scale_h / icon.shape[0])
                 icon_resized = cv2.resize(icon, (scale_w, scale_h))
-                
-                # Overlay with alpha channel
                 icon_rgb = icon_resized[:, :, :3]
                 icon_alpha = icon_resized[:, :, 3] / 255.0
-                
-                # Region of interest (bottom right corner, with a 10px margin)
                 margin = 10
-                roi_y0 = h - scale_h - margin
-                roi_y1 = h - margin
-                roi_x0 = w - scale_w - margin
-                roi_x1 = w - margin
-                
-                roi = image_[roi_y0:roi_y1, roi_x0:roi_x1]
+                # Position it on top-right to avoid bottom overlay area
+                roi_y0 = margin
+                roi_y1 = margin + scale_h
+                roi_x0 = W - scale_w - margin
+                roi_x1 = W - margin
+                roi = image_resized[roi_y0:roi_y1, roi_x0:roi_x1]
                 for c in range(3):
                     roi[:, :, c] = (icon_alpha * icon_rgb[:, :, c] + (1 - icon_alpha) * roi[:, :, c]).astype(np.uint8)
-                image_[roi_y0:roi_y1, roi_x0:roi_x1] = roi
-
+                image_resized[roi_y0:roi_y1, roi_x0:roi_x1] = roi
+            
+            if getattr(self, 'reading_fluency_active', False):
+                self.draw_reading_fluency_overlay_cv(image_resized)
+            
             if getattr(self, 'overlay_text', None):
                 text = str(self.overlay_text)
-                h, w = image_.shape[:2]
                 font = cv2.FONT_HERSHEY_DUPLEX
                 font_scale = 1.2
                 thickness = 2
-                
                 (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, thickness)
                 pad_x = 20
                 pad_y = 15
                 card_w = text_w + 2 * pad_x
                 card_h = text_h + 2 * pad_y
-                
                 margin = 15
-                x0 = w - card_w - margin
-                y0 = h - card_h - margin
-                x1 = w - margin
-                y1 = h - margin
+                x0 = (W - card_w) // 2
+                y0 = (H * 2 // 3) - card_h - margin if getattr(self, 'reading_fluency_active', False) else H - card_h - margin
+                x1 = x0 + card_w
+                y1 = y0 + card_h
                 
-                roi = image_[y0:y1, x0:x1]
+                roi = image_resized[y0:y1, x0:x1]
                 card_bg = np.zeros_like(roi)
-                card_bg[:] = (70, 30, 20)  # Dark slate
-                
+                card_bg[:] = (70, 30, 20)
                 alpha = 0.8
                 roi_blended = cv2.addWeighted(roi, 1 - alpha, card_bg, alpha, 0)
                 cv2.rectangle(roi_blended, (0, 0), (card_w, card_h), (255, 200, 100), 2, lineType=cv2.LINE_AA)
                 cv2.putText(roi_blended, text, (pad_x, card_h - pad_y), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
-                image_[y0:y1, x0:x1] = roi_blended
-
-            cv2.imshow(self.win_name, image_)
+                image_resized[y0:y1, x0:x1] = roi_blended
+            
+            cv2.imshow(self.win_name, image_resized)
             cv2.waitKey(1)
 
     def get_sequence_length(self, sequence):
@@ -385,6 +393,182 @@ class Face():
         if face_sequence is None:
             face_sequence = basic_sequences[face_sequence_name]
         self.generate_face(parts_selected=face_sequence, delay=0.1)
+
+    def update_reading_fluency(self, active=True, passage_words=None, current_word_idx=0, word_states=None, last_wrong_heard=None):
+        self.reading_fluency_active = active
+        if passage_words is not None:
+            self.reading_passage_words = passage_words
+        self.reading_current_word_idx = current_word_idx
+        if word_states is not None:
+            self.reading_word_states = word_states
+        elif passage_words is not None and (len(self.reading_word_states) != len(passage_words)):
+            self.reading_word_states = ['unread'] * len(passage_words)
+        self.reading_last_wrong_heard = last_wrong_heard
+        
+        # Force a refresh of the display using the last face image if available
+        if getattr(self, 'last_face_image', None) is not None:
+            self.display_face(self.last_face_image)
+
+    def draw_reading_fluency_overlay_cv(self, canvas):
+        W, H = self.screen_size
+        overlay_h = H // 3
+        y0 = H - overlay_h
+        
+        # 1. Draw translucent background card (Dark Indigo/Slate)
+        roi = canvas[y0:H, 0:W]
+        overlay_bg = np.zeros_like(roi)
+        overlay_bg[:] = (31, 11, 15) # Dark indigo (15, 11, 31) RGB
+        alpha = 0.8
+        roi_blended = cv2.addWeighted(roi, 1 - alpha, overlay_bg, alpha, 0)
+        canvas[y0:H, 0:W] = roi_blended
+        
+        # 2. Draw border line at top of overlay
+        cv2.line(canvas, (0, y0), (W, y0), (255, 200, 100), 2, lineType=cv2.LINE_AA)
+        
+        # 3. Draw wrapped text
+        font_word = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 1.0
+        thickness = 2
+        
+        margin_x = 45
+        cursor_x = margin_x
+        cursor_y = y0 + 50
+        line_spacing = 45
+        
+        space_size, _ = cv2.getTextSize(" ", font_word, font_scale, thickness)
+        space_w = space_size[0]
+        
+        for idx, word in enumerate(self.reading_passage_words):
+            state = self.reading_word_states[idx] if idx < len(self.reading_word_states) else 'unread'
+            word_size, _ = cv2.getTextSize(word, font_word, font_scale, thickness)
+            word_w, word_h = word_size
+            
+            # Wrap if needed
+            if cursor_x + word_w > W - margin_x:
+                cursor_x = margin_x
+                cursor_y += line_spacing
+                
+            if idx == self.reading_current_word_idx:
+                # Karaoke Highlight box
+                pad = 6
+                cv2.rectangle(canvas, 
+                              (cursor_x - pad, cursor_y - word_h - pad), 
+                              (cursor_x + word_w + pad, cursor_y + pad), 
+                              (0, 215, 255), # Yellow/Gold
+                              thickness=cv2.FILLED)
+                cv2.putText(canvas, word, (cursor_x, cursor_y), font_word, font_scale, (15, 11, 31), thickness, cv2.LINE_AA)
+            else:
+                if state == 'correct':
+                    color = (50, 220, 50)
+                    cv2.putText(canvas, word, (cursor_x, cursor_y), font_word, font_scale, color, thickness, cv2.LINE_AA)
+                    cv2.line(canvas, (cursor_x, cursor_y + 8), (cursor_x + word_w, cursor_y + 8), color, 2, cv2.LINE_AA)
+                elif state == 'wrong':
+                    color = (70, 70, 255) # Red BGR
+                    cv2.putText(canvas, word, (cursor_x, cursor_y), font_word, font_scale, color, thickness, cv2.LINE_AA)
+                    cv2.line(canvas, (cursor_x, cursor_y - word_h // 2), (cursor_x + word_w, cursor_y - word_h // 2), color, 2, cv2.LINE_AA)
+                else:
+                    color = (220, 220, 220)
+                    cv2.putText(canvas, word, (cursor_x, cursor_y), font_word, font_scale, color, thickness, cv2.LINE_AA)
+                    
+            cursor_x += word_w + space_w
+            
+        # 4. Draw wrong heard feedback box inside the overlay at the bottom if present
+        if self.reading_last_wrong_heard:
+            heard_text = self.reading_last_wrong_heard.get("heard", "")
+            expected_text = self.reading_last_wrong_heard.get("expected", "")
+            
+            box_y0 = H - 85
+            box_x0 = 40
+            box_x1 = W - 40
+            box_y1 = H - 15
+            
+            # Semi-transparent inner card
+            card_roi = canvas[box_y0:box_y1, box_x0:box_x1]
+            card_bg = np.zeros_like(card_roi)
+            card_bg[:] = (20, 15, 45) # Dark wine/plum
+            canvas[box_y0:box_y1, box_x0:box_x1] = cv2.addWeighted(card_roi, 0.4, card_bg, 0.6, 0)
+            
+            # Inner border
+            cv2.rectangle(canvas, (box_x0, box_y0), (box_x1, box_y1), (100, 100, 255), 1, lineType=cv2.LINE_AA)
+            
+            font_feedback = cv2.FONT_HERSHEY_SIMPLEX
+            # Gigi heard: 'heard' vs Try saying: 'expected' side-by-side or on one line
+            feedback_str = f"Gigi heard: '{heard_text}'   |   Try saying: '{expected_text}'"
+            cv2.putText(canvas, feedback_str, (box_x0 + 20, box_y0 + 45), font_feedback, 0.7, (120, 150, 255), 2, cv2.LINE_AA)
+
+    def draw_reading_fluency_overlay_pygame(self, canvas):
+        W, H = self.screen_size
+        overlay_h = H // 3
+        y0 = H - overlay_h
+        
+        # 1. Create a semi-transparent surface for the overlay background
+        overlay_surf = pygame.Surface((W, overlay_h), pygame.SRCALPHA)
+        overlay_surf.fill((15, 11, 31, 204)) # 80% opacity dark slate
+        pygame.draw.line(overlay_surf, (100, 200, 255), (0, 0), (W, 0), 2) # border line at top
+        canvas.blit(overlay_surf, (0, y0))
+        
+        # 2. Draw wrapped text
+        font_word = pygame.font.SysFont("Arial", 32, bold=False)
+        font_word_bold = pygame.font.SysFont("Arial", 32, bold=True)
+        
+        margin_x = 45
+        cursor_x = margin_x
+        cursor_y = y0 + 30
+        line_spacing = 45
+        
+        space_w, _ = font_word.size(" ")
+        
+        for idx, word in enumerate(self.reading_passage_words):
+            state = self.reading_word_states[idx] if idx < len(self.reading_word_states) else 'unread'
+            current_font = font_word_bold if idx == self.reading_current_word_idx else font_word
+            word_w, word_h = current_font.size(word)
+            
+            if cursor_x + word_w > W - margin_x:
+                cursor_x = margin_x
+                cursor_y += line_spacing
+                
+            if idx == self.reading_current_word_idx:
+                pad = 4
+                rect = pygame.Rect(cursor_x - pad, cursor_y - pad, word_w + 2*pad, word_h + 2*pad)
+                pygame.draw.rect(canvas, (255, 215, 0), rect, border_radius=4)
+                word_surf = current_font.render(word, True, (15, 11, 31))
+                canvas.blit(word_surf, (cursor_x, cursor_y))
+            else:
+                if state == 'correct':
+                    color = (50, 220, 50)
+                    word_surf = current_font.render(word, True, color)
+                    canvas.blit(word_surf, (cursor_x, cursor_y))
+                    pygame.draw.line(canvas, color, (cursor_x, cursor_y + word_h + 2), (cursor_x + word_w, cursor_y + word_h + 2), 2)
+                elif state == 'wrong':
+                    color = (255, 70, 70)
+                    word_surf = current_font.render(word, True, color)
+                    canvas.blit(word_surf, (cursor_x, cursor_y))
+                    pygame.draw.line(canvas, color, (cursor_x, cursor_y + word_h // 2), (cursor_x + word_w, cursor_y + word_h // 2), 2)
+                else:
+                    color = (200, 200, 200)
+                    word_surf = current_font.render(word, True, color)
+                    canvas.blit(word_surf, (cursor_x, cursor_y))
+                    
+            cursor_x += word_w + space_w
+            
+        # 3. Draw wrong heard feedback box inside the overlay at the bottom if present
+        if self.reading_last_wrong_heard:
+            heard_text = self.reading_last_wrong_heard.get("heard", "")
+            expected_text = self.reading_last_wrong_heard.get("expected", "")
+            
+            box_y = H - 85
+            box_h = 60
+            box_w = W - 80
+            
+            card_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+            card_surf.fill((45, 15, 20, 180)) # semi-transparent wine color
+            pygame.draw.rect(card_surf, (255, 100, 100), (0, 0, box_w, box_h), 1, border_radius=6)
+            canvas.blit(card_surf, (40, box_y))
+            
+            font_feedback = pygame.font.SysFont("Arial", 20, bold=True)
+            feedback_str = f"Gigi heard: '{heard_text}'   |   Try saying: '{expected_text}'"
+            feedback_surf = font_feedback.render(feedback_str, True, (120, 150, 255))
+            canvas.blit(feedback_surf, (60, box_y + 18))
 
     def display_text(self, text=None):    
         if text:

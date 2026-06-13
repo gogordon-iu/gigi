@@ -55,7 +55,7 @@ class BackgroundFaceTracker:
             self.thread = None
             print("[Reading Fluency] Background face follow tracker stopped.")
 
-def play_reading_fluency():
+def play_reading_fluency(show_karaoke=True):
     print("====================================================")
     print("             GIGI Reading Fluency Demo              ")
     print("====================================================")
@@ -99,15 +99,21 @@ def play_reading_fluency():
         # Greet the person by name if recognized during introduction
         name = None
         if gigi.vision:
+            print("[Reading Fluency] Checking recognized faces in the face cache...")
             all_faces = gigi.vision.face_cache.get_all_faces()
+            print(f"[Reading Fluency] Face cache contains {len(all_faces)} active face(s).")
             for face_id, face_info in all_faces.items():
                 face_name = face_info.get('name', 'Unknown')
+                print(f"[Reading Fluency] Face ID {face_id} detected in cache: name='{face_name}', recognition_attempted={face_info.get('recognition_attempted', False)}")
                 is_face_pattern = re.match(r'^face_\d{4}$', face_name) is not None
                 is_unknown = (face_name == 'Unknown' or is_face_pattern or (face_name == 'Recognizing...' and face_info.get('recognition_attempted', False)))
                 
                 if not is_unknown and face_name != 'Recognizing...':
                     name = face_name
+                    print(f"[Reading Fluency] Selected recognized user: '{name}' (from Face ID {face_id})")
                     break
+            if not name:
+                print("[Reading Fluency] No recognized registered user found in face cache.")
                     
         if name:
             gigi.run_character(
@@ -161,6 +167,16 @@ def play_reading_fluency():
         reading_mistakes = []
         gigi.log_variable("reading_mistakes", reading_mistakes)
         
+        word_states = ['unread'] * len(passage_words)
+        if show_karaoke and gigi.face:
+            gigi.face.update_reading_fluency(
+                active=True,
+                passage_words=passage_words,
+                current_word_idx=current_word_idx,
+                word_states=word_states,
+                last_wrong_heard=None
+            )
+        
         if gigi.hearing:
             # Dynamically set shorter buffer size for rapid real-time corrections
             if hasattr(gigi.hearing, 'audio_processor'):
@@ -175,7 +191,7 @@ def play_reading_fluency():
 
             # Dynamic callback to detect mistakes vs off-topic talking in real time
             def check_fluency(text):
-                nonlocal current_word_idx
+                nonlocal current_word_idx, word_states
                 words_heard = [w.translate(str.maketrans('', '', string.punctuation)).lower() for w in text.split()]
                 words_heard = [w for w in words_heard if w]
                 if not words_heard:
@@ -184,6 +200,10 @@ def play_reading_fluency():
                 matched_count = 0
                 unmatched_count = 0
                 temp_idx = current_word_idx
+                
+                # Check real-time progress using a local copy of states
+                local_word_states = list(word_states)
+                last_wrong = None
                 
                 for i, h_word in enumerate(words_heard):
                     if h_word in fillers:
@@ -195,22 +215,31 @@ def play_reading_fluency():
                         if check_idx < len(passage_words):
                             expected = passage_words[check_idx].translate(str.maketrans('', '', string.punctuation)).lower()
                             if is_match(h_word, expected):
+                                for j in range(temp_idx, check_idx + 1):
+                                    local_word_states[j] = 'correct'
                                 temp_idx = check_idx + 1
                                 matched_count += 1
                                 found_match = True
                                 break
                     if not found_match:
+                        if temp_idx < len(passage_words):
+                            expected = passage_words[temp_idx].translate(str.maketrans('', '', string.punctuation)).lower()
+                            local_word_states[temp_idx] = 'wrong'
+                            last_wrong = {"heard": h_word, "expected": expected}
                         if i < len(words_heard) - 1:
                             unmatched_count += 1
                             
                 is_talking = (matched_count == 0) or (unmatched_count >= 3 and matched_count < unmatched_count)
                 
-                if is_talking:
-                    return False # Ignore off-topic speech (do not interrupt)
-                if unmatched_count >= 1:
-                    return True # Stop listening immediately to make a correction
-                if temp_idx >= len(passage_words):
-                    return True # Completed passage, stop listening
+                if not is_talking:
+                    if show_karaoke and gigi.face:
+                        gigi.face.update_reading_fluency(
+                            active=True,
+                            current_word_idx=temp_idx,
+                            word_states=local_word_states,
+                            last_wrong_heard=last_wrong
+                        )
+                    return unmatched_count >= 1 or temp_idx >= len(passage_words)
                     
                 return False
 
@@ -237,6 +266,14 @@ def play_reading_fluency():
                     if is_match(words_heard[0], p0) and is_match(words_heard[1], p1):
                         print("\n[Restart detected. Resetting to the beginning of the passage.]")
                         current_word_idx = 0
+                        word_states = ['unread'] * len(passage_words)
+                        if show_karaoke and gigi.face:
+                            gigi.face.update_reading_fluency(
+                                active=True,
+                                current_word_idx=current_word_idx,
+                                word_states=word_states,
+                                last_wrong_heard=None
+                            )
                 
                 matched_idx = current_word_idx
                 matched_count = 0
@@ -255,6 +292,8 @@ def play_reading_fluency():
                         if check_idx < len(passage_words):
                             expected = passage_words[check_idx].translate(str.maketrans('', '', string.punctuation)).lower()
                             if is_match(h_word, expected):
+                                for j in range(matched_idx, check_idx + 1):
+                                    word_states[j] = 'correct'
                                 matched_idx = check_idx + 1
                                 matched_count += 1
                                 found_match = True
@@ -277,7 +316,17 @@ def play_reading_fluency():
                     # Stop tracking briefly to animate correction response cleanly
                     tracker.stop()
                     
-                    # Log the mistake details
+                    # Log the mistake details and update display
+                    word_states[matched_idx] = 'wrong'
+                    last_wrong = {"heard": first_unmatched_word, "expected": first_unmatched_expected}
+                    if show_karaoke and gigi.face:
+                        gigi.face.update_reading_fluency(
+                            active=True,
+                            current_word_idx=matched_idx,
+                            word_states=word_states,
+                            last_wrong_heard=last_wrong
+                        )
+                    
                     mistake_info = {
                         "word_index": matched_idx,
                         "expected": first_unmatched_expected,
@@ -319,6 +368,8 @@ def play_reading_fluency():
                                 
                     if success:
                         # Affirmation for solving the word + read sentence again
+                        word_states[matched_idx] = 'correct'
+                        
                         affirmations = [
                             "You got it! Great job!",
                             "Perfect! You solved it!",
@@ -344,27 +395,59 @@ def play_reading_fluency():
                         sentence_str = " ".join(sentence_words_list)
                         print(f"Sentence to re-read: '{sentence_str}'")
                         
+                        # Reset sentence word states to unread so they can read them again
+                        for j in range(sentence_start_idx, matched_idx + 1):
+                            word_states[j] = 'unread'
+                        
+                        current_word_idx = sentence_start_idx
+                        if show_karaoke and gigi.face:
+                            gigi.face.update_reading_fluency(
+                                active=True,
+                                current_word_idx=current_word_idx,
+                                word_states=word_states,
+                                last_wrong_heard=None
+                            )
+                        
                         gigi.run_character(
                             viseme_data={'text': f"{affirmation} Now, please read the sentence again with the correct word.", 'file': None},
                             face_data={'sequence': 'smile'}
                         )
                         tracker.start()
-                        current_word_idx = sentence_start_idx
                     else:
                         # Fallback if they couldn't get it: tell them the word and move past
+                        word_states[matched_idx] = 'correct' # Move past it
+                        current_word_idx = matched_idx + 1 # Move past the mistake
+                        if show_karaoke and gigi.face:
+                            gigi.face.update_reading_fluency(
+                                active=True,
+                                current_word_idx=current_word_idx,
+                                word_states=word_states,
+                                last_wrong_heard=None
+                            )
+                        
                         gigi.run_character(
                             viseme_data={'text': f"The word is {first_unmatched_expected}. Let's keep reading!", 'file': None}
                         )
                         tracker.start()
-                        current_word_idx = matched_idx + 1 # Move past the mistake
                 else:
                     current_word_idx = matched_idx
+                    if show_karaoke and gigi.face:
+                        gigi.face.update_reading_fluency(
+                            active=True,
+                            current_word_idx=current_word_idx,
+                            word_states=word_states,
+                            last_wrong_heard=None
+                        )
                     
                 if current_word_idx >= len(passage_words):
                     print("Student finished reading the passage successfully.")
                     break
 
             tracker.stop()
+            
+            # Disable reading fluency mode after reading is finished
+            if show_karaoke and gigi.face:
+                gigi.face.update_reading_fluency(active=False)
         else:
             print("Hearing module is not enabled. Simulating reading time...")
             time.sleep(5)

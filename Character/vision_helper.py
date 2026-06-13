@@ -83,20 +83,46 @@ class FaceDatabase:
             pass
     
     def recognize_face_once(self, encoding, tolerance=TOLERANCE):
+        print(f"[Face Recognition Debug] Trying to recognize a detected face...")
+        num_db_faces = len(self.known_encodings)
+        print(f"[Face Recognition Debug] Database contains {num_db_faces} registered face(s).")
+        
         if not self.known_encodings:
+            print("[Face Recognition Debug] Database is empty. Face registered as new ID.")
             return self.generate_face_id(), True
         
-        try:
-            matches = face_recognition.compare_faces(self.known_encodings, encoding, tolerance=tolerance)
-            if True in matches:
-                face_distances = face_recognition.face_distance(self.known_encodings, encoding)
-                best_match_idx = np.argmin(face_distances)
-                if matches[best_match_idx]:
-                    return self.known_names[best_match_idx], False
-        except:
-            pass
+        best_name = None
+        min_distance = float('inf')
+        matched_name = None
+        is_recognized = False
         
-        return self.generate_face_id(), True
+        try:
+            face_distances = face_recognition.face_distance(self.known_encodings, encoding)
+            if len(face_distances) > 0:
+                best_match_idx = np.argmin(face_distances)
+                min_distance = face_distances[best_match_idx]
+                best_name = self.known_names[best_match_idx]
+                
+                print(f"[Face Recognition Debug] Closest database face: '{best_name}' with distance: {min_distance:.4f} (tolerance threshold: {tolerance})")
+                
+                matches = face_recognition.compare_faces(self.known_encodings, encoding, tolerance=tolerance)
+                if matches[best_match_idx]:
+                    matched_name = best_name
+                    is_recognized = True
+                    print(f"[Face Recognition Debug] Face successfully recognized as '{matched_name}'!")
+                else:
+                    print(f"[Face Recognition Debug] Distance {min_distance:.4f} exceeds tolerance {tolerance}. Face not recognized.")
+            else:
+                print("[Face Recognition Debug] Failed to compute face distances.")
+        except Exception as e:
+            print(f"[Face Recognition Debug] Error during face comparison: {e}")
+            
+        if is_recognized and matched_name:
+            return matched_name, False
+            
+        new_id = self.generate_face_id()
+        print(f"[Face Recognition Debug] Assigned new temporary ID: '{new_id}'")
+        return new_id, True
     
     def generate_face_id(self):
         return f"face_{random.randint(1000, 9999)}"
