@@ -2,15 +2,15 @@
 # ==============================================================================
 # Gigi Robot - Automated Model Upgrade Script
 # ==============================================================================
-# This script automates the download of the Qwen-2.5-3B-Instruct NPU model,
+# This script automates the download of the Qwen-2.5-1.5B-Instruct NPU model,
 # the YOLOv11-nano ONNX vision model, and runs verification checks.
 # ==============================================================================
 
 set -e
 
 RESOURCES_DIR="/home/orangepi/Code/gigi/Resources"
-LLM_MODEL_PATH="${RESOURCES_DIR}/qwen2.5_3b.rkllm"
-LLM_MODEL_URL="https://huggingface.co/c01zaut/Qwen2.5-3B-Instruct-rk3588-1.1.1/resolve/main/Qwen2.5-3B-Instruct-rk3588-w8a8-opt-0-hybrid-ratio-0.5.rkllm?download=true"
+LLM_MODEL_PATH="${RESOURCES_DIR}/qwen2.5_1.5b.rkllm"
+LLM_MODEL_URL="https://huggingface.co/c01zaut/Qwen2.5-1.5B-Instruct-rk3588-1.1.1/resolve/main/Qwen2.5-1.5B-Instruct-rk3588-w8a8-opt-0-hybrid-ratio-0.5.rkllm?download=true"
 LLM_SERVER_SH="/home/orangepi/Code/gigi/llm_server.sh"
 
 YOLO_MODEL_PATH="${RESOURCES_DIR}/yolo11n.onnx"
@@ -19,7 +19,7 @@ YOLO_MODEL_URL="https://huggingface.co/aaurelions/yolo11n.onnx/resolve/main/yolo
 echo "=== [Gigi Model Upgrade] Creating Resources directory if missing ==="
 mkdir -p "${RESOURCES_DIR}"
 
-echo "=== [Gigi Model Upgrade] Downloading Qwen-2.5-3B-Instruct (.rkllm) ==="
+echo "=== [Gigi Model Upgrade] Downloading Qwen-2.5-1.5B-Instruct (.rkllm) ==="
 echo "From: ${LLM_MODEL_URL}"
 echo "To:   ${LLM_MODEL_PATH}"
 
@@ -67,12 +67,12 @@ if [ -f "${LLM_SERVER_SH}" ]; then
     cp "${LLM_SERVER_SH}" "${LLM_SERVER_SH}.bak"
 fi
 
-echo "[+] Writing updated llm_server.sh pointing to 3B model..."
+echo "[+] Writing updated llm_server.sh pointing to 1.5B model..."
 cat << 'EOF' > "${LLM_SERVER_SH}"
 #!/bin/bash
 cd /home/orangepi/Code/gigi/Resources/rknn-llm/examples/rkllm_server_demo/rkllm_server/
 # Using venv Python explicitly to avoid missing package errors:
-/home/orangepi/Code/gigi/.venv/bin/python3 flask_server.py --rkllm_model_path /home/orangepi/Code/gigi/Resources/qwen2.5_3b.rkllm --target_platform rk3588
+/home/orangepi/Code/gigi/.venv/bin/python3 flask_server.py --rkllm_model_path /home/orangepi/Code/gigi/Resources/qwen2.5_1.5b.rkllm --target_platform rk3588
 EOF
 
 chmod +x "${LLM_SERVER_SH}"
