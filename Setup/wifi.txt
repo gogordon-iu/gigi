@@ -75,3 +75,21 @@ scp -r ./venv/ orangepi@192.168.0.5:~/Code/gigi
 
 When connecting from the same laptop to a new gigi:
 ssh-keygen -R 192.168.0.50
+
+Bluetooth:
+
+Bluetooth
+sudo sdptool add SP
+sudo rfcomm watch 0 1
+
+# 1. Ensure Bluetooth is powered on
+sudo bluetoothctl power on
+
+# 2. Disable the discoverability timeout (so it stays discoverable)
+sudo bluetoothctl discoverable-timeout 0
+
+# 3. Turn on discoverable mode
+sudo bluetoothctl discoverable yes
+
+# 4. Turn on pairable mode
+sudo bluetoothctl pairable yes
