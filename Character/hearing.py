@@ -6,6 +6,11 @@ import webrtcvad
 import numpy as np
 import platform
 
+try:
+    import jax
+except ImportError:
+    pass
+
 language_models = None
 
 # ── Backend selection ─────────────────────────────────────────────────────────
