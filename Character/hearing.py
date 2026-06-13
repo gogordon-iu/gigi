@@ -86,6 +86,16 @@ elif HEARING_OPTION == "whisper":
             try:
                 feats = self._extract_fbank(audio_float)          # (T, 80)
                 feats = feats[np.newaxis, :, :]                    # (1, T, 80)
+                
+                # Pad/truncate features to match the NPU model's expected static shape (1197 frames)
+                expected_frames = 1197
+                T = feats.shape[1]
+                if T < expected_frames:
+                    padding = np.zeros((1, expected_frames - T, 80), dtype=np.float32)
+                    feats = np.concatenate([feats, padding], axis=1)
+                elif T > expected_frames:
+                    feats = feats[:, :expected_frames, :]
+                    
                 feats = feats * SPEECH_SCALE                       # prevent FP16 overflow
                 outputs = self.rknn.inference(inputs=[feats])
                 if outputs is None or len(outputs) == 0:
