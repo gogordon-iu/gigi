@@ -106,10 +106,17 @@ class Face():
             print(f"[Face] Error loading visual feedback icons: {e}")
 
     def stop_face(self):
+        self.show_face = False
         if IMAGE_OPTION == "pygame":
-            pygame.quit()
+            try:
+                pygame.quit()
+            except Exception as e:
+                print(f"[Face] Warning: Error during pygame quit: {e}")
         elif IMAGE_OPTION == "cv":
-            cv2.destroyAllWindows()
+            try:
+                cv2.destroyAllWindows()
+            except Exception as e:
+                print(f"[Face] Warning: Error during cv2 destroyAllWindows: {e}")
 
     def set_activity(self, activity_name):
         self.activity = activity_name
@@ -228,100 +235,110 @@ class Face():
 
 
     def display_face(self, image_):
+        if not getattr(self, 'show_face', True):
+            return
         self.last_face_image = image_
         
         # Scale/Draw the image to fill the screen
         if IMAGE_OPTION == "pygame":
-            W, H = self.screen_size
-            image_resized = pygame.transform.scale(image_, self.screen_size)
-            
-            # Overlay feedback state on the face
-            if self.feedback_state in self.feedback_icons:
-                icon = self.feedback_icons[self.feedback_state]
-                scale_h = int(H * 0.15)
-                scale_w = int(icon.get_width() * scale_h / icon.get_height())
-                icon_resized = pygame.transform.smoothscale(icon, (scale_w, scale_h))
-                # Position it on top-right to avoid bottom overlay area
-                image_resized.blit(icon_resized, (W - scale_w - 10, 10))
-            
-            if getattr(self, 'reading_fluency_active', False):
-                self.draw_reading_fluency_overlay_pygame(image_resized)
-            
-            if getattr(self, 'overlay_text', None):
-                text = str(self.overlay_text)
-                font = pygame.font.SysFont("Arial", 42, bold=True)
-                text_surface = font.render(text, True, (255, 255, 255))
-                text_w, text_h = text_surface.get_size()
-                pad_x = 20
-                pad_y = 15
-                card_w = text_w + 2 * pad_x
-                card_h = text_h + 2 * pad_y
-                margin = 15
-                x0 = (W - card_w) // 2
-                y0 = (H * 2 // 3) - card_h - margin if getattr(self, 'reading_fluency_active', False) else H - card_h - margin
+            try:
+                W, H = self.screen_size
+                image_resized = pygame.transform.scale(image_, self.screen_size)
                 
-                card_surf = pygame.Surface((card_w, card_h), pygame.SRCALPHA)
-                card_surf.fill((20, 30, 70, 204))
-                pygame.draw.rect(card_surf, (100, 200, 255), (0, 0, card_w, card_h), 2, border_radius=5)
-                card_surf.blit(text_surface, (pad_x, pad_y))
-                image_resized.blit(card_surf, (x0, y0))
+                # Overlay feedback state on the face
+                if self.feedback_state in self.feedback_icons:
+                    icon = self.feedback_icons[self.feedback_state]
+                    scale_h = int(H * 0.15)
+                    scale_w = int(icon.get_width() * scale_h / icon.get_height())
+                    icon_resized = pygame.transform.smoothscale(icon, (scale_w, scale_h))
+                    # Position it on top-right to avoid bottom overlay area
+                    image_resized.blit(icon_resized, (W - scale_w - 10, 10))
                 
-            self.screen.blit(image_resized, (0, 0))
-            pygame.display.flip()
+                if getattr(self, 'reading_fluency_active', False):
+                    self.draw_reading_fluency_overlay_pygame(image_resized)
+                
+                if getattr(self, 'overlay_text', None):
+                    text = str(self.overlay_text)
+                    font = pygame.font.SysFont("Arial", 42, bold=True)
+                    text_surface = font.render(text, True, (255, 255, 255))
+                    text_w, text_h = text_surface.get_size()
+                    pad_x = 20
+                    pad_y = 15
+                    card_w = text_w + 2 * pad_x
+                    card_h = text_h + 2 * pad_y
+                    margin = 15
+                    x0 = (W - card_w) // 2
+                    y0 = (H * 2 // 3) - card_h - margin if getattr(self, 'reading_fluency_active', False) else H - card_h - margin
+                    
+                    card_surf = pygame.Surface((card_w, card_h), pygame.SRCALPHA)
+                    card_surf.fill((20, 30, 70, 204))
+                    pygame.draw.rect(card_surf, (100, 200, 255), (0, 0, card_w, card_h), 2, border_radius=5)
+                    card_surf.blit(text_surface, (pad_x, pad_y))
+                    image_resized.blit(card_surf, (x0, y0))
+                    
+                if getattr(self, 'show_face', True):
+                    self.screen.blit(image_resized, (0, 0))
+                    pygame.display.flip()
+            except Exception as e:
+                print(f"[Face] Warning: Error during pygame display update: {e}")
             
         elif IMAGE_OPTION == "cv":
-            W, H = self.screen_size
-            image_resized = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)
-            
-            # Overlay feedback state on the face
-            if self.feedback_state in self.feedback_icons:
-                icon = self.feedback_icons[self.feedback_state]
-                scale_h = int(H * 0.15)
-                scale_w = int(icon.shape[1] * scale_h / icon.shape[0])
-                icon_resized = cv2.resize(icon, (scale_w, scale_h))
-                icon_rgb = icon_resized[:, :, :3]
-                icon_alpha = icon_resized[:, :, 3] / 255.0
-                margin = 10
-                # Position it on top-right to avoid bottom overlay area
-                roi_y0 = margin
-                roi_y1 = margin + scale_h
-                roi_x0 = W - scale_w - margin
-                roi_x1 = W - margin
-                roi = image_resized[roi_y0:roi_y1, roi_x0:roi_x1]
-                for c in range(3):
-                    roi[:, :, c] = (icon_alpha * icon_rgb[:, :, c] + (1 - icon_alpha) * roi[:, :, c]).astype(np.uint8)
-                image_resized[roi_y0:roi_y1, roi_x0:roi_x1] = roi
-            
-            if getattr(self, 'reading_fluency_active', False):
-                self.draw_reading_fluency_overlay_cv(image_resized)
-            
-            if getattr(self, 'overlay_text', None):
-                text = str(self.overlay_text)
-                font = cv2.FONT_HERSHEY_DUPLEX
-                font_scale = 1.2
-                thickness = 2
-                (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, thickness)
-                pad_x = 20
-                pad_y = 15
-                card_w = text_w + 2 * pad_x
-                card_h = text_h + 2 * pad_y
-                margin = 15
-                x0 = (W - card_w) // 2
-                y0 = (H * 2 // 3) - card_h - margin if getattr(self, 'reading_fluency_active', False) else H - card_h - margin
-                x1 = x0 + card_w
-                y1 = y0 + card_h
+            try:
+                W, H = self.screen_size
+                image_resized = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)
                 
-                roi = image_resized[y0:y1, x0:x1]
-                card_bg = np.zeros_like(roi)
-                card_bg[:] = (70, 30, 20)
-                alpha = 0.8
-                roi_blended = cv2.addWeighted(roi, 1 - alpha, card_bg, alpha, 0)
-                cv2.rectangle(roi_blended, (0, 0), (card_w, card_h), (255, 200, 100), 2, lineType=cv2.LINE_AA)
-                cv2.putText(roi_blended, text, (pad_x, card_h - pad_y), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
-                image_resized[y0:y1, x0:x1] = roi_blended
-            
-            cv2.imshow(self.win_name, image_resized)
-            cv2.waitKey(1)
+                # Overlay feedback state on the face
+                if self.feedback_state in self.feedback_icons:
+                    icon = self.feedback_icons[self.feedback_state]
+                    scale_h = int(H * 0.15)
+                    scale_w = int(icon.shape[1] * scale_h / icon.shape[0])
+                    icon_resized = cv2.resize(icon, (scale_w, scale_h))
+                    icon_rgb = icon_resized[:, :, :3]
+                    icon_alpha = icon_resized[:, :, 3] / 255.0
+                    margin = 10
+                    # Position it on top-right to avoid bottom overlay area
+                    roi_y0 = margin
+                    roi_y1 = margin + scale_h
+                    roi_x0 = W - scale_w - margin
+                    roi_x1 = W - margin
+                    roi = image_resized[roi_y0:roi_y1, roi_x0:roi_x1]
+                    for c in range(3):
+                        roi[:, :, c] = (icon_alpha * icon_rgb[:, :, c] + (1 - icon_alpha) * roi[:, :, c]).astype(np.uint8)
+                    image_resized[roi_y0:roi_y1, roi_x0:roi_x1] = roi
+                
+                if getattr(self, 'reading_fluency_active', False):
+                    self.draw_reading_fluency_overlay_cv(image_resized)
+                
+                if getattr(self, 'overlay_text', None):
+                    text = str(self.overlay_text)
+                    font = cv2.FONT_HERSHEY_DUPLEX
+                    font_scale = 1.2
+                    thickness = 2
+                    (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+                    pad_x = 20
+                    pad_y = 15
+                    card_w = text_w + 2 * pad_x
+                    card_h = text_h + 2 * pad_y
+                    margin = 15
+                    x0 = (W - card_w) // 2
+                    y0 = (H * 2 // 3) - card_h - margin if getattr(self, 'reading_fluency_active', False) else H - card_h - margin
+                    x1 = x0 + card_w
+                    y1 = y0 + card_h
+                    
+                    roi = image_resized[y0:y1, x0:x1]
+                    card_bg = np.zeros_like(roi)
+                    card_bg[:] = (70, 30, 20)
+                    alpha = 0.8
+                    roi_blended = cv2.addWeighted(roi, 1 - alpha, card_bg, alpha, 0)
+                    cv2.rectangle(roi_blended, (0, 0), (card_w, card_h), (255, 200, 100), 2, lineType=cv2.LINE_AA)
+                    cv2.putText(roi_blended, text, (pad_x, card_h - pad_y), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+                    image_resized[y0:y1, x0:x1] = roi_blended
+                
+                if getattr(self, 'show_face', True):
+                    cv2.imshow(self.win_name, image_resized)
+                    cv2.waitKey(1)
+            except Exception as e:
+                print(f"[Face] Warning: Error during cv2 display update: {e}")
 
     def get_sequence_length(self, sequence):
         max_length = 0
@@ -330,10 +347,12 @@ class Face():
         return max_length
 
     def generate_face(self, parts_selected, stop_event=None, stop_condition=None, delay=0.5):
-        if self.show_face:
+        if getattr(self, 'show_face', True):
             max_length = self.get_sequence_length(parts_selected)
             
             for i in range(max_length):
+                if not getattr(self, 'show_face', True):
+                    break
                 start_time = time.time()    
                 face = {}
                 for part, part_data in parts_selected.items():
@@ -347,8 +366,11 @@ class Face():
                     guidance_h, guidance_w = guidance_img.shape[:2]
                     scale_w = int(w * 0.2)
                     scale_h = int(guidance_h * scale_w / guidance_w)
-                    guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
-                    face_image[h - scale_h:h, 0:scale_w] = guidance_resized
+                    try:
+                        guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
+                        face_image[h - scale_h:h, 0:scale_w] = guidance_resized
+                    except Exception as e:
+                        print(f"[Face] Warning: Error resizing guidance image in generate_face: {e}")
                     
                 self.display_face(face_image)
 
@@ -360,7 +382,11 @@ class Face():
                     if IMAGE_OPTION == "pygame":
                         time.sleep(left_delay)
                     elif IMAGE_OPTION == "cv":
-                        cv2.waitKey(int(left_delay * 1000))
+                        try:
+                            if getattr(self, 'show_face', True):
+                                cv2.waitKey(int(left_delay * 1000))
+                        except Exception as e:
+                            print(f"[Face] Warning: Error during generate_face waitKey: {e}")
             
                 if stop_event:
                     if stop_event.is_set():
