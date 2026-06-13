@@ -71,7 +71,8 @@ echo "[+] Writing updated llm_server.sh pointing to 3B model..."
 cat << 'EOF' > "${LLM_SERVER_SH}"
 #!/bin/bash
 cd /home/orangepi/Code/gigi/Resources/rknn-llm/examples/rkllm_server_demo/rkllm_server/
-python3 flask_server.py --rkllm_model_path /home/orangepi/Code/gigi/Resources/qwen2.5_3b.rkllm --target_platform rk3588
+# Using venv Python explicitly to avoid missing package errors:
+/home/orangepi/Code/gigi/.venv/bin/python3 flask_server.py --rkllm_model_path /home/orangepi/Code/gigi/Resources/qwen2.5_3b.rkllm --target_platform rk3588
 EOF
 
 chmod +x "${LLM_SERVER_SH}"
