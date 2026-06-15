@@ -267,75 +267,24 @@ def play_mastermind():
                     # Clear overlay text before the user guesses
                     gigi.face.overlay_text = None
                     
-                    # Collect guess one digit at a time using Vosk grammar-restricted pronunciation mode
+                    # Enable pronunciation mode for Vosk grammar restriction with all 4-digit combinations
                     if gigi.hearing:
+                        import itertools
+                        digits_list = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+                        # Generate all 10,000 combinations of 4-digit sequences
+                        grammar_combinations = [" ".join(combo) for combo in itertools.product(digits_list, repeat=4)]
+                        # Add control and give-up phrases
+                        grammar_combinations.extend(["give up", "quit", "reveal", "show me", "stop", "concede"])
+                        
                         gigi.hearing.pronunciation_mode = True
-                        gigi.hearing.pronunciation_grammar = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+                        gigi.hearing.pronunciation_grammar = grammar_combinations
                         
-                    parsed_digits = []
-                    digit_names = ["first", "second", "third", "fourth"]
-                    give_up = False
+                    response = get_user_input(gigi, timeout=10)
                     
-                    for i in range(4):
-                        gigi.face.overlay_text = None
-                        gigi.run_character(
-                            viseme_data={'text': f"What is your {digit_names[i]} digit?", 'file': None}
-                        )
-                        digit_response = get_user_input(gigi, timeout=8)
-                        text_lower = digit_response.lower().strip()
-                        
-                        give_up_phrases = ["give up", "quit", "reveal", "show me", "stop", "concede"]
-                        if any(phrase in text_lower for phrase in give_up_phrases):
-                            give_up = True
-                            break
-                            
-                        digit_parsed = None
-                        for word, digit in WORD_TO_DIGIT.items():
-                            if word in text_lower:
-                                digit_parsed = digit
-                                break
-                        if not digit_parsed:
-                            for char in text_lower:
-                                if char.isdigit():
-                                    digit_parsed = char
-                                    break
-                                    
-                        attempts_inner = 0
-                        while digit_parsed is None and attempts_inner < 2:
-                            gigi.run_character(
-                                viseme_data={'text': f"I didn't quite catch a digit. What is the {digit_names[i]} digit?", 'file': None}
-                            )
-                            digit_response = get_user_input(gigi, timeout=8)
-                            text_lower = digit_response.lower().strip()
-                            if any(phrase in text_lower for phrase in give_up_phrases):
-                                give_up = True
-                                break
-                            for word, digit in WORD_TO_DIGIT.items():
-                                if word in text_lower:
-                                    digit_parsed = digit
-                                    break
-                            if not digit_parsed:
-                                for char in text_lower:
-                                    if char.isdigit():
-                                        digit_parsed = char
-                                        break
-                            attempts_inner += 1
-                            
-                        if give_up:
-                            break
-                            
-                        if digit_parsed is None:
-                            digit_parsed = str(random.randint(0, 9))
-                            
-                        parsed_digits.append(digit_parsed)
-                        
                     if gigi.hearing:
                         gigi.hearing.pronunciation_mode = False
                         
-                    if give_up:
-                        parsed = "give_up"
-                    else:
-                        parsed = "".join(parsed_digits)
+                    parsed = parse_user_response(response)
                     
                     if parsed == "give_up":
                         # Display code on screen
