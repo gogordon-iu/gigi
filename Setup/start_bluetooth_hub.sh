@@ -42,6 +42,16 @@ if [ "$EUID" -ne 0 ]; then
   echo "    Some commands like sdptool and rfcomm require root privileges."
 fi
 
+# Wait up to 15 seconds for a Bluetooth hardware adapter to initialize
+echo "[*] Waiting for Bluetooth hardware adapter to initialize..."
+for i in {1..15}; do
+  if hciconfig | grep -q "hci"; then
+    echo "    -> Bluetooth adapter detected!"
+    break
+  fi
+  sleep 1
+done
+
 # Ensure Bluetooth is unblocked and powered on
 echo "[*] Ensuring Bluetooth is unblocked and powered on..."
 rfkill unblock bluetooth || true
