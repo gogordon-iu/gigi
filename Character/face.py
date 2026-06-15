@@ -279,12 +279,16 @@ class Face():
                 if getattr(self, 'overlay_text', None):
                     text = str(self.overlay_text)
                     font = pygame.font.SysFont("Arial", 42, bold=True)
-                    text_surface = font.render(text, True, (255, 255, 255))
-                    text_w, text_h = text_surface.get_size()
+                    lines = text.split("\n")
+                    surfaces = [font.render(line, True, (255, 255, 255)) for line in lines]
+                    
+                    max_w = max(surf.get_width() for surf in surfaces)
+                    total_h = sum(surf.get_height() for surf in surfaces) + (len(surfaces) - 1) * 8
+                    
                     pad_x = 20
                     pad_y = 15
-                    card_w = text_w + 2 * pad_x
-                    card_h = text_h + 2 * pad_y
+                    card_w = max_w + 2 * pad_x
+                    card_h = total_h + 2 * pad_y
                     margin = 15
                     x0 = (W - card_w) // 2
                     y0 = (H * 2 // 3) - card_h - margin if getattr(self, 'reading_fluency_active', False) else H - card_h - margin
@@ -292,7 +296,13 @@ class Face():
                     card_surf = pygame.Surface((card_w, card_h), pygame.SRCALPHA)
                     card_surf.fill((20, 30, 70, 204))
                     pygame.draw.rect(card_surf, (100, 200, 255), (0, 0, card_w, card_h), 2, border_radius=5)
-                    card_surf.blit(text_surface, (pad_x, pad_y))
+                    
+                    current_y = pad_y
+                    for surf in surfaces:
+                        line_x = pad_x + (max_w - surf.get_width()) // 2
+                        card_surf.blit(surf, (line_x, current_y))
+                        current_y += surf.get_height() + 8
+                        
                     image_resized.blit(card_surf, (x0, y0))
                     
                 if getattr(self, 'show_face', True):
@@ -347,25 +357,50 @@ class Face():
                     font = cv2.FONT_HERSHEY_DUPLEX
                     font_scale = 1.2
                     thickness = 2
-                    (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+                    
+                    lines = text.split("\n")
+                    line_sizes = [cv2.getTextSize(line, font, font_scale, thickness) for line in lines]
+                    
+                    max_w = max(size[0][0] for size in line_sizes)
+                    total_h = sum(size[0][1] for size in line_sizes) + (len(lines) - 1) * 12
+                    
                     pad_x = 20
                     pad_y = 15
-                    card_w = text_w + 2 * pad_x
-                    card_h = text_h + 2 * pad_y
+                    card_w = max_w + 2 * pad_x
+                    card_h = total_h + 2 * pad_y
                     margin = 15
                     x0 = (W - card_w) // 2
                     y0 = (H * 2 // 3) - card_h - margin if getattr(self, 'reading_fluency_active', False) else H - card_h - margin
                     x1 = x0 + card_w
                     y1 = y0 + card_h
                     
-                    roi = image_resized[y0:y1, x0:x1]
-                    card_bg = np.zeros_like(roi)
-                    card_bg[:] = (70, 30, 20)
-                    alpha = 0.8
-                    roi_blended = cv2.addWeighted(roi, 1 - alpha, card_bg, alpha, 0)
-                    cv2.rectangle(roi_blended, (0, 0), (card_w, card_h), (255, 200, 100), 2, lineType=cv2.LINE_AA)
-                    cv2.putText(roi_blended, text, (pad_x, card_h - pad_y), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
-                    image_resized[y0:y1, x0:x1] = roi_blended
+                    # Ensure coordinates are within screen boundary
+                    x0 = max(0, min(W - 1, x0))
+                    y0 = max(0, min(H - 1, y0))
+                    x1 = max(0, min(W - 1, x1))
+                    y1 = max(0, min(H - 1, y1))
+                    
+                    card_w = x1 - x0
+                    card_h = y1 - y0
+                    
+                    if card_w > 0 and card_h > 0:
+                        roi = image_resized[y0:y1, x0:x1]
+                        card_bg = np.zeros_like(roi)
+                        card_bg[:] = (70, 30, 20)
+                        alpha = 0.8
+                        roi_blended = cv2.addWeighted(roi, 1 - alpha, card_bg, alpha, 0)
+                        cv2.rectangle(roi_blended, (0, 0), (card_w, card_h), (255, 200, 100), 2, lineType=cv2.LINE_AA)
+                        
+                        current_y = pad_y
+                        for line, ((w, h), baseline) in zip(lines, line_sizes):
+                            current_y += h
+                            # Center each line inside the card
+                            line_x = pad_x + (max_w - w) // 2
+                            # Ensure we don't draw outside the blended card boundary
+                            if current_y <= card_h - 5:
+                                cv2.putText(roi_blended, line, (line_x, current_y), font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+                            current_y += 12 # spacing
+                        image_resized[y0:y1, x0:x1] = roi_blended
                 
                 if getattr(self, 'show_face', True):
                     with self.lock:
@@ -701,23 +736,27 @@ class Face():
     def display_text(self, text=None):    
         if text:
             if IMAGE_OPTION == "pygame":
-                # Create a blank image with white background
+                # Create a blank image with white background and render multiline text
                 font = pygame.font.Font(None, 36)  # Default font with size 36
-                text_surface = font.render(text, True, (0, 0, 0))  # Black text
-                text_width, text_height = text_surface.get_size()
                 image_width, image_height = self.screen_size
                 background = pygame.Surface((image_width, image_height))
                 background.fill((255, 255, 255))  # White background
 
-                # Center the text on the screen
-                text_x = (image_width - text_width) // 2
-                text_y = (image_height - text_height) // 2
-                background.blit(text_surface, (text_x, text_y))
+                lines = text.split("\n")
+                surfaces = [font.render(line, True, (0, 0, 0)) for line in lines]
+                total_height = sum(surf.get_height() for surf in surfaces) + (len(surfaces) - 1) * 8
+                
+                # Center the text block vertically on the screen
+                current_y = (image_height - total_height) // 2
+                for surf in surfaces:
+                    text_x = (image_width - surf.get_width()) // 2
+                    background.blit(surf, (text_x, current_y))
+                    current_y += surf.get_height() + 8
 
                 self.show_face = False
                 self.display_face(background)
             elif IMAGE_OPTION == "cv":
-                # Create a blank image with white background
+                # Create a blank image with white background and render multiline text
                 image_width, image_height = self.screen_size
                 background = np.ones((image_height, image_width, 3), dtype=np.uint8) * 255  # White background
 
@@ -726,15 +765,17 @@ class Face():
                 font_scale = 1.5
                 font_thickness = 2
 
-                # Get text size
-                (text_width, text_height), _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+                lines = text.split("\n")
+                line_sizes = [cv2.getTextSize(line, font, font_scale, font_thickness) for line in lines]
+                total_height = sum(size[0][1] for size in line_sizes) + (len(lines) - 1) * 15
 
-                # Center the text on the screen
-                text_x = (image_width - text_width) // 2
-                text_y = (image_height + text_height) // 2
-
-                # Put the text on the image
-                cv2.putText(background, text, (text_x, text_y), font, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
+                # Center the text block vertically on the screen
+                current_y = (image_height - total_height) // 2
+                for line, ((w, h), baseline) in zip(lines, line_sizes):
+                    text_x = (image_width - w) // 2
+                    current_y += h
+                    cv2.putText(background, line, (text_x, current_y), font, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
+                    current_y += 15 # vertical line spacing
 
                 self.show_face = False
                 self.display_face(background)

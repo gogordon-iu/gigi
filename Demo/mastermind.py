@@ -23,6 +23,33 @@ WORD_TO_DIGIT = {
     "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9"
 }
 
+HEARING_REPROMPTS = [
+    "Sorry, I didn't quite catch that.",
+    "Hmm, I didn't get that. Could you say it again?",
+    "Could you repeat that? I didn't quite hear you.",
+    "Sorry, my ears missed that one.",
+    "I'm sorry, I couldn't quite hear you.",
+    "Oops, I didn't catch that clearly.",
+    "Could you say that one more time for me?",
+    "Sorry, I'm having a little trouble hearing you.",
+    "My robot ears missed that. What was it?",
+    "Would you mind repeating that for me?",
+    "Sorry, I didn't quite understand that.",
+    "I missed that. Could you say it again, please?",
+    "Hmm, I didn't quite get what you said.",
+    "Could you say that again a bit clearer?",
+    "Oops, that didn't quite register with my sensors.",
+    "Sorry about that, could you repeat it?",
+    "I didn't quite catch that part. Say it again?",
+    "Sorry, I didn't hear you clearly.",
+    "Could you repeat that last part?",
+    "Ah, my listening ears were a bit distracted. Once more?",
+    "Sorry, I didn't quite catch what you said."
+]
+
+def get_random_reprompt():
+    return random.choice(HEARING_REPROMPTS)
+
 def parse_user_response(text):
     if not text:
         return None
@@ -205,22 +232,62 @@ def play_mastermind():
     time.sleep(2)  # Allow motors and modules to initialize
     
     try:
-        # Start background vision to look for face / track face
+        # Start background vision to look for face / track face and greet child
+        child_name = "Friend"
         if gigi.vision:
             print("[Mastermind] Starting background vision system...")
             gigi.vision.run_vision()
             time.sleep(1.0)
             
-        # Welcome message
-        gigi.run_character(
-            viseme_data={'text': "Hi there! Let's play a fun game of Mastermind with numbers!", 'file': None},
-            movement_data='wave_hello'
-        )
+            # Welcome message prompting to scan face
+            gigi.run_character(
+                viseme_data={'text': "Hi there! Let's play a fun game of Mastermind with numbers! Look at me so I can see who is playing.", 'file': None},
+                movement_data='wave_hello'
+            )
+            
+            # Scan for face for 3 seconds
+            print("[Mastermind] Scanning for face (3 seconds)...")
+            time.sleep(3.0)
+            
+            all_faces = gigi.vision.face_cache.get_all_faces() if gigi.vision else {}
+            current_faces = {fid: info for fid, info in all_faces.items() if time.time() - info.get('last_seen', 0) < 3.0}
+            
+            if current_faces:
+                fid = list(current_faces.keys())[0]
+                face_info = current_faces[fid]
+                name = face_info.get('name', 'Unknown')
+                is_face_pattern = re.match(r'^face_\d{4}$', name) is not None
+                is_unknown = (name == 'Unknown' or is_face_pattern or name == 'Recognizing...')
+                
+                if not is_unknown:
+                    child_name = name
+                    gigi.run_character(
+                        viseme_data={'text': f"Welcome back, {child_name}! It's so nice to play with you again!", 'file': None}
+                    )
+                else:
+                    # Import dynamically to avoid circular dependencies
+                    from Demo.make_friends import register_new_friend
+                    print(f"[Mastermind] Detected unknown face (ID: {fid}). Registering new friend...")
+                    success = register_new_friend(gigi, fid)
+                    if success:
+                        updated_face = gigi.vision.face_cache.get_face_data(fid)
+                        child_name = updated_face.get('name', 'Friend')
+                        gigi.run_character(
+                            viseme_data={'text': f"It is great to be friends with you, {child_name}!", 'file': None}
+                        )
+            else:
+                print("[Mastermind] No face detected during startup scan.")
+        else:
+            # Welcome message when vision is disabled
+            gigi.run_character(
+                viseme_data={'text': "Hi there! Let's play a fun game of Mastermind with numbers!", 'file': None},
+                movement_data='wave_hello'
+            )
         
         playing = True
         while playing:
             gigi.run_character(
-                viseme_data={'text': "Would you like to guess my secret number, or do you want me to guess your secret number?", 'file': None}
+                viseme_data={'text': f"Would you like to guess my secret number, or do you want me to guess your secret number, {child_name}?", 'file': None}
             )
             
             # Look at the child
@@ -232,7 +299,7 @@ def play_mastermind():
             
             if mode is None:
                 gigi.run_character(
-                    viseme_data={'text': "I didn't quite catch that! Should you guess, or should I guess?", 'file': None}
+                    viseme_data={'text': f"{get_random_reprompt()} Should you guess, or should I guess?", 'file': None}
                 )
                 mode_response2 = get_user_input(gigi, timeout=8)
                 mode = parse_game_mode(mode_response2, gigi=gigi)
@@ -253,7 +320,7 @@ def play_mastermind():
                 gigi.log_variable("guesses", local_guesses)
                 
                 gigi.run_character(
-                    viseme_data={'text': "Okay! I have chosen my secret numbers. Tell me your first guess of four digits!", 'file': None}
+                    viseme_data={'text': f"Okay, {child_name}! I have chosen my secret numbers. Tell me your first guess of four digits!", 'file': None}
                 )
                 
                 attempts = 0
@@ -341,16 +408,16 @@ def play_mastermind():
                         if bulls == 4:
                             # Success celebration!
                             gigi.run_character(
-                                viseme_data={'text': f"Yay! You got it! The secret code was indeed {', '.join(secret)}!", 'file': None},
+                                viseme_data={'text': f"Yay! You got it, {child_name}! The secret code was indeed {', '.join(secret)}!", 'file': None},
                                 movement_data='clap'
                             )
                             # Show big smile
                             gigi.face.run_sequence('smile')
                             gigi.run_character(
-                                viseme_data={'text': f"You guessed it in {attempts} tries! You are a mastermind champion!", 'file': None}
+                                viseme_data={'text': f"You guessed it in {attempts} tries, {child_name}! You are a mastermind champion!", 'file': None}
                             )
                             gigi.run_character(
-                                viseme_data={'text': "Would you like to play another game?", 'file': None}
+                                viseme_data={'text': f"Would you like to play another game, {child_name}?", 'file': None}
                             )
                             
                             play_again_resp = get_user_input(gigi, timeout=8)
@@ -380,18 +447,18 @@ def play_mastermind():
                             )
                     else:
                         gigi.run_character(
-                            viseme_data={'text': "I didn't quite hear four numbers. Remember to say four different digits between zero and nine!", 'file': None}
+                            viseme_data={'text': f"{get_random_reprompt()} Remember to say four different digits between zero and nine!", 'file': None}
                         )
             else:
                 # Gigi guesses mode
                 gigi.run_character(
-                    viseme_data={'text': "Hooray! I love guessing games! Please think of a four digit number from zero to nine with no repeating digits.", 'file': None}
+                    viseme_data={'text': f"Hooray! I love guessing games, {child_name}! Please think of a four digit number from zero to nine with no repeating digits.", 'file': None}
                 )
                 gigi.run_character(
-                    viseme_data={'text': "Write it down on a piece of paper so you don't forget! When I guess, tell me how many correct digits are in the correct place, which we'll call black. And how many are correct but in the wrong place, which we'll call white.", 'file': None}
+                    viseme_data={'text': f"Write it down on a piece of paper so you don't forget, {child_name}! When I guess, tell me how many correct digits are in the correct place, which we'll call black. And how many are correct but in the wrong place, which we'll call white.", 'file': None}
                 )
                 gigi.run_character(
-                    viseme_data={'text': "Let me know when you are ready to start!", 'file': None}
+                    viseme_data={'text': f"Let me know when you are ready to start, {child_name}!", 'file': None}
                 )
                 
                 # Wait for ready response
@@ -457,7 +524,7 @@ def play_mastermind():
                             feedback_received = True
                         else:
                             gigi.run_character(
-                                viseme_data={'text': "I didn't quite catch that. Please tell me the number of black and white indicators, like two black and one white.", 'file': None}
+                                viseme_data={'text': f"{get_random_reprompt()} Please tell me the number of black and white indicators, like two black and one white.", 'file': None}
                             )
                             
                     if not playing:
@@ -471,16 +538,16 @@ def play_mastermind():
                         gigi.face.display_text(None)
                         
                         gigi.run_character(
-                            viseme_data={'text': f"Yay! I got it! Your secret number was indeed {', '.join(guess)}!", 'file': None},
+                            viseme_data={'text': f"Yay! I got it! Your secret number was indeed {', '.join(guess)}, {child_name}!", 'file': None},
                             movement_data='clap'
                         )
                         gigi.face.run_sequence('smile')
                         gigi.run_character(
-                            viseme_data={'text': f"I guessed it in {attempts} tries! That was so much fun!", 'file': None}
+                            viseme_data={'text': f"I guessed it in {attempts} tries, {child_name}! That was so much fun!", 'file': None}
                         )
                         
                         gigi.run_character(
-                            viseme_data={'text': "Would you like to play another game?", 'file': None}
+                            viseme_data={'text': f"Would you like to play another game, {child_name}?", 'file': None}
                         )
                         play_again_resp = get_user_input(gigi, timeout=8)
                         if parse_play_again(play_again_resp):
@@ -496,7 +563,7 @@ def play_mastermind():
                         if len(new_candidates) == 0:
                             # Warn the child and backtrack
                             gigi.run_character(
-                                viseme_data={'text': f"Oh, wait a second! If my guess was {', '.join(guess)} and you said {black} black and {white} white, no numbers can fit that feedback. Could you please check your last answer?", 'file': None},
+                                viseme_data={'text': f"Oh, wait a second, {child_name}! If my guess was {', '.join(guess)} and you said {black} black and {white} white, no numbers can fit that feedback. Could you please check your last answer?", 'file': None},
                                 movement_data='look_from_side_to_side'
                             )
                             candidates, guess = candidates_history.pop()
@@ -506,7 +573,7 @@ def play_mastermind():
                     
         # Outro
         gigi.run_character(
-            viseme_data={'text': "Thanks for playing Mastermind with me today! You are awesome. Bye bye!", 'file': None},
+            viseme_data={'text': f"Thanks for playing Mastermind with me today, {child_name}! You are awesome. Bye bye!", 'file': None},
             movement_data='wave_hello'
         )
         if gigi.movement:
