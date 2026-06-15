@@ -415,16 +415,25 @@ class Face():
             max_length = max(max_length, len(part_data[1]))
         return max_length
 
-    def generate_face(self, parts_selected, stop_event=None, stop_condition=None, delay=0.5):
+    def generate_face(self, parts_selected, stop_event=None, stop_condition=None, delay=0.5, start_time=None):
         if getattr(self, 'show_face', True):
             self.rendering_sequence = True
             try:
                 max_length = self.get_sequence_length(parts_selected)
                 
-                for i in range(max_length):
+                i = 0
+                while i < max_length:
                     if not getattr(self, 'show_face', True):
                         break
-                    start_time = time.time()    
+                    
+                    if start_time is not None:
+                        # Synchronize index based on real elapsed time
+                        elapsed = time.time() - start_time
+                        i = int(elapsed / delay)
+                        if i >= max_length:
+                            break
+                    
+                    frame_start_time = time.time()    
                     face = {}
                     for part, part_data in parts_selected.items():
                         if i < len(part_data[1]):
@@ -445,10 +454,14 @@ class Face():
                         
                     self.display_face(face_image)
 
-                    current_time = time.time() - start_time
-                    left_delay = 0
-                    if current_time < delay:
+                    if start_time is not None:
+                        # Wait until the next frame time slot
+                        next_frame_time = start_time + (i + 1) * delay
+                        left_delay = next_frame_time - time.time()
+                    else:
+                        current_time = time.time() - frame_start_time
                         left_delay = delay - current_time
+                    
                     if left_delay > 0:
                         if IMAGE_OPTION == "pygame":
                             time.sleep(left_delay)
@@ -464,6 +477,9 @@ class Face():
                             except Exception as e:
                                 print(f"[Face] Warning: Error during generate_face waitKey: {e}")
                 
+                    if start_time is None:
+                        i += 1
+
                     if stop_event:
                         if stop_event.is_set():
                             break

@@ -251,10 +251,19 @@ class Character():
 
         # Pre-generate audio synchronously, then use play_audio_thread so the
         # speech thread skips all TTS/loading work and goes straight to playback.
+        start_time_container = None
+        stop_event = None
         if viseme_data and self.speech and self.viseme:
             audio_file = self.speech.update_audio_objects(file=viseme_data['file'], text=viseme_data['text'])
             viseme_sequence = self.viseme.generate_viseme_sequence(file=viseme_data['file'], text=viseme_data['text'])
-            speech_thread = self.speech.play_audio_thread(file=audio_file)
+            start_time_container = [None]
+            stop_event = threading.Event()
+            speech_thread = self.speech.play_audio_thread(
+                file=audio_file, 
+                stop_event=stop_event, 
+                start_time_container=start_time_container,
+                stop_condition="audio"
+            )
         elif viseme_data and self.speech:
             speech_thread = self.speech.audio_thread(file=viseme_data['file'], text=viseme_data['text'])
         elif audio_data and self.speech:
@@ -291,7 +300,20 @@ class Character():
                 face_sequence, min_delay = self.face.combine_seuqences(sequences=face_parts)
                 if speech_thread:
                     speech_thread.start()
-                self.face.generate_face(parts_selected=face_sequence, stop_condition="face", delay=min_delay)
+                    if start_time_container is not None:
+                        while start_time_container[0] is None:
+                            time.sleep(0.001)
+
+                start_time = start_time_container[0] if start_time_container is not None else None
+                sync_offset = getattr(self.viseme, 'sync_offset', 0.0) if getattr(self, 'viseme', None) is not None else 0.0
+
+                self.face.generate_face(
+                    parts_selected=face_sequence, 
+                    stop_event=stop_event, 
+                    stop_condition="face", 
+                    delay=min_delay,
+                    start_time=(start_time - sync_offset) if start_time is not None else None
+                )
             elif speech_thread:
                 speech_thread.start()
         elif speech_thread:

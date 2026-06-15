@@ -15,6 +15,8 @@ class Viseme():
             self.speech = Speech()
         else:
             self.speech = speech
+            
+        self.sync_offset = 0.0
 
 
     def set_viseme(self, envelope_):
@@ -38,9 +40,9 @@ class Viseme():
             print("DEBUG: No audio file or text provided.")
             return None 
 
-    def generate_viseme(self, text=None, file=None, stop_event=None, stop_condition=None):
+    def generate_viseme(self, text=None, file=None, stop_event=None, stop_condition=None, start_time=None):
         talk_sequence = self.generate_viseme_sequence(text=text, file=file)
-        self.face.generate_face(parts_selected=talk_sequence, stop_event=stop_event, stop_condition="face", delay=self.speech.sample_rate)
+        self.face.generate_face(parts_selected=talk_sequence, stop_event=stop_event, stop_condition="face", delay=self.speech.sample_rate, start_time=start_time)
 
     def run_viseme(self, text=None, file=None):
         import time
@@ -74,9 +76,43 @@ class Viseme():
                 print(f"[Gaze Redirection] Matched '{matched_name}' in viseme text: '{text}'. Redirecting gaze.")
                 self.character.lookat_person(matched_name)
 
-        speech_thread = self.speech.audio_thread(file=file, text=text)
+        # 1. Update/generate the audio object synchronously in the main thread.
+        # This resolves all race conditions when calling update_audio_objects from multiple threads.
+        actual_file = self.speech.update_audio_objects(file=file, text=text)
+        if not actual_file:
+            print("ERROR: Could not load/generate speech audio.")
+            return
+
+        # 2. Get the envelope and set the viseme sequence
+        envelope = self.speech.audio_objects[actual_file]["envelope"]
+        talk_sequence = self.set_viseme(envelope)
+
+        # 3. Coordinate audio playback and viseme rendering using a shared start time container
+        start_time_container = [None]
+        stop_event = threading.Event()
+
+        # Start the playback thread
+        speech_thread = threading.Thread(
+            target=self.speech.play_audio, 
+            args=(actual_file, stop_event, start_time_container, "audio")
+        )
         speech_thread.start()
-        self.generate_viseme(file=file, text=text)
+
+        # Wait until the audio thread actually begins playback
+        while start_time_container[0] is None:
+            time.sleep(0.001)
+
+        # 4. Render the viseme sequence synchronized to the start time
+        start_time = start_time_container[0]
+        
+        self.face.generate_face(
+            parts_selected=talk_sequence, 
+            stop_event=stop_event, 
+            stop_condition="face", 
+            delay=self.speech.sample_rate,
+            start_time=start_time - self.sync_offset
+        )
+
         speech_thread.join()
 
 if __name__ == "__main__":

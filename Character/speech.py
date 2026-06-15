@@ -443,9 +443,19 @@ class Speech():
             else:
                 audio_file = file
                 if SOUND_OPTION == "pygame":
-                    envelope = (np.load(env_file)
-                                if env_file and os.path.exists(env_file)
-                                else self.get_envelope(audio_file))
+                    envelope = None
+                    if env_file and os.path.exists(env_file):
+                        try:
+                            envelope = np.load(env_file)
+                            y, sr = sf.read(audio_file)
+                            hop_length = int(sr * self.sample_rate)
+                            expected_frames = int(np.ceil(len(y) / hop_length)) if hop_length > 0 else 1
+                            if len(envelope) != expected_frames:
+                                envelope = None
+                        except:
+                            envelope = None
+                    if envelope is None:
+                        envelope = self.get_envelope(audio_file)
                     self.audio_objects[audio_file] = {
                         "sound":    mixer.Sound(audio_file),
                         "envelope": envelope,
@@ -468,14 +478,18 @@ class Speech():
                                 data, orig_sr=samplerate, target_sr=self.speaker_sample_rate)
                             self.save_audio_file(audio_file, data)
 
+                        envelope = None
                         if env_file and os.path.exists(env_file):
                             try:
                                 envelope = np.load(env_file)
+                                hop_length = int(samplerate * self.sample_rate)
+                                expected_frames = int(np.ceil(len(data) / hop_length)) if hop_length > 0 else 1
+                                if len(envelope) != expected_frames:
+                                    envelope = None
                             except:
-                                envelope = self.get_envelope(audio_file, y=data, sr=samplerate)
-                                if self.keep_record:
-                                    np.save(env_file, envelope)
-                        else:
+                                envelope = None
+                        
+                        if envelope is None:
                             envelope = self.get_envelope(audio_file, y=data, sr=samplerate)
                             if self.keep_record and env_file:
                                 np.save(env_file, envelope)
@@ -509,11 +523,20 @@ class Speech():
                         orig_sr=samplerate, target_sr=self.speaker_sample_rate).T
                     sf.write(file, data, self.speaker_sample_rate)
 
-                envelope = (np.load(env_file)
-                            if env_file and os.path.exists(env_file)
-                            else self.get_envelope(file, y=data, sr=samplerate))
-                if self.keep_record and env_file and not os.path.exists(env_file):
-                    np.save(env_file, envelope)
+                envelope = None
+                if env_file and os.path.exists(env_file):
+                    try:
+                        envelope = np.load(env_file)
+                        hop_length = int(samplerate * self.sample_rate)
+                        expected_frames = int(np.ceil(len(data) / hop_length)) if hop_length > 0 else 1
+                        if len(envelope) != expected_frames:
+                            envelope = None
+                    except:
+                        envelope = None
+                if envelope is None:
+                    envelope = self.get_envelope(file, y=data, sr=samplerate)
+                    if self.keep_record and env_file:
+                        np.save(env_file, envelope)
 
                 if SOUND_OPTION == "pygame":
                     self.audio_objects[audio_file] = {
@@ -554,7 +577,7 @@ class Speech():
             if len(frame) > 0:
                 envelope[i] = np.sqrt(np.mean(frame**2))
 
-        stretch_factor = 1.5
+        stretch_factor = 1.0
         if stretch_factor != 1.0 and len(envelope) > 1:
             old_indices = np.arange(len(envelope))
             new_length  = int(len(envelope) * stretch_factor)
@@ -568,12 +591,14 @@ class Speech():
         return envelope
 
     # ── Playback ──────────────────────────────────────────────────────────────
-    def generate_audio(self, text=None, file=None, stop_event=None, stop_condition=None):
+    def generate_audio(self, text=None, file=None, stop_event=None, stop_condition=None, start_time_container=None):
         file = self.update_audio_objects(text=text, file=file)
 
         if SOUND_OPTION == "pygame":
             sound = self.audio_objects[file]["sound"]
             with self.pygame_lock:
+                if start_time_container is not None:
+                    start_time_container[0] = time.time()
                 sound.play()
                 duration_ms = int(sound.get_length() * 1000)
                 clock   = pygame_time.Clock()   # ← pygame_time, not time
@@ -585,17 +610,19 @@ class Speech():
                 sound.stop()
                 if AUDIO_DELAY:
                     sleep_time.sleep(AUDIO_DELAY)
-                if stop_condition is not None and "audio" in stop_condition:
+                if stop_condition is not None and "audio" in stop_condition and stop_event is not None:
                     stop_event.set()
 
         elif SOUND_OPTION == "sounddevice":
-            self._sd_play(file, stop_event)
+            self._sd_play(file, stop_event, start_time_container, stop_condition)
 
-    def play_audio(self, file, stop_event=None):
+    def play_audio(self, file, stop_event=None, start_time_container=None, stop_condition=None):
         """Play an already-loaded audio_objects entry directly."""
         if SOUND_OPTION == "pygame":
             sound = self.audio_objects[file]["sound"]
             with self.pygame_lock:
+                if start_time_container is not None:
+                    start_time_container[0] = time.time()
                 sound.play()
                 duration_ms = int(sound.get_length() * 1000)
                 clock   = pygame_time.Clock()   # ← pygame_time
@@ -607,11 +634,13 @@ class Speech():
                 sound.stop()
                 if AUDIO_DELAY:
                     sleep_time.sleep(AUDIO_DELAY)
+                if stop_condition is not None and "audio" in stop_condition and stop_event is not None:
+                    stop_event.set()
 
         elif SOUND_OPTION == "sounddevice":
-            self._sd_play(file, stop_event)
+            self._sd_play(file, stop_event, start_time_container, stop_condition)
 
-    def _sd_play(self, file, stop_event=None):
+    def _sd_play(self, file, stop_event=None, start_time_container=None, stop_condition=None):
         """Play via sounddevice, resampling to device native rate if needed."""
         data     = self.audio_objects[file]["data"]
         src_rate = self.audio_objects[file]["samplerate"]
@@ -623,23 +652,29 @@ class Speech():
                 # If resample_linear returned (channels, length), transpose back to (length, channels)
                 if data.shape[0] < data.shape[1]:
                     data = data.T
+        if start_time_container is not None:
+            start_time_container[0] = time.time()
         sd.play(data, samplerate=self.device_samplerate)
         while sd.get_stream().active:
             if stop_event is not None and stop_event.is_set():
                 sd.stop()
                 break
             sleep_time.sleep(0.05)
+        if stop_condition is not None and "audio" in stop_condition and stop_event is not None:
+            stop_event.set()
 
     # ── Thread helpers ────────────────────────────────────────────────────────
-    def audio_thread(self, text=None, file=None):
-        stop_event = threading.Event()
-        t = threading.Thread(target=self.generate_audio, args=(text, file, stop_event, None))
+    def audio_thread(self, text=None, file=None, stop_event=None, stop_condition=None, start_time_container=None):
+        if stop_event is None:
+            stop_event = threading.Event()
+        t = threading.Thread(target=self.generate_audio, args=(text, file, stop_event, stop_condition, start_time_container))
         return t
 
-    def play_audio_thread(self, file):
+    def play_audio_thread(self, file, stop_event=None, start_time_container=None, stop_condition=None):
         """Thread that plays a pre-loaded audio object with no TTS overhead."""
-        stop_event = threading.Event()
-        t = threading.Thread(target=self.play_audio, args=(file, stop_event))
+        if stop_event is None:
+            stop_event = threading.Event()
+        t = threading.Thread(target=self.play_audio, args=(file, stop_event, start_time_container, stop_condition))
         return t
 
     def run_speech(self, text=None, file=None):
