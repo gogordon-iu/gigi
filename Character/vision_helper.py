@@ -12,7 +12,8 @@ from queue import Queue, Empty
 import traceback
 import random
 
-DB_PATH = "../Resources/emoface_2.pkl"
+_helper_dir = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.abspath(os.path.join(_helper_dir, "..", "Resources", "emoface_2.pkl"))
 TOLERANCE = 0.6
 MAX_QUEUE_SIZE = 2
 POSITION_MARGIN = 80

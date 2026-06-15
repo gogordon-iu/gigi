@@ -25,6 +25,10 @@ class Face():
         self.IMAGE_OPTION = IMAGE_OPTION
         self.character = characters[character]
         self.show_face = True
+        self.lock = threading.Lock()
+        self.rendering_sequence = False
+        self.face_update_counter = 0
+        self.last_rendered_counter = 0
         self.preloaded_image = None
         self.guidance = None
         self.guidance_images = {}
@@ -49,7 +53,6 @@ class Face():
             self.win_name = "face_window"
             if full_screen:
                 cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL | cv2.WINDOW_GUI_NORMAL)
-                cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 self.screen_size = (screen_width, screen_height)
                 
                 if IS_ROBOT:
@@ -60,6 +63,9 @@ class Face():
 
                     # give WM a tiny moment to map the window
                     time.sleep(0.12)
+                    
+                    # Set fullscreen after mapping
+                    cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
                     win = self.win_name
 
@@ -72,10 +78,12 @@ class Face():
                     ])
                     # Hide cursor (non-blocking)
                     subprocess.Popen(["unclutter", "-grab", "-idle", "0"])
+                else:
+                    cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
             else:
                 cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL | cv2.WINDOW_GUI_NORMAL)
                 self.screen_size = (int(screen_width / 2), int(screen_height / 2))
-            cv2.resizeWindow(self.win_name, self.screen_size[0], self.screen_size[1])
+                cv2.resizeWindow(self.win_name, self.screen_size[0], self.screen_size[1])
         self.initialize_character(save=True)
         
         # Reading Fluency Karaoke variables
@@ -85,6 +93,7 @@ class Face():
         self.reading_word_states = []
         self.reading_last_wrong_heard = None
         self.last_face_image = None
+        self.reading_status = "idle"
         
         # Initialize visual feedback icons
         self.feedback_state = None
@@ -114,7 +123,8 @@ class Face():
                 print(f"[Face] Warning: Error during pygame quit: {e}")
         elif IMAGE_OPTION == "cv":
             try:
-                cv2.destroyAllWindows()
+                with self.lock:
+                    cv2.destroyAllWindows()
             except Exception as e:
                 print(f"[Face] Warning: Error during cv2 destroyAllWindows: {e}")
 
@@ -238,6 +248,7 @@ class Face():
         if not getattr(self, 'show_face', True):
             return
         self.last_face_image = image_
+        self.face_update_counter += 1
         
         # Scale/Draw the image to fill the screen
         if IMAGE_OPTION == "pygame":
@@ -254,6 +265,14 @@ class Face():
                     # Position it on top-right to avoid bottom overlay area
                     image_resized.blit(icon_resized, (W - scale_w - 10, 10))
                 
+                if getattr(self, 'guidance', None) in self.guidance_images:
+                    guidance_img = self.guidance_images[self.guidance]
+                    gh, gw = guidance_img.get_height(), guidance_img.get_width()
+                    scale_w = int(W * 0.2)
+                    scale_h = int(gh * scale_w / gw)
+                    guidance_resized = pygame.transform.smoothscale(guidance_img, (scale_w, scale_h))
+                    image_resized.blit(guidance_resized, (0, H - scale_h))
+
                 if getattr(self, 'reading_fluency_active', False):
                     self.draw_reading_fluency_overlay_pygame(image_resized)
                 
@@ -283,6 +302,9 @@ class Face():
                 print(f"[Face] Warning: Error during pygame display update: {e}")
             
         elif IMAGE_OPTION == "cv":
+            import threading
+            if threading.current_thread() is not threading.main_thread():
+                return
             try:
                 W, H = self.screen_size
                 image_resized = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)
@@ -306,6 +328,17 @@ class Face():
                         roi[:, :, c] = (icon_alpha * icon_rgb[:, :, c] + (1 - icon_alpha) * roi[:, :, c]).astype(np.uint8)
                     image_resized[roi_y0:roi_y1, roi_x0:roi_x1] = roi
                 
+                if getattr(self, 'guidance', None) in self.guidance_images:
+                    guidance_img = self.guidance_images[self.guidance]
+                    gh, gw = guidance_img.shape[:2]
+                    scale_w = int(W * 0.2)
+                    scale_h = int(gh * scale_w / gw)
+                    try:
+                        guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
+                        image_resized[H - scale_h:H, 0:scale_w] = guidance_resized
+                    except Exception as e:
+                        print(f"[Face] Warning: Error resizing guidance image in display_face: {e}")
+
                 if getattr(self, 'reading_fluency_active', False):
                     self.draw_reading_fluency_overlay_cv(image_resized)
                 
@@ -335,8 +368,9 @@ class Face():
                     image_resized[y0:y1, x0:x1] = roi_blended
                 
                 if getattr(self, 'show_face', True):
-                    cv2.imshow(self.win_name, image_resized)
-                    cv2.waitKey(1)
+                    with self.lock:
+                        cv2.imshow(self.win_name, image_resized)
+                        cv2.waitKey(1)
             except Exception as e:
                 print(f"[Face] Warning: Error during cv2 display update: {e}")
 
@@ -348,49 +382,58 @@ class Face():
 
     def generate_face(self, parts_selected, stop_event=None, stop_condition=None, delay=0.5):
         if getattr(self, 'show_face', True):
-            max_length = self.get_sequence_length(parts_selected)
-            
-            for i in range(max_length):
-                if not getattr(self, 'show_face', True):
-                    break
-                start_time = time.time()    
-                face = {}
-                for part, part_data in parts_selected.items():
-                    if i < len(part_data[1]):
-                        face[part] = (part_data[0], part_data[1][i])
-                face_image = self.set_face(face)
+            self.rendering_sequence = True
+            try:
+                max_length = self.get_sequence_length(parts_selected)
                 
-                if self.guidance in self.guidance_images:
-                    guidance_img = self.guidance_images[self.guidance]
-                    h, w = face_image.shape[:2]
-                    guidance_h, guidance_w = guidance_img.shape[:2]
-                    scale_w = int(w * 0.2)
-                    scale_h = int(guidance_h * scale_w / guidance_w)
-                    try:
-                        guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
-                        face_image[h - scale_h:h, 0:scale_w] = guidance_resized
-                    except Exception as e:
-                        print(f"[Face] Warning: Error resizing guidance image in generate_face: {e}")
-                    
-                self.display_face(face_image)
-
-                current_time = time.time() - start_time
-                left_delay = 0
-                if current_time < delay:
-                    left_delay = delay - current_time
-                if left_delay > 0:
-                    if IMAGE_OPTION == "pygame":
-                        time.sleep(left_delay)
-                    elif IMAGE_OPTION == "cv":
-                        try:
-                            if getattr(self, 'show_face', True):
-                                cv2.waitKey(int(left_delay * 1000))
-                        except Exception as e:
-                            print(f"[Face] Warning: Error during generate_face waitKey: {e}")
-            
-                if stop_event:
-                    if stop_event.is_set():
+                for i in range(max_length):
+                    if not getattr(self, 'show_face', True):
                         break
+                    start_time = time.time()    
+                    face = {}
+                    for part, part_data in parts_selected.items():
+                        if i < len(part_data[1]):
+                            face[part] = (part_data[0], part_data[1][i])
+                    face_image = self.set_face(face)
+                    
+                    if self.guidance in self.guidance_images:
+                        guidance_img = self.guidance_images[self.guidance]
+                        h, w = face_image.shape[:2]
+                        guidance_h, guidance_w = guidance_img.shape[:2]
+                        scale_w = int(w * 0.2)
+                        scale_h = int(guidance_h * scale_w / guidance_w)
+                        try:
+                            guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
+                            face_image[h - scale_h:h, 0:scale_w] = guidance_resized
+                        except Exception as e:
+                            print(f"[Face] Warning: Error resizing guidance image in generate_face: {e}")
+                        
+                    self.display_face(face_image)
+
+                    current_time = time.time() - start_time
+                    left_delay = 0
+                    if current_time < delay:
+                        left_delay = delay - current_time
+                    if left_delay > 0:
+                        if IMAGE_OPTION == "pygame":
+                            time.sleep(left_delay)
+                        elif IMAGE_OPTION == "cv":
+                            try:
+                                if getattr(self, 'show_face', True):
+                                    import threading
+                                    if threading.current_thread() is not threading.main_thread():
+                                        time.sleep(left_delay)
+                                    else:
+                                        with self.lock:
+                                            cv2.waitKey(int(left_delay * 1000))
+                            except Exception as e:
+                                print(f"[Face] Warning: Error during generate_face waitKey: {e}")
+                
+                    if stop_event:
+                        if stop_event.is_set():
+                            break
+            finally:
+                self.rendering_sequence = False
 
         # if the stop condition is the speech, send the stop event
         if stop_condition is not None and stop_event is not None:
@@ -420,17 +463,24 @@ class Face():
             face_sequence = basic_sequences[face_sequence_name]
         self.generate_face(parts_selected=face_sequence, delay=0.1)
 
-    def update_reading_fluency(self, active=True, passage_words=None, current_word_idx=0, word_states=None, last_wrong_heard=None):
+    def update_reading_fluency(self, active, passage_words=None, current_word_idx=None, word_states=None, last_wrong_heard=None):
         self.reading_fluency_active = active
         if passage_words is not None:
             self.reading_passage_words = passage_words
-        self.reading_current_word_idx = current_word_idx
+        if current_word_idx is not None:
+            self.reading_current_word_idx = current_word_idx
         if word_states is not None:
             self.reading_word_states = word_states
-        elif passage_words is not None and (len(self.reading_word_states) != len(passage_words)):
+        elif passage_words is not None:
             self.reading_word_states = ['unread'] * len(passage_words)
         self.reading_last_wrong_heard = last_wrong_heard
         
+        # Force a refresh of the display using the last face image if available
+        if getattr(self, 'last_face_image', None) is not None:
+            self.display_face(self.last_face_image)
+
+    def set_reading_status(self, status):
+        self.reading_status = status
         # Force a refresh of the display using the last face image if available
         if getattr(self, 'last_face_image', None) is not None:
             self.display_face(self.last_face_image)
@@ -450,6 +500,28 @@ class Face():
         
         # 2. Draw border line at top of overlay
         cv2.line(canvas, (0, y0), (W, y0), (255, 200, 100), 2, lineType=cv2.LINE_AA)
+
+        # 2.5 Draw real-time status indicator (pulsing dot + label)
+        status = getattr(self, 'reading_status', 'idle')
+        if status == 'listening':
+            color_dot = (50, 220, 50)  # Green in BGR
+            status_text = "Listening"
+            # Pulses every 0.5 seconds
+            if int(time.time() * 2) % 2 == 0:
+                color_dot = (20, 150, 20)
+        elif status == 'transcribing':
+            color_dot = (0, 165, 255)  # Orange in BGR
+            status_text = "Transcribing..."
+        else:
+            color_dot = (120, 120, 120)  # Gray in BGR
+            status_text = "Idle"
+            
+        dot_x = W - 180
+        dot_y = y0 + 22
+        cv2.circle(canvas, (dot_x, dot_y), 6, color_dot, -1, lineType=cv2.LINE_AA)
+        
+        font_status = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(canvas, status_text, (dot_x + 15, dot_y + 5), font_status, 0.5, (200, 200, 200), 1, cv2.LINE_AA)
         
         # 3. Draw wrapped text
         font_word = cv2.FONT_HERSHEY_SIMPLEX
@@ -465,6 +537,10 @@ class Face():
         space_w = space_size[0]
         
         for idx, word in enumerate(self.reading_passage_words):
+            if word == "\n":
+                cursor_x = margin_x
+                cursor_y += line_spacing
+                continue
             state = self.reading_word_states[idx] if idx < len(self.reading_word_states) else 'unread'
             word_size, _ = cv2.getTextSize(word, font_word, font_scale, thickness)
             word_w, word_h = word_size
@@ -532,6 +608,28 @@ class Face():
         overlay_surf.fill((15, 11, 31, 204)) # 80% opacity dark slate
         pygame.draw.line(overlay_surf, (100, 200, 255), (0, 0), (W, 0), 2) # border line at top
         canvas.blit(overlay_surf, (0, y0))
+
+        # 1.5 Draw real-time status indicator (pulsing dot + label)
+        status = getattr(self, 'reading_status', 'idle')
+        if status == 'listening':
+            color_dot = (50, 220, 50)  # Green
+            status_text = "Listening"
+            if int(time.time() * 2) % 2 == 0:
+                color_dot = (20, 150, 20)
+        elif status == 'transcribing':
+            color_dot = (255, 165, 0)  # Orange
+            status_text = "Transcribing..."
+        else:
+            color_dot = (120, 120, 120)  # Gray
+            status_text = "Idle"
+            
+        dot_x = W - 180
+        dot_y = y0 + 22
+        pygame.draw.circle(canvas, color_dot, (dot_x, dot_y), 6)
+        
+        font_status = pygame.font.SysFont("Arial", 16, bold=True)
+        status_surf = font_status.render(status_text, True, (200, 200, 200))
+        canvas.blit(status_surf, (dot_x + 15, dot_y - 8))
         
         # 2. Draw wrapped text
         font_word = pygame.font.SysFont("Arial", 32, bold=False)
@@ -545,6 +643,10 @@ class Face():
         space_w, _ = font_word.size(" ")
         
         for idx, word in enumerate(self.reading_passage_words):
+            if word == "\n":
+                cursor_x = margin_x
+                cursor_y += line_spacing
+                continue
             state = self.reading_word_states[idx] if idx < len(self.reading_word_states) else 'unread'
             current_font = font_word_bold if idx == self.reading_current_word_idx else font_word
             word_w, word_h = current_font.size(word)

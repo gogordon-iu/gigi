@@ -80,11 +80,33 @@ def check_guess(secret, guess):
                     
     return bulls, cows
 
-def parse_game_mode(text):
+def parse_game_mode(text, gigi=None):
     if not text:
         return None
     text_lower = text.lower().strip()
     
+    if gigi and getattr(gigi, 'conversation', None):
+        system_prompt = (
+            "You are a game mode classifier for a Mastermind game.\n"
+            "The child is deciding whether they want to guess Gigi's secret number, "
+            "or whether Gigi should guess the child's secret number.\n\n"
+            "Options:\n"
+            "- 'child_guesses': The child wants to guess (e.g. 'I want to guess', 'my turn', 'you pick', 'I will guess').\n"
+            "- 'gigi_guesses': Gigi should guess the child's number (e.g. 'you guess', 'your turn', 'you pick the number').\n\n"
+            "Analyze the user prompt and classify it. Output ONLY 'child_guesses' or 'gigi_guesses'. "
+            "If it is ambiguous or unrecognized, output 'unknown'. "
+            "Do not include any extra words, punctuation, or explanations."
+        )
+        try:
+            response = gigi.conversation.get_response(system_prompt=system_prompt, user_prompt=text)
+            cleaned = response.strip().lower()
+            if "child_guesses" in cleaned:
+                return "child_guesses"
+            elif "gigi_guesses" in cleaned:
+                return "gigi_guesses"
+        except Exception as e:
+            print(f"[Mastermind LLM] Error calling LLM: {e}")
+
     gigi_guess_words = ["you", "gigi", "robot", "your turn", "you guess", "you pick", "gigi guess", "gigi pick"]
     child_guess_words = ["i", "me", "my", "my turn", "i guess", "i pick", "me guess", "me pick"]
     
@@ -198,8 +220,7 @@ def play_mastermind():
         playing = True
         while playing:
             gigi.run_character(
-                viseme_data={'text': "Would you like to guess my secret number, or do you want me to guess your secret number?", 'file': None},
-                movement_data='open_arms'
+                viseme_data={'text': "Would you like to guess my secret number, or do you want me to guess your secret number?", 'file': None}
             )
             
             # Look at the child
@@ -207,14 +228,14 @@ def play_mastermind():
                 gigi.lookat_something(what="face", timeout=2.0)
                 
             mode_response = get_user_input(gigi, timeout=8)
-            mode = parse_game_mode(mode_response)
+            mode = parse_game_mode(mode_response, gigi=gigi)
             
             if mode is None:
                 gigi.run_character(
                     viseme_data={'text': "I didn't quite catch that! Should you guess, or should I guess?", 'file': None}
                 )
                 mode_response2 = get_user_input(gigi, timeout=8)
-                mode = parse_game_mode(mode_response2)
+                mode = parse_game_mode(mode_response2, gigi=gigi)
                 if mode is None:
                     # Default to child guessing
                     mode = "child_guesses"
@@ -232,8 +253,7 @@ def play_mastermind():
                 gigi.log_variable("guesses", local_guesses)
                 
                 gigi.run_character(
-                    viseme_data={'text': "Okay! I have chosen my secret numbers. Tell me your first guess of four digits!", 'file': None},
-                    movement_data='open_arms'
+                    viseme_data={'text': "Okay! I have chosen my secret numbers. Tell me your first guess of four digits!", 'file': None}
                 )
                 
                 attempts = 0
@@ -247,8 +267,75 @@ def play_mastermind():
                     # Clear overlay text before the user guesses
                     gigi.face.overlay_text = None
                     
-                    response = get_user_input(gigi, timeout=10)
-                    parsed = parse_user_response(response)
+                    # Collect guess one digit at a time using Vosk grammar-restricted pronunciation mode
+                    if gigi.hearing:
+                        gigi.hearing.pronunciation_mode = True
+                        gigi.hearing.pronunciation_grammar = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+                        
+                    parsed_digits = []
+                    digit_names = ["first", "second", "third", "fourth"]
+                    give_up = False
+                    
+                    for i in range(4):
+                        gigi.face.overlay_text = None
+                        gigi.run_character(
+                            viseme_data={'text': f"What is your {digit_names[i]} digit?", 'file': None}
+                        )
+                        digit_response = get_user_input(gigi, timeout=8)
+                        text_lower = digit_response.lower().strip()
+                        
+                        give_up_phrases = ["give up", "quit", "reveal", "show me", "stop", "concede"]
+                        if any(phrase in text_lower for phrase in give_up_phrases):
+                            give_up = True
+                            break
+                            
+                        digit_parsed = None
+                        for word, digit in WORD_TO_DIGIT.items():
+                            if word in text_lower:
+                                digit_parsed = digit
+                                break
+                        if not digit_parsed:
+                            for char in text_lower:
+                                if char.isdigit():
+                                    digit_parsed = char
+                                    break
+                                    
+                        attempts_inner = 0
+                        while digit_parsed is None and attempts_inner < 2:
+                            gigi.run_character(
+                                viseme_data={'text': f"I didn't quite catch a digit. What is the {digit_names[i]} digit?", 'file': None}
+                            )
+                            digit_response = get_user_input(gigi, timeout=8)
+                            text_lower = digit_response.lower().strip()
+                            if any(phrase in text_lower for phrase in give_up_phrases):
+                                give_up = True
+                                break
+                            for word, digit in WORD_TO_DIGIT.items():
+                                if word in text_lower:
+                                    digit_parsed = digit
+                                    break
+                            if not digit_parsed:
+                                for char in text_lower:
+                                    if char.isdigit():
+                                        digit_parsed = char
+                                        break
+                            attempts_inner += 1
+                            
+                        if give_up:
+                            break
+                            
+                        if digit_parsed is None:
+                            digit_parsed = str(random.randint(0, 9))
+                            
+                        parsed_digits.append(digit_parsed)
+                        
+                    if gigi.hearing:
+                        gigi.hearing.pronunciation_mode = False
+                        
+                    if give_up:
+                        parsed = "give_up"
+                    else:
+                        parsed = "".join(parsed_digits)
                     
                     if parsed == "give_up":
                         # Display code on screen
@@ -257,8 +344,7 @@ def play_mastermind():
                         
                         # Speak encouragement first
                         gigi.run_character(
-                            viseme_data={'text': "No worries! Mastermind is a tricky game. Let me show you the secret code on my screen!", 'file': None},
-                            movement_data='open_arms'
+                            viseme_data={'text': "No worries! Mastermind is a tricky game. Let me show you the secret code on my screen!", 'file': None}
                         )
                         
                         # Display code on screen
@@ -337,7 +423,7 @@ def play_mastermind():
                                 movement = 'look_from_side_to_side'
                             else:
                                 feedback_text = f"You have " + " and ".join(feedback_parts) + ". Good try, keep going!"
-                                movement = 'open_arms'
+                                movement = None
                                 
                             gigi.run_character(
                                 viseme_data={'text': feedback_text, 'file': None},
@@ -350,8 +436,7 @@ def play_mastermind():
             else:
                 # Gigi guesses mode
                 gigi.run_character(
-                    viseme_data={'text': "Hooray! I love guessing games! Please think of a four digit number from zero to nine with no repeating digits.", 'file': None},
-                    movement_data='open_arms'
+                    viseme_data={'text': "Hooray! I love guessing games! Please think of a four digit number from zero to nine with no repeating digits.", 'file': None}
                 )
                 gigi.run_character(
                     viseme_data={'text': "Write it down on a piece of paper so you don't forget! When I guess, tell me how many correct digits are in the correct place, which we'll call black. And how many are correct but in the wrong place, which we'll call white.", 'file': None}
@@ -401,8 +486,7 @@ def play_mastermind():
                         guess_text = f"My guess number {attempts} is {', '.join(guess)}."
                         
                     gigi.run_character(
-                        viseme_data={'text': f"{guess_text} How many black and white indicators do I have?", 'file': None},
-                        movement_data='open_arms'
+                        viseme_data={'text': f"{guess_text} How many black and white indicators do I have?", 'file': None}
                     )
                     
                     feedback_received = False

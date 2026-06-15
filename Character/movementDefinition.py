@@ -116,6 +116,35 @@ basic_sequences["open_arms"] = [
     }
 ]
 
+# Open and close arms
+basic_sequences["open_close_arms"] = [
+    {
+        "time": 1.0,
+        "motors": {
+            "right_shoulder": 0.8,
+            "left_shoulder": -0.8,
+            "right_elbow": 0.0,
+            "left_elbow": 0.0
+        }
+    },
+    {
+        "time": 1.5,
+        "motors": {
+            "right_elbow": 0.8,
+            "left_elbow": -0.8
+        }
+    },
+    {
+        "time": 2.5,
+        "motors": {
+            "right_shoulder": 0.0,
+            "left_shoulder": 0.0,
+            "right_elbow": 0.0,
+            "left_elbow": 0.0
+        }
+    }
+]
+
 # Head movements
 basic_sequences["look_from_side_to_side"] = [
     {'time': 1,

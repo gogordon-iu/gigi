@@ -39,7 +39,7 @@ elif HEARING_OPTION == "whisper":
     _hearing_dir = os.path.dirname(os.path.abspath(__file__))
     _resources_dir = os.path.abspath(os.path.join(_hearing_dir, "..", "Resources"))
     RKNN_MODEL_PATH = os.path.join(_resources_dir, "sense-voice-encoder.rknn")
-    SPEECH_SCALE = 0.1
+    SPEECH_SCALE = 1.0
 
     try:
         from rknnlite.api import RKNNLite
@@ -64,13 +64,75 @@ elif HEARING_OPTION == "whisper":
                 raise RuntimeError(f"Failed to init RKNN runtime (code {ret})")
             print(f"[Hearing] SenseVoiceSmall-RKNN2 loaded from {model_path}")
 
+            # Load CMVN normalization stats
+            cmvn_path = os.path.join(_resources_dir, "am.mvn")
+            self.cmvn = self.load_cmvn(cmvn_path)
+
+            # Load speaker / query embeddings
+            embedding_path = os.path.join(_resources_dir, "embedding.npy")
+            self.embedding = np.load(embedding_path)
+
+        def load_cmvn(self, cmvn_file: str) -> np.ndarray:
+            with open(cmvn_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            means_list = []
+            vars_list = []
+            for i in range(len(lines)):
+                line_item = lines[i].split()
+                if len(line_item) == 0:
+                    continue
+                if line_item[0] == "<AddShift>":
+                    line_item = lines[i + 1].split()
+                    if line_item[0] == "<LearnRateCoef>":
+                        add_shift_line = line_item[3 : (len(line_item) - 1)]
+                        means_list = list(add_shift_line)
+                elif line_item[0] == "<Rescale>":
+                    line_item = lines[i + 1].split()
+                    if line_item[0] == "<LearnRateCoef>":
+                        rescale_line = line_item[3 : (len(line_item) - 1)]
+                        vars_list = list(rescale_line)
+            means = np.array(means_list).astype(np.float64)
+            vars = np.array(vars_list).astype(np.float64)
+            return np.array([means, vars])
+
+        def apply_lfr(self, inputs: np.ndarray, lfr_m=7, lfr_n=6) -> np.ndarray:
+            LFR_inputs = []
+            T = inputs.shape[0]
+            T_lfr = int(np.ceil(T / lfr_n))
+            left_padding = np.tile(inputs[0], ((lfr_m - 1) // 2, 1))
+            inputs = np.vstack((left_padding, inputs))
+            T = T + (lfr_m - 1) // 2
+            for i in range(T_lfr):
+                if lfr_m <= T - i * lfr_n:
+                    LFR_inputs.append((inputs[i * lfr_n : i * lfr_n + lfr_m]).reshape(1, -1))
+                else:
+                    num_padding = lfr_m - (T - i * lfr_n)
+                    frame = inputs[i * lfr_n :].reshape(-1)
+                    for _ in range(num_padding):
+                        frame = np.hstack((frame, inputs[-1]))
+                    LFR_inputs.append(frame)
+            return np.vstack(LFR_inputs).astype(np.float32)
+
+        def apply_cmvn(self, inputs: np.ndarray) -> np.ndarray:
+            frame, dim = inputs.shape
+            means = np.tile(self.cmvn[0:1, :dim], (frame, 1))
+            vars = np.tile(self.cmvn[1:2, :dim], (frame, 1))
+            return (inputs + means) * vars
+
         def _extract_fbank(self, audio_float: np.ndarray) -> np.ndarray:
             """Extract 80-dim log-Mel filterbank features at 16 kHz."""
             import kaldi_native_fbank as knf
             opts = knf.FbankOptions()
-            opts.frame_opts.dither = 0
-            opts.frame_opts.snip_edges = False
+            opts.frame_opts.samp_freq = 16000
+            opts.frame_opts.dither = 0.0
+            opts.frame_opts.window_type = "hamming"
+            opts.frame_opts.frame_shift_ms = 10.0
+            opts.frame_opts.frame_length_ms = 25.0
             opts.mel_opts.num_bins = 80
+            opts.energy_floor = 0
+            opts.frame_opts.snip_edges = True
+            opts.mel_opts.debug_mel = False
+            
             fbank = knf.OnlineFbank(opts)
             # kaldi_native_fbank expects int16-scaled floats
             samples = (audio_float * 32768.0).astype(np.float32)
@@ -81,27 +143,59 @@ elif HEARING_OPTION == "whisper":
                 return np.zeros((1, 80), dtype=np.float32)
             return np.array(frames, dtype=np.float32)  # (T, 80)
 
-        def transcribe(self, audio_float: np.ndarray) -> str:
+        def transcribe(self, audio_float: np.ndarray, language: str = "en") -> str:
             """Run NPU inference on a float32 audio chunk (16 kHz, mono)."""
             try:
-                feats = self._extract_fbank(audio_float)          # (T, 80)
-                feats = feats[np.newaxis, :, :]                    # (1, T, 80)
-                
-                # Pad/truncate features to match the NPU model's expected static shape (1197 frames)
-                expected_frames = 1197
-                T = feats.shape[1]
-                if T < expected_frames:
-                    padding = np.zeros((1, expected_frames - T, 80), dtype=np.float32)
-                    feats = np.concatenate([feats, padding], axis=1)
-                elif T > expected_frames:
-                    feats = feats[:, :expected_frames, :]
-                    
-                feats = feats * SPEECH_SCALE                       # prevent FP16 overflow
-                outputs = self.rknn.inference(inputs=[feats])
+                # 1. Extract raw fbank
+                fbank = self._extract_fbank(audio_float)          # (T, 80)
+                if len(fbank) == 0 or (len(fbank) == 1 and np.all(fbank == 0)):
+                    return ""
+
+                # 2. Apply LFR (downsampling / stacking)
+                lfr_feat = self.apply_lfr(fbank, 7, 6)             # (T', 560)
+
+                # 3. Apply CMVN
+                normalized_feat = self.apply_cmvn(lfr_feat)       # (T', 560)
+
+                # 4. Form language, emotion/event (1, 2), text norm (15) query embeddings
+                # Map language string to index in embedding.npy: zh=0, en=1, yue=2, ja=3, ko=4
+                lang_map = {
+                    "zh": 0,
+                    "en": 1,
+                    "yue": 2,
+                    "ja": 3,
+                    "ko": 4
+                }
+                lang_idx = lang_map.get(language, 1) # default to English (1)
+                language_query = self.embedding[[[lang_idx]]]       # (1, 1, 560)
+                event_emo_query = self.embedding[[[1, 2]]]         # (1, 2, 560)
+                text_norm_query = self.embedding[[[15]]]           # (1, 1, 560)
+                speech = normalized_feat[np.newaxis, :, :]         # (1, T', 560)
+
+                # Concatenate query embeddings with speech features
+                input_content = np.concatenate([
+                    language_query,
+                    event_emo_query,
+                    text_norm_query,
+                    speech
+                ], axis=1).astype(np.float32)
+
+                # Pad or truncate to RKNN static shape (171 frames)
+                RKNN_INPUT_LEN = 171
+                T_cat = input_content.shape[1]
+                if T_cat < RKNN_INPUT_LEN:
+                    input_content = np.pad(input_content, ((0, 0), (0, RKNN_INPUT_LEN - T_cat), (0, 0)))
+                else:
+                    input_content = input_content[:, :RKNN_INPUT_LEN, :]
+
+                # 5. Run NPU inference
+                outputs = self.rknn.inference(inputs=[input_content])
                 if outputs is None or len(outputs) == 0:
                     return ""
-                logits = outputs[0][0]                             # (T', vocab_size)
-                token_ids = np.argmax(logits, axis=-1).tolist()
+                logits = outputs[0][0]                             # (25055, 171)
+
+                # 6. Decode output token IDs along axis 0
+                token_ids = np.argmax(logits, axis=0).tolist()
                 prev = None
                 decoded = []
                 for tid in token_ids:
@@ -113,9 +207,16 @@ elif HEARING_OPTION == "whisper":
                     sp = spm.SentencePieceProcessor()
                     sp.Load(os.path.join(_resources_dir, "chn_jpn_yue_eng_ko_spectok.bpe.model"))
                     text = sp.Decode(decoded)
+                    # Clean tags like <|en|>, <|SAD|>, etc.
+                    import re
+                    text = re.sub(r'<\|.*?\|>', '', text).strip()
+                    
+                    # Normalize smart quotes and filter out non-ASCII/foreign characters
+                    text = text.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+                    text = "".join(c for c in text if ord(c) < 128).strip()
                 except Exception:
                     text = " ".join(str(t) for t in decoded)
-                return text.strip()
+                return text
             except Exception as e:
                 print(f"[Hearing] RKNN inference error: {e}")
                 return ""
@@ -145,6 +246,11 @@ class Hearing():
 
         # Buffer to store raw audio for speaker recognition
         self.raw_audio_buffer = []
+
+        # Pronunciation mode settings
+        self.pronunciation_mode = False
+        self.pronunciation_grammar = []
+        self.vosk_model = None
 
         if HEARING_OPTION == "sr":
             self.recognizer = sr.Recognizer()
@@ -219,6 +325,17 @@ class Hearing():
                 frames_per_buffer=int(INPUT_SAMPLE_RATE / 4)
             )
 
+    def load_vosk_model(self):
+        if self.vosk_model is None:
+            from vosk import Model
+            import os
+            _hearing_dir = os.path.dirname(os.path.abspath(__file__))
+            _resources_dir = os.path.abspath(os.path.join(_hearing_dir, "..", "Resources"))
+            vosk_path = os.path.join(_resources_dir, "vosk-model-small-en-us-0.15")
+            print(f"[Hearing] Loading Vosk model from {vosk_path}...")
+            self.vosk_model = Model(vosk_path)
+            print("[Hearing] Vosk model loaded successfully.")
+
     def get_usb_microphone(self):
         devices = sd.query_devices()
         usb_devices = [
@@ -228,6 +345,46 @@ class Hearing():
         if len(usb_devices) > 0:
             return usb_devices[0]
         return None
+
+    def _open_input_stream(self, callback):
+        """
+        Attempt to open a sounddevice InputStream.
+        First tries with self.mic_index, and falls back to None (default device) if it fails.
+        """
+        stream = None
+        try:
+            print(f"[Hearing] Attempting to open sd.InputStream with mic_index={self.mic_index}...")
+            stream = sd.InputStream(
+                samplerate=INPUT_SAMPLE_RATE,
+                channels=1,
+                device=self.mic_index,
+                callback=callback,
+                blocksize=8192,
+                dtype='int16'
+            )
+            print(f"[Hearing] Successfully opened InputStream on device {self.mic_index}.")
+        except Exception as e:
+            print(f"[Hearing] Failed to open InputStream with mic_index={self.mic_index}: {e}")
+            if self.mic_index is not None:
+                print("[Hearing] Retrying with default device index (None)...")
+                try:
+                    stream = sd.InputStream(
+                        samplerate=INPUT_SAMPLE_RATE,
+                        channels=1,
+                        device=None,
+                        callback=callback,
+                        blocksize=8192,
+                        dtype='int16'
+                    )
+                    print("[Hearing] Successfully opened InputStream on default device.")
+                except Exception as e2:
+                    print(f"[Hearing] Failed to open InputStream on default device: {e2}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                import traceback
+                traceback.print_exc()
+        return stream
 
     def contains_speech(self, audio_data):
         """
@@ -297,10 +454,37 @@ class Hearing():
         if len(audio_float) < 8000:  # Skip clips shorter than ~0.5s at 16kHz
             return ""
 
+        if getattr(self, 'pronunciation_mode', False):
+            try:
+                self.load_vosk_model()
+                from vosk import KaldiRecognizer
+                import re
+                
+                grammar_list = [w.lower().replace("’", "'") for w in getattr(self, 'pronunciation_grammar', []) if w]
+                grammar_list = [re.sub(r"[^\w']", "", w) for w in grammar_list]
+                grammar_list = [w for w in grammar_list if w]
+                
+                if "[unk]" not in grammar_list:
+                    grammar_list.append("[unk]")
+                
+                grammar_json = json.dumps(grammar_list)
+                rec = KaldiRecognizer(self.vosk_model, 16000, grammar_json)
+                
+                audio_int16 = (audio_float * 32767.0).astype(np.int16)
+                rec.AcceptWaveform(audio_int16.tobytes())
+                result_json = json.loads(rec.FinalResult())
+                text = result_json.get("text", "")
+                
+                if self.verbose:
+                    print(f"[Vosk Pronunciation] Grammar: {grammar_json} -> Result: '{text}'")
+                return text
+            except Exception as e:
+                print(f"[Vosk Pronunciation] Error: {e}")
+
         if getattr(self, 'use_rknn', False):
             # ── RKNN path ─────────────────────────────────────────────────────
             try:
-                result = self.model.transcribe(audio_float)
+                result = self.model.transcribe(audio_float, language=language)
                 if not result:
                     return ""
                 current_words = result.strip().split()
@@ -431,14 +615,12 @@ class Hearing():
             # Reset deduplication state for new listening session
             self.last_segment_words = []
 
-            with sd.InputStream(
-                samplerate=INPUT_SAMPLE_RATE,
-                channels=1,
-                device=self.mic_index,
-                callback=self.audio_callback_optimized,
-                blocksize=8192,
-                dtype='int16'
-            ):
+            stream = self._open_input_stream(self.audio_callback_optimized)
+            if stream is None:
+                print("[Hearing] Failed to initialize microphone. Exiting listen.")
+                return
+
+            with stream:
                 print("Listening... Speak into the microphone.")
 
                 while True:
@@ -563,42 +745,49 @@ class Hearing():
             audio_float = audio_data.astype(np.float32) / 32768.0
             self._raw_buffer.append(audio_float)
 
-            # Check how many seconds we have buffered
+            # Check how many seconds we have buffered at native sample rate (INPUT_SAMPLE_RATE)
             total_samples = sum(len(c) for c in self._raw_buffer)
-            if total_samples >= int(TARGET_SAMPLE_RATE * self._raw_buf_duration):
-                audio_chunk = np.concatenate(self._raw_buffer)
+            if total_samples >= int(INPUT_SAMPLE_RATE * self._raw_buf_duration):
+                audio_chunk_native = np.concatenate(self._raw_buffer)
                 self._raw_buffer = []
-                audio_int16 = (audio_chunk * 32768.0).astype(np.int16)
-                if self.contains_speech(audio_int16):
+                
+                # Resample native 48 kHz chunk to target 16 kHz
+                from whisper_helper import resample_audio
+                audio_int16_native = (audio_chunk_native * 32768.0).astype(np.int16)
+                audio_int16_resampled = resample_audio(audio_int16_native, INPUT_SAMPLE_RATE, TARGET_SAMPLE_RATE)
+                audio_chunk_resampled = audio_int16_resampled.astype(np.float32) / 32768.0
+                
+                if self.contains_speech(audio_int16_resampled):
                     self.last_vad_speech_time = time.time()
                     try:
-                        self.audio_queue.put_nowait(audio_chunk)
+                        self.audio_queue.put_nowait(audio_chunk_resampled)
                     except queue.Full:
                         try:
                             self.audio_queue.get_nowait()
-                            self.audio_queue.put_nowait(audio_chunk)
+                            self.audio_queue.put_nowait(audio_chunk_resampled)
                         except:
                             pass
         else:
             # ── Whisper path: WhisperAudioProcessor ───────────────────────────
-            self.audio_processor.add_to_buffer(audio_data)
+            if hasattr(self, 'audio_processor'):
+                self.audio_processor.add_to_buffer(audio_data)
 
-            if self.audio_processor.should_process_buffer():
-                audio_float = self.audio_processor.get_buffered_audio()
+                if self.audio_processor.should_process_buffer():
+                    audio_float = self.audio_processor.get_buffered_audio()
 
-                if audio_float is not None and len(audio_float) > 0:
-                    audio_int16 = (audio_float * 32768.0).astype(np.int16)
+                    if audio_float is not None and len(audio_float) > 0:
+                        audio_int16 = (audio_float * 32768.0).astype(np.int16)
 
-                    if self.contains_speech(audio_int16):
-                        self.last_vad_speech_time = time.time()  # VAD-driven timer
-                        try:
-                            self.audio_queue.put_nowait(audio_float)
-                        except queue.Full:
+                        if self.contains_speech(audio_int16):
+                            self.last_vad_speech_time = time.time()  # VAD-driven timer
                             try:
-                                self.audio_queue.get_nowait()
                                 self.audio_queue.put_nowait(audio_float)
-                            except:
-                                pass
+                            except queue.Full:
+                                try:
+                                    self.audio_queue.get_nowait()
+                                    self.audio_queue.put_nowait(audio_float)
+                                except:
+                                    pass
 
     def is_silent(self, audio):
         """Detect if audio chunk is silent."""
@@ -624,7 +813,20 @@ class Hearing():
     def hearing_thread(self, stop_event=None):
         if stop_event is None:
             stop_event = threading.Event()
-        return threading.Thread(target=self.listen, args=[stop_event])
+        
+        def safe_listen(*args, **kwargs):
+            try:
+                self.listen(*args, **kwargs)
+            except Exception as e:
+                print(f"[Hearing] Critical exception in listen thread: {e}")
+                import traceback
+                traceback.print_exc()
+                if getattr(self, 'face', None):
+                    self.face.feedback_state = None
+                    if hasattr(self.face, 'set_reading_status'):
+                        self.face.set_reading_status("idle")
+                        
+        return threading.Thread(target=safe_listen, args=[stop_event])
 
     def listen_fluid(self, stop_event=None, check_callback=None, n_transcripts=1):
         """
@@ -633,10 +835,14 @@ class Hearing():
         """
         if getattr(self, 'face', None):
             self.face.feedback_state = "listening"
+            if hasattr(self.face, 'set_reading_status'):
+                self.face.set_reading_status("listening")
         if HEARING_OPTION == "sr" or HEARING_OPTION == "vosk":
             self.listen(stop_event)
             if getattr(self, 'face', None):
                 self.face.feedback_state = None
+                if hasattr(self.face, 'set_reading_status'):
+                    self.face.set_reading_status("idle")
             return
 
         if HEARING_OPTION == "whisper":
@@ -648,14 +854,12 @@ class Hearing():
             # Reset deduplication state for new listening session
             self.last_segment_words = []
 
-            with sd.InputStream(
-                samplerate=INPUT_SAMPLE_RATE,
-                channels=1,
-                device=self.mic_index,
-                callback=self.audio_callback_optimized,
-                blocksize=8192,
-                dtype='int16'
-            ):
+            stream = self._open_input_stream(self.audio_callback_optimized)
+            if stream is None:
+                print("[Hearing] Failed to initialize microphone. Exiting listen_fluid.")
+                return
+
+            with stream:
                 print("Fluid Listening... Speak into the microphone.")
 
                 while True:
@@ -663,6 +867,8 @@ class Hearing():
                         break
 
                     try:
+                        if getattr(self, 'face', None) and hasattr(self.face, 'set_reading_status'):
+                            self.face.set_reading_status("listening")
                         audio_float = self.audio_queue.get(timeout=1.0) # GOREN changed to 1.0, it was 0.3
                     except queue.Empty:
                         if (
@@ -674,6 +880,8 @@ class Hearing():
                             break
                         continue
 
+                    if getattr(self, 'face', None) and hasattr(self.face, 'set_reading_status'):
+                        self.face.set_reading_status("transcribing")
                     self.raw_audio_buffer.append(audio_float)
                     transcription = self.transcribe_with_dedup(audio_float, language="en")
 
@@ -703,11 +911,26 @@ class Hearing():
                     stop_event.set()
         if getattr(self, 'face', None):
             self.face.feedback_state = None
+            if hasattr(self.face, 'set_reading_status'):
+                self.face.set_reading_status("idle")
 
     def hearing_fluid_thread(self, stop_event=None, check_callback=None, n_transcripts=1):
         if stop_event is None:
             stop_event = threading.Event()
-        return threading.Thread(target=self.listen_fluid, args=[stop_event, check_callback, n_transcripts])
+            
+        def safe_listen_fluid(*args, **kwargs):
+            try:
+                self.listen_fluid(*args, **kwargs)
+            except Exception as e:
+                print(f"[Hearing] Critical exception in listen_fluid thread: {e}")
+                import traceback
+                traceback.print_exc()
+                if getattr(self, 'face', None):
+                    self.face.feedback_state = None
+                    if hasattr(self.face, 'set_reading_status'):
+                        self.face.set_reading_status("idle")
+                        
+        return threading.Thread(target=safe_listen_fluid, args=[stop_event, check_callback, n_transcripts])
 
     def run_hearing(self):
         self.clear_audio_buffer()

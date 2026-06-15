@@ -9,9 +9,8 @@ except:
      IS_ROBOT = False
 
 # Paths
-from pathlib import Path
-current_directory = (str)(Path.cwd())
-CHARACTER_FOLDER = current_directory.split("gigi")[0] + "gigi/Character/"
+import os
+CHARACTER_FOLDER = os.path.dirname(os.path.abspath(__file__)) + "/"
 
 if IS_ROBOT:
     import os

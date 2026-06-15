@@ -21,8 +21,12 @@ from scipy.spatial.distance import cosine
 
 class SpeakerDatabase:
     """Simple database to store speaker embeddings alongside names and transcription history."""
-    def __init__(self, db_path="../Resources/speaker_db.pkl"):
-        self.db_path = db_path
+    def __init__(self, db_path=None):
+        if db_path is None:
+            _friends_dir = os.path.dirname(os.path.abspath(__file__))
+            self.db_path = os.path.abspath(os.path.join(_friends_dir, "..", "Resources", "speaker_db.pkl"))
+        else:
+            self.db_path = db_path
         self.speaker_data = {}  # {name: embedding}
         self.transcription_records = {}  # {name: [{"timestamp": float, "formatted_time": str, "text": str}]}
         self.load_database()

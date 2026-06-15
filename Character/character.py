@@ -283,9 +283,8 @@ class Character():
                     face_parts.append([0.5, face_data['parts']])
                 elif 'sequence' in face_data:
                     face_parts.append([0.5, basic_sequences[face_data['sequence']]])
-                self.face.guidance = face_data.get('guidance', None)
-            else:
-                self.face.guidance = None
+                if 'guidance' in face_data:
+                    self.face.guidance = face_data['guidance']
             if viseme_sequence is not None:
                 face_parts.append([self.speech.sample_rate, viseme_sequence])
             if len(face_parts) > 0:
@@ -313,7 +312,10 @@ class Character():
                     time.sleep(max(0.0, end - time.time()))
                     break
                 try:
-                    cv2.waitKey(30)
+                    self._main_thread_render()
+                    with self.face.lock:
+                        cv2.waitKey(1)
+                    time.sleep(0.03)
                 except Exception as e:
                     print(f"[Character] Warning: Error during _cv_wait waitKey: {e}")
                     time.sleep(max(0.0, end - time.time()))
@@ -330,12 +332,24 @@ class Character():
                     thread.join()
                     return
                 try:
-                    cv2.waitKey(30)
+                    self._main_thread_render()
+                    with self.face.lock:
+                        cv2.waitKey(1)
+                    time.sleep(0.03)
                 except Exception as e:
                     print(f"[Character] Warning: Error during _join_with_cv_loop waitKey: {e}")
                     thread.join()
                     return
         thread.join()
+
+    def _main_thread_render(self):
+        """Helper to render the face image from the main thread if updated."""
+        if self.face and self.face.IMAGE_OPTION == "cv":
+            if getattr(self.face, 'face_update_counter', 0) > getattr(self.face, 'last_rendered_counter', 0):
+                last_img = getattr(self.face, 'last_face_image', None)
+                if last_img is not None:
+                    self.face.display_face(last_img)
+                    self.face.last_rendered_counter = self.face.face_update_counter
 
     def stop_character(self):
         if self.vision:
@@ -398,12 +412,28 @@ class Character():
             hearing_thread = self.hearing.hearing_thread(stop_event=stop_event)
             hearing_thread.start()
             try:
+                next_blink_time = time.time() + random.uniform(3.0, 6.0)
                 while not stop_event.is_set():
                     if self.speaker_gaze_target is not None:
                         target_name = self.speaker_gaze_target
                         self.speaker_gaze_target = None
                         self.lookat_person(target_name)
-                    self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
+                    
+                    if time.time() >= next_blink_time:
+                        self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event, delay=0.08)
+                        next_blink_time = time.time() + random.uniform(3.0, 6.0)
+                    else:
+                        if self.face.IMAGE_OPTION == "cv" and getattr(self.face, 'show_face', True):
+                            import cv2
+                            try:
+                                self._main_thread_render()
+                                with self.face.lock:
+                                    cv2.waitKey(1)
+                                time.sleep(0.05)
+                            except Exception as e:
+                                time.sleep(0.05)
+                        else:
+                            time.sleep(0.05)
             finally:
                 recognition_stop.set()
                 rec_thread.join(timeout=1.0)
@@ -464,12 +494,28 @@ class Character():
             hearing_thread.start()
             
             try:
+                next_blink_time = time.time() + random.uniform(3.0, 6.0)
                 while not stop_event.is_set():
                     if self.speaker_gaze_target is not None:
                         target_name = self.speaker_gaze_target
                         self.speaker_gaze_target = None
                         self.lookat_person(target_name)
-                    self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event)
+                    
+                    if time.time() >= next_blink_time:
+                        self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event, delay=0.08)
+                        next_blink_time = time.time() + random.uniform(3.0, 6.0)
+                    else:
+                        if self.face.IMAGE_OPTION == "cv" and getattr(self.face, 'show_face', True):
+                            import cv2
+                            try:
+                                self._main_thread_render()
+                                with self.face.lock:
+                                    cv2.waitKey(1)
+                                time.sleep(0.05)
+                            except Exception as e:
+                                time.sleep(0.05)
+                        else:
+                            time.sleep(0.05)
             finally:
                 if rec_thread is not None:
                     recognition_stop.set()
@@ -787,15 +833,15 @@ class Character():
                     relative_angle = T_target - T_c
 
                     # Print variables during face tracking
-                    if frame_count % 10 == 0:
-                        print(f"[Follow Face Log] Screen Offset: X={offset_x:+.4f}, Y={offset_y:+.4f} | Calibrated Relative Angle: {relative_angle:+.4f}")
-                        print(f"                  Current Angles: Torso={T_c:.4f}, Neck={N_c:.4f}")
+                    # if frame_count % 10 == 0:
+                    #     print(f"[Follow Face Log] Screen Offset: X={offset_x:+.4f}, Y={offset_y:+.4f} | Calibrated Relative Angle: {relative_angle:+.4f}")
+                    #     print(f"                  Current Angles: Torso={T_c:.4f}, Neck={N_c:.4f}")
 
                     # Calculate target coordinates and errors for VOR
                     error_head = relative_angle - N_c
 
                     # 1. Silent Eye Gaze Update (render immediately, 0 motor noise)
-                    if self.face:
+                    if self.face and not getattr(self.face, 'rendering_sequence', False):
                         if error_head > 0.12:
                             eye_seq = basic_sequences.get("look_left", basic_sequences["idle"])
                         elif error_head < -0.12:
@@ -841,7 +887,7 @@ class Character():
                             delta_T = relative_angle * 0.95
                             T_new = np.clip(T_c + delta_T, -0.9, 0.9)
                             last_torso_move_time = time.time()
-                            print(f"[Follow Face Log] Torso move triggered: {T_c:.4f} -> {T_new:.4f} (delta={delta_T:+.4f})")
+                            # print(f"[Follow Face Log] Torso move triggered: {T_c:.4f} -> {T_new:.4f} (delta={delta_T:+.4f})")
 
                     # 3. Neck Movement Decision (medium deadband, medium cooldown)
                     # Neck aligns head orientation relative to the torso
@@ -851,7 +897,7 @@ class Character():
                         if time.time() - last_neck_move_time > neck_cooldown:
                             N_new = np.clip(N_c + (N_target - N_c) * 0.5, -0.9, 0.9)
                             last_neck_move_time = time.time()
-                            print(f"[Follow Face Log] Neck move triggered: {N_c:.4f} -> {N_new:.4f}")
+                            # print(f"[Follow Face Log] Neck move triggered: {N_c:.4f} -> {N_new:.4f}")
 
                     # Commit movements if updated
                     if (T_new != T_c or N_new != N_c) and self.movement:
@@ -859,8 +905,10 @@ class Character():
 
                 else:
                     # No face detected
-                    if self.face:
-                        self.face.run_sequence(face_sequence_name="idle")
+                    if self.face and not getattr(self.face, 'rendering_sequence', False):
+                        face_state = {part: ("idle", "1") for part in global_parts}
+                        face_image = self.face.set_face(face_state)
+                        self.face.display_face(face_image)
 
                     if lost_face_start is None:
                         lost_face_start = time.time()
@@ -880,18 +928,11 @@ class Character():
                             # Keep neck centered during search so camera aligns with torso direction
                             self.movement.move_motors({"torso": T_new, "neck": 0.0})
                             if frame_count % 10 == 0:
-                                print(f"[Follow Face Log] Searching for face... Torso={T_new:.4f}, dir={search_dir}")
+                                # print(f"[Follow Face Log] Searching for face... Torso={T_new:.4f}, dir={search_dir}")
+                                pass
 
-                # OpenCV wait to keep GUI responsive, otherwise standard sleep
-                if self.face and self.face.IMAGE_OPTION == "cv" and getattr(self.face, 'show_face', True):
-                    import cv2
-                    try:
-                        cv2.waitKey(int(dt * 1000))
-                    except Exception as e:
-                        print(f"[Character] Warning: Error during follow_face waitKey: {e}")
-                        time.sleep(dt)
-                else:
-                    time.sleep(dt)
+                # Background thread should not poll OpenCV GUI events
+                time.sleep(dt)
 
         finally:
             if not was_running:
