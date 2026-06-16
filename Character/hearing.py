@@ -42,7 +42,12 @@ elif HEARING_OPTION == "whisper":
     SPEECH_SCALE = 1.0
 
     try:
+        import logging
+        _orig_nameToLevel = dict(logging._nameToLevel)
+        _orig_levelToName = dict(logging._levelToName)
         from rknnlite.api import RKNNLite
+        logging._nameToLevel.update(_orig_nameToLevel)
+        logging._levelToName.update(_orig_levelToName)
         import kaldi_native_fbank as knf
         _rknn_available = True
     except ImportError:
@@ -54,7 +59,12 @@ elif HEARING_OPTION == "whisper":
         Provides a single `transcribe(audio_float16k) -> str` method.
         """
         def __init__(self, model_path=RKNN_MODEL_PATH):
+            import logging
+            _orig_nameToLevel = dict(logging._nameToLevel)
+            _orig_levelToName = dict(logging._levelToName)
             from rknnlite.api import RKNNLite
+            logging._nameToLevel.update(_orig_nameToLevel)
+            logging._levelToName.update(_orig_levelToName)
             self.rknn = RKNNLite()
             ret = self.rknn.load_rknn(model_path)
             if ret != 0:

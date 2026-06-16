@@ -41,7 +41,12 @@ class VoiceEncoderRKNN:
         if model_path is None:
             model_path = CHARACTER_FOLDER + "../Resources/voice-encoder.rknn"
         
+        import logging
+        _orig_nameToLevel = dict(logging._nameToLevel)
+        _orig_levelToName = dict(logging._levelToName)
         from rknnlite.api import RKNNLite
+        logging._nameToLevel.update(_orig_nameToLevel)
+        logging._levelToName.update(_orig_levelToName)
         self.rknn = RKNNLite()
         print(f"[Speaker Recognition] Loading VoiceEncoder RKNN model from {model_path}...")
         ret = self.rknn.load_rknn(model_path)
