@@ -6,12 +6,14 @@ import time
 import datetime
 import random
 import threading
-if os.name=="posix":
-    sys.path.append('/home/orangepi/Code/gigi')
-    sys.path.append('/home/orangepi/Code/gigi/Character')
-else:
-    sys.path.append('C:/Users/gowth/Desktop/gigi')
-    sys.path.append('C:/Users/gowth/Desktop/gigi/Character')
+current_dir = os.path.dirname(os.path.abspath(__file__))
+gigi_dir = os.path.dirname(current_dir)
+char_dir = os.path.join(gigi_dir, "Character")
+
+if gigi_dir not in sys.path:
+    sys.path.insert(0, gigi_dir)
+if char_dir not in sys.path:
+    sys.path.insert(0, char_dir)
 
 from Character.character import Character
 
@@ -75,6 +77,8 @@ def robot_speak(text: str, image: str = None):
     clean = strip_nonverbals(text)
     if not clean:
         return
+    if gigi.face:
+        gigi.face.guidance = "listen"
     sentences = re.split(r'(?<=[.!?])\s+', clean)
     for i, sentence in enumerate(sentences):
         viseme_data   = {'text': sentence, 'file': None}
@@ -85,12 +89,19 @@ def robot_speak(text: str, image: str = None):
             movement_data=movement_data,
             image_data=image_data
         )
+    if gigi.face:
+        gigi.face.guidance = None
 
 def robot_listen() -> str:
     print("\n[Listening...]")
+    if gigi.face:
+        gigi.face.guidance = "speak"
     gigi.hearing.texts = []
     gigi.run_character(movement_data="home")
     gigi.listen_backchannel()
+
+    if gigi.face:
+        gigi.face.guidance = None
 
     if gigi.hearing.texts:
         heard = gigi.hearing.texts[-1]
@@ -102,6 +113,68 @@ def robot_listen() -> str:
     if typed:
         log("STUDENT (typed)", typed)
     return typed or "[no response]"
+
+def greet_and_register():
+    log("SYSTEM", "Looking around the room for familiar faces...")
+    gigi.run_character(
+        viseme_data={'text': "Hello! Let me look around the room to see who is here today.", 'file': None},
+        movement_data='look_from_side_to_side'
+    )
+    
+    recognized_names = []
+    unknown_ids = []
+    
+    if gigi.vision:
+        gigi.vision.run_vision()
+        start_time = time.time()
+        # Look around for 5 seconds to scan faces
+        while time.time() - start_time < 5.0:
+            gigi.update_egocentric_locations()
+            
+            # Check face cache for unknown faces
+            all_faces = gigi.vision.face_cache.get_all_faces()
+            for face_id, face_info in all_faces.items():
+                name = face_info.get('name', 'Unknown')
+                is_face_pattern = re.match(r'^face_\d{4}$', name) is not None
+                is_unknown = (name == 'Unknown' or is_face_pattern or (name == 'Recognizing...' and face_info.get('recognition_attempted', False)))
+                if is_unknown:
+                    if face_id not in unknown_ids:
+                        unknown_ids.append(face_id)
+                else:
+                    if name not in recognized_names and name != 'Recognizing...':
+                        recognized_names.append(name)
+            time.sleep(0.5)
+            
+        gigi.vision.stop_vision()
+        
+        # If there are any unknown faces, register them!
+        if unknown_ids:
+            try:
+                from Demo.make_friends import register_new_friend
+            except ImportError:
+                from make_friends import register_new_friend
+                
+            for face_id in unknown_ids:
+                log("SYSTEM", f"Registering unknown face ID: {face_id}")
+                success = register_new_friend(gigi, face_id)
+                if success:
+                    updated_face = gigi.vision.face_cache.get_face_data(face_id)
+                    name = updated_face.get('name', 'Friend')
+                    if name not in recognized_names:
+                        recognized_names.append(name)
+                        
+    if recognized_names:
+        names_str = " and ".join(recognized_names)
+        gigi.run_character(
+            viseme_data={'text': f"Ah, hello {names_str}! I am so happy to see you today! Let's begin our activity.", 'file': None},
+            movement_data='wave_hello'
+        )
+    else:
+        gigi.run_character(
+            viseme_data={'text': "Hello everyone! I see some wonderful new faces. Welcome to our activity!", 'file': None},
+            movement_data='wave_hello'
+        )
+    gigi.run_character(movement_data='home')
 
 
 # ------------------------------------------------------------------
@@ -131,6 +204,9 @@ log("SYSTEM", f"Loaded: {plan.get('activity_title', '?')}")
 # ------------------------------------------------------------------
 history      = []
 steps        = plan.get("steps", plan.get("phases", []))
+
+# Run greeting, face recognition, and make friends registration flow
+greet_and_register()
 
 log("STEP", "--- Activity Started ---")
 

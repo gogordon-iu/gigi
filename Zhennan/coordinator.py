@@ -18,6 +18,6 @@ class ActivityCoordinator:
         print("[ActivityCoordinator] WARNING: Coordinator is disabled. "
               "All coordination is handled offline. Set IS_COORDINATOR=False.")
 
-    def check_intervention(self, history, plan, current_step, elapsed_minutes) -> dict:
+    def check_intervention(self, *args, **kwargs) -> dict:
         """Stub — always returns continue. Use offline modules instead."""
         return {"action": "continue", "reason": "none"}

@@ -92,6 +92,9 @@ def robot_speak(text: str, image: str = None):
     if getattr(gigi, "current_speaker", None):
         gigi.lookat_person(gigi.current_speaker)
         
+    if gigi.face:
+        gigi.face.guidance = "listen"
+
     sentences = re.split(r'(?<=[.!?])\s+', clean)
     for i, sentence in enumerate(sentences):
         viseme_data   = {'text': sentence, 'file': None}
@@ -102,6 +105,8 @@ def robot_speak(text: str, image: str = None):
             movement_data=movement_data,
             image_data=image_data
         )
+    if gigi.face:
+        gigi.face.guidance = None
 
 def robot_listen() -> str:
     print("\n[Listening...]")
@@ -110,6 +115,7 @@ def robot_listen() -> str:
     gigi.run_character(movement_data="home")
     
     if gigi.face:
+        gigi.face.guidance = "speak"
         gigi.face.display_text("Speak Now")
         
     # Start vision to look for face / track speaker coordinates
@@ -148,6 +154,7 @@ def robot_listen() -> str:
         gigi.vision.stop_vision()
 
     if gigi.face:
+        gigi.face.guidance = None
         gigi.face.display_text(None)
 
     if gigi.hearing and gigi.hearing.texts:
@@ -162,7 +169,7 @@ def robot_listen() -> str:
     return typed or "[no response]"
 
 
-def greet_and_recognize():
+def greet_and_register():
     log("SYSTEM", "Looking around the room for familiar faces...")
     gigi.run_character(
         viseme_data={'text': "Hello! Let me look around the room to see who is here today.", 'file': None},
@@ -170,22 +177,47 @@ def greet_and_recognize():
     )
     
     recognized_names = []
+    unknown_ids = []
+    
     if gigi.vision:
         gigi.vision.run_vision()
         start_time = time.time()
         # Look around for 5 seconds to scan faces
         while time.time() - start_time < 5.0:
             gigi.update_egocentric_locations()
+            
+            # Check face cache for unknown faces
+            all_faces = gigi.vision.face_cache.get_all_faces()
+            for face_id, face_info in all_faces.items():
+                name = face_info.get('name', 'Unknown')
+                is_face_pattern = re.match(r'^face_\d{4}$', name) is not None
+                is_unknown = (name == 'Unknown' or is_face_pattern or (name == 'Recognizing...' and face_info.get('recognition_attempted', False)))
+                if is_unknown:
+                    if face_id not in unknown_ids:
+                        unknown_ids.append(face_id)
+                else:
+                    if name not in recognized_names and name != 'Recognizing...':
+                        recognized_names.append(name)
             time.sleep(0.5)
             
         gigi.vision.stop_vision()
         
-        # Filter names that were detected recently (in the last 10 seconds)
-        now = time.time()
-        for name, info in gigi.egocentric_db.items():
-            if now - info.get("timestamp", 0) < 10.0:
-                recognized_names.append(name)
+        # If there are any unknown faces, register them!
+        if unknown_ids:
+            try:
+                from Demo.make_friends import register_new_friend
+            except ImportError:
+                from make_friends import register_new_friend
                 
+            for face_id in unknown_ids:
+                log("SYSTEM", f"Registering unknown face ID: {face_id}")
+                success = register_new_friend(gigi, face_id)
+                if success:
+                    updated_face = gigi.vision.face_cache.get_face_data(face_id)
+                    name = updated_face.get('name', 'Friend')
+                    if name not in recognized_names:
+                        recognized_names.append(name)
+                        
     if recognized_names:
         names_str = " and ".join(recognized_names)
         gigi.run_character(
@@ -238,7 +270,7 @@ steps        = plan.get("steps", plan.get("phases", []))
 log("STEP", "--- Activity Started ---")
 
 # Run greeting and face recognition to personalize the start of the session
-greet_and_recognize()
+greet_and_register()
 
 for i, step in enumerate(steps):
     step_type = step.get("step_type", step.get("phase_type", "unknown"))

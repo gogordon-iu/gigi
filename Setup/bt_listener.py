@@ -21,19 +21,52 @@ def get_base_dir():
     # Since this file resides in gigi/Setup/bt_listener.py, base_dir is gigi/
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+def scan_activity_plans():
+    """
+    Scans the Assets/ directory for subdirectories starting with 'activity_plan_'.
+    Returns a list of dicts: [{"folder": folder_name, "title": activity_title}]
+    """
+    base_dir = get_base_dir()
+    assets_dir = os.path.join(base_dir, "Assets")
+    plans = []
+    if os.path.isdir(assets_dir):
+        for entry in os.listdir(assets_dir):
+            entry_path = os.path.join(assets_dir, entry)
+            if os.path.isdir(entry_path) and entry.startswith("activity_plan_"):
+                # Find any json file in this folder
+                title = entry
+                for f in os.listdir(entry_path):
+                    if f.endswith(".json"):
+                        json_path = os.path.join(entry_path, f)
+                        try:
+                            with open(json_path, "r", encoding="utf-8") as jf:
+                                data = json.load(jf)
+                                title = data.get("activity_title") or data.get("title") or entry
+                        except Exception as e:
+                            print(f"[scan_activity_plans] Error reading {json_path}: {e}")
+                        break
+                plans.append({
+                    "folder": entry,
+                    "title": title
+                })
+    return plans
+
 def scan_files():
     """
-    Scans the Demo/ and Scripts/ directories for executable Python files.
+    Scans the Demo/, Scripts/, and Zhennan/ directories for executable Python files.
     Returns:
         demos (dict): lowercase stem -> file info dict
         scripts (dict): lowercase stem -> file info dict
+        zhennan (dict): lowercase stem -> file info dict
     """
     base_dir = get_base_dir()
     demo_dir = os.path.join(base_dir, "Demo")
     scripts_dir = os.path.join(base_dir, "Scripts")
+    zhennan_dir = os.path.join(base_dir, "Zhennan")
     
     demos = {}
     scripts = {}
+    zhennan = {}
     
     if os.path.isdir(demo_dir):
         for f in os.listdir(demo_dir):
@@ -58,17 +91,38 @@ def scan_files():
                     "dir": os.path.abspath(scripts_dir),
                     "type": "script"
                 }
+
+    if os.path.isdir(zhennan_dir):
+        for f in os.listdir(zhennan_dir):
+            if f.endswith(".py") and f != "__init__.py":
+                stem = os.path.splitext(f)[0]
+                zhennan[stem.lower()] = {
+                    "filename": f,
+                    "stem": stem,
+                    "path": os.path.abspath(os.path.join(zhennan_dir, f)),
+                    "dir": os.path.abspath(zhennan_dir),
+                    "type": "zhennan"
+                }
                 
-    return demos, scripts
+    return demos, scripts, zhennan
 
 def find_script(target_name):
     """
-    Looks up a script or demo by its name or filename.
+    Looks up a script, demo, or zhennan script by its name or filename.
     Returns:
         (script_info, error_details)
     """
-    demos, scripts = scan_files()
+    demos, scripts, zhennan = scan_files()
     
+    # Route activity plan executions to run_activity_teacherdemo
+    if target_name.startswith("activity_plan_"):
+        teacher_script_key = "run_activity_teacherdemo"
+        if teacher_script_key in zhennan:
+            info = dict(zhennan[teacher_script_key])
+            info["args"] = [target_name]
+            info["filename"] = f"{info['filename']} ({target_name})"
+            return info, None
+            
     # Strip extension if present
     clean_name = target_name.strip()
     if clean_name.lower().endswith(".py"):
@@ -80,19 +134,23 @@ def find_script(target_name):
         return demos[key], None
     if key in scripts:
         return scripts[key], None
+    if key in zhennan:
+        return zhennan[key], None
         
     # No match found. Construct a detailed error report.
     available_demos = [info["filename"] for info in demos.values()]
     available_scripts = [info["filename"] for info in scripts.values()]
+    available_zhennan = [info["filename"] for info in zhennan.values()]
     
-    err_msg = f"Script or demo '{target_name}' not found."
+    err_msg = f"Script, demo, or zhennan script '{target_name}' not found."
     error_details = {
         "status": "error",
         "error": "not_found",
         "message": err_msg,
         "requested": target_name,
         "available_demos": sorted(available_demos),
-        "available_scripts": sorted(available_scripts)
+        "available_scripts": sorted(available_scripts),
+        "available_zhennan": sorted(available_zhennan)
     }
     return None, error_details
 
@@ -186,9 +244,12 @@ class ExecutionManager:
 
             print(f"[ExecutionManager] Executing script '{self.process_name}' in-process via subprocess fallback...")
             try:
+                cmd = [sys.executable, script_info["path"]]
+                if "args" in script_info:
+                    cmd.extend(script_info["args"])
                 # Run subprocess using system Python executable
                 self.process = subprocess.Popen(
-                    [sys.executable, script_info["path"]],
+                    cmd,
                     cwd=script_info["dir"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -421,11 +482,14 @@ def process_command_line(line):
         })
 
     elif command == "list":
-        demos, scripts = scan_files()
+        demos, scripts, zhennan = scan_files()
+        plans = scan_activity_plans()
         send_to_active_client({
             "status": "list",
             "available_demos": sorted([info["filename"] for info in demos.values()]),
-            "available_scripts": sorted([info["filename"] for info in scripts.values()])
+            "available_scripts": sorted([info["filename"] for info in scripts.values()]),
+            "available_zhennan": sorted([info["filename"] for info in zhennan.values()]),
+            "available_activity_plans": plans
         })
 
     elif command == "exit":

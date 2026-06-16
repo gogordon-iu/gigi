@@ -1,6 +1,13 @@
+import os
 import sys
-sys.path.append('/home/orangepi/Code/gigi')
-sys.path.append('/home/orangepi/Code/gigi/Character')
+current_dir = os.path.dirname(os.path.abspath(__file__))
+gigi_dir = os.path.dirname(current_dir)
+char_dir = os.path.join(gigi_dir, "Character")
+
+if gigi_dir not in sys.path:
+    sys.path.insert(0, gigi_dir)
+if char_dir not in sys.path:
+    sys.path.insert(0, char_dir)
 import re
 import time
 from Character.vision import Vision
