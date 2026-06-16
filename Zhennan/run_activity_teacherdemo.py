@@ -88,9 +88,12 @@ def robot_speak(text: str, image: str = None):
     if not clean:
         return
         
-    # Turn and look at the student we are talking to (if recently recognized by voice)
-    if getattr(gigi, "current_speaker", None):
-        gigi.lookat_person(gigi.current_speaker)
+    # Turn and look at the student we are talking to
+    speaker = getattr(gigi, "current_speaker", None)
+    if not speaker and gigi.egocentric_db:
+        speaker = max(gigi.egocentric_db.keys(), key=lambda k: gigi.egocentric_db[k].get("timestamp", 0))
+    if speaker:
+        gigi.lookat_person(speaker)
         
     if gigi.face:
         gigi.face.guidance = "listen"
@@ -112,7 +115,15 @@ def robot_listen() -> str:
     print("\n[Listening...]")
     if gigi.hearing:
         gigi.hearing.texts = []
-    gigi.run_character(movement_data="home")
+        
+    # Look at the speaker or a registered person instead of going home, if available
+    speaker = getattr(gigi, "current_speaker", None)
+    if not speaker and gigi.egocentric_db:
+        speaker = max(gigi.egocentric_db.keys(), key=lambda k: gigi.egocentric_db[k].get("timestamp", 0))
+    if speaker:
+        gigi.lookat_person(speaker)
+    else:
+        gigi.run_character(movement_data="home")
     
     if gigi.face:
         gigi.face.guidance = "speak"
@@ -220,11 +231,19 @@ def greet_and_register():
                         
     if recognized_names:
         names_str = " and ".join(recognized_names)
+        gigi.current_speaker = recognized_names[0]
+        # Look at the first recognized person
+        gigi.lookat_person(gigi.current_speaker)
         gigi.run_character(
             viseme_data={'text': f"Ah, hello {names_str}! I am so happy to see you today! Let's begin our activity.", 'file': None},
             movement_data='wave_hello'
         )
     else:
+        # Fallback: look at the most recent person in the egocentric location db
+        if gigi.egocentric_db:
+            most_recent_person = max(gigi.egocentric_db.keys(), key=lambda k: gigi.egocentric_db[k].get("timestamp", 0))
+            gigi.current_speaker = most_recent_person
+            gigi.lookat_person(most_recent_person)
         gigi.run_character(
             viseme_data={'text': "Hello everyone! I see some wonderful new faces. Welcome to our activity!", 'file': None},
             movement_data='wave_hello'

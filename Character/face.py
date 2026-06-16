@@ -96,7 +96,7 @@ class Face():
         self.reading_status = "idle"
         
         # Initialize visual feedback icons
-        self.feedback_state = None
+        self._feedback_state = None
         self.overlay_text = None
         self.feedback_icons = {}
         try:
@@ -113,6 +113,17 @@ class Face():
             print(f"[Face] Loaded visual feedback icons: {list(self.feedback_icons.keys())}")
         except Exception as e:
             print(f"[Face] Error loading visual feedback icons: {e}")
+
+    @property
+    def feedback_state(self):
+        return self._feedback_state
+
+    @feedback_state.setter
+    def feedback_state(self, val):
+        self._feedback_state = val
+        # Force a refresh of the display using the last face image if available
+        if getattr(self, 'last_face_image', None) is not None:
+            self.display_face(self.last_face_image)
 
     def stop_face(self):
         self.show_face = False
