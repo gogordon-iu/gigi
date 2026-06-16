@@ -177,6 +177,8 @@ cython_debug/
 ./activate_environment.sh
 motorData_calibrated.json
 ./Character/motorData_calibrated.json
+./Character/motorData_calibrated_local.json
+./Character/*_local.json
 
 #vscode settings
 .vscode/
