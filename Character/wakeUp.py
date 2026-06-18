@@ -179,11 +179,22 @@ def execute_script_by_name(script_name):
             
     # Subprocess fallback
     scripts_folder = os.path.abspath(os.path.join(CHARACTER_FOLDER, "../Scripts"))
+    demo_folder = os.path.abspath(os.path.join(CHARACTER_FOLDER, "../Demo"))
     file_path = None
-    for f in os.listdir(scripts_folder):
-        if f.endswith(".py") and os.path.splitext(f)[0].lower() == script_name.lower():
-            file_path = os.path.join(scripts_folder, f)
-            break
+    
+    # Check in Scripts first
+    if os.path.exists(scripts_folder):
+        for f in os.listdir(scripts_folder):
+            if f.endswith(".py") and os.path.splitext(f)[0].lower() == script_name.lower():
+                file_path = os.path.join(scripts_folder, f)
+                break
+            
+    # If not found, check in Demo
+    if not file_path and os.path.exists(demo_folder):
+        for f in os.listdir(demo_folder):
+            if f.endswith(".py") and os.path.splitext(f)[0].lower() == script_name.lower():
+                file_path = os.path.join(demo_folder, f)
+                break
             
     if file_path and os.path.exists(file_path):
         try:
@@ -194,7 +205,7 @@ def execute_script_by_name(script_name):
             
             result = subprocess.run(
                 [sys.executable, file_path],
-                cwd=scripts_folder,
+                cwd=os.path.dirname(file_path),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
