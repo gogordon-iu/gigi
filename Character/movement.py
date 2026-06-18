@@ -59,6 +59,7 @@ class Movement:
                     print("Motor is not an int(chanel) nor a string(name). Did nothing.")
 
     def smooth_sequence(self, motors_, duration=2.0, number_steps=100):
+        import math
         current_motors = self.current_positions
         seq = []
         start_time = 0.0
@@ -69,16 +70,108 @@ class Movement:
                 "time": start_time + delta_t * t,
                 "motors": {}
             }
+            ratio = t / (number_steps - 1) if number_steps > 1 else 1.0
+            mu2 = (1.0 - math.cos(ratio * math.pi)) / 2.0
             for motor, angle in motors_.items():
+                if motor == "duration":
+                    continue
                 angle = self.get_angle(angle, motor)
-                seq_step["motors"][motor] = ((t / (number_steps - 1)) * (angle - current_motors[motor]) + current_motors[motor])
-                if isinstance(angle, int):
-                    seq_step["motors"][motor] = (int)(seq_step["motors"][motor])
+                start_angle = current_motors.get(motor, self.motor_map[motor]["center"] if isinstance(motor, str) and motor in self.motor_map else 0.0)
+                val = start_angle * (1.0 - mu2) + angle * mu2
+                seq_step["motors"][motor] = int(round(val))
             seq.append(deepcopy(seq_step))
             
         return seq
 
+    def is_sparse_sequence(self, motor_seq):
+        if not isinstance(motor_seq, list) or len(motor_seq) <= 1:
+            return False
+        for i in range(len(motor_seq) - 1):
+            if motor_seq[i+1]["time"] - motor_seq[i]["time"] > 0.15:
+                return True
+        return False
+
+    def interpolate_sequence(self, motor_seq, steps_per_second=30):
+        import math
+        if not isinstance(motor_seq, list) or not motor_seq:
+            return motor_seq
+
+        animated_motors = set()
+        for kf in motor_seq:
+            if isinstance(kf, dict) and "motors" in kf:
+                for m in kf["motors"].keys():
+                    if isinstance(m, str) and m in self.motor_map:
+                        animated_motors.add(m)
+                    elif isinstance(m, int):
+                        animated_motors.add(m)
+
+        if not animated_motors:
+            return motor_seq
+
+        times = [kf["time"] for kf in motor_seq if isinstance(kf, dict) and "time" in kf]
+        if not times:
+            return motor_seq
+        end_time = max(times)
+        if end_time <= 0:
+            return motor_seq
+
+        control_points = {}
+        for motor in animated_motors:
+            if isinstance(motor, str):
+                curr_val = self.current_positions.get(motor, self.motor_map[motor]["center"])
+            else:
+                curr_val = self.current_positions.get(motor, 0.0)
+            pts = [(0.0, curr_val)]
+
+            for kf in motor_seq:
+                if isinstance(kf, dict) and "motors" in kf and motor in kf["motors"]:
+                    target_val = kf["motors"][motor]
+                    if isinstance(motor, str):
+                        raw_target = self.get_angle(target_val, motor)
+                    else:
+                        raw_target = target_val
+                    pts.append((kf["time"], raw_target))
+
+            pts.sort(key=lambda x: x[0])
+
+            cleaned_pts = []
+            for t, val in pts:
+                if cleaned_pts and abs(cleaned_pts[-1][0] - t) < 1e-5:
+                    cleaned_pts[-1] = (t, val)
+                else:
+                    cleaned_pts.append((t, val))
+            control_points[motor] = cleaned_pts
+
+        total_steps = int(end_time * steps_per_second) + 1
+        if total_steps < 2:
+            total_steps = 2
+        dense_seq = []
+        for i in range(total_steps):
+            t = (i / (total_steps - 1)) * end_time
+            step = {"time": round(t, 4), "motors": {}}
+            for motor, pts in control_points.items():
+                t_prev, val_prev = pts[0]
+                t_next, val_next = pts[-1]
+                for j in range(len(pts) - 1):
+                    if pts[j][0] <= t <= pts[j+1][0]:
+                        t_prev, val_prev = pts[j]
+                        t_next, val_next = pts[j+1]
+                        break
+
+                if t_next > t_prev:
+                    ratio = (t - t_prev) / (t_next - t_prev)
+                    mu2 = (1.0 - math.cos(ratio * math.pi)) / 2.0
+                    val = val_prev * (1.0 - mu2) + val_next * mu2
+                else:
+                    val = val_next
+                step["motors"][motor] = int(round(val))
+            dense_seq.append(step)
+
+        return dense_seq
+
     def move_sequence(self, motor_seq):
+        if self.is_sparse_sequence(motor_seq):
+            motor_seq = self.interpolate_sequence(motor_seq)
         start_time = time.time()
         for seq in motor_seq:
             current_time = time.time() - start_time
@@ -114,6 +207,10 @@ class Movement:
                 motor_seq = self.smooth_sequence(motors_=motor_data, duration=duration)
             else:
                 motor_seq = self.smooth_sequence(motors_=motor_data)
+        
+        if self.is_sparse_sequence(motor_seq):
+            motor_seq = self.interpolate_sequence(motor_seq)
+            
         stop_event = threading.Event()
         t = threading.Thread(target=self.generate_movement, args=(motor_seq, stop_event, stop_condition))
         return t

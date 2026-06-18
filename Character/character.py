@@ -974,24 +974,19 @@ class Character():
                                     face_image.blit(pg_cam, (face_image.get_width() - scale_w, face_image.get_height() - scale_h))
                         self.face.display_face(face_image)
 
-                    # 2. Torso Movement Decision (reduce deadband to 0.05, increase factor to 0.95 for centering)
+                    # 2. Torso Movement Decision (smooth continuous tracking)
                     T_new = T_c
                     if abs(relative_angle) > 0.05:
-                        if time.time() - last_torso_move_time > torso_cooldown:
-                            delta_T = relative_angle * 0.95
-                            T_new = np.clip(T_c + delta_T, -0.9, 0.9)
-                            last_torso_move_time = time.time()
-                            # print(f"[Follow Face Log] Torso move triggered: {T_c:.4f} -> {T_new:.4f} (delta={delta_T:+.4f})")
+                        delta_T = relative_angle * 0.10
+                        T_new = np.clip(T_c + delta_T, -0.9, 0.9)
 
-                    # 3. Neck Movement Decision (medium deadband, medium cooldown)
+                    # 3. Neck Movement Decision (smooth continuous tracking)
                     # Neck aligns head orientation relative to the torso
                     N_target = relative_angle - (T_new - T_c)
                     N_new = N_c
-                    if abs(N_target - N_c) > 0.12:
-                        if time.time() - last_neck_move_time > neck_cooldown:
-                            N_new = np.clip(N_c + (N_target - N_c) * 0.5, -0.9, 0.9)
-                            last_neck_move_time = time.time()
-                            # print(f"[Follow Face Log] Neck move triggered: {N_c:.4f} -> {N_new:.4f}")
+                    if abs(N_target - N_c) > 0.08:
+                        delta_N = (N_target - N_c) * 0.25
+                        N_new = np.clip(N_c + delta_N, -0.9, 0.9)
 
                     # Commit movements if updated
                     if (T_new != T_c or N_new != N_c) and self.movement:

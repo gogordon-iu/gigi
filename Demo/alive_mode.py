@@ -104,7 +104,8 @@ def main():
                     target_torso = random.uniform(-0.25, 0.25)
                     target_neck = random.uniform(-0.15, 0.15)
                     if gigi.movement:
-                        gigi.movement.move_motors({"torso": target_torso, "neck": target_neck})
+                        # Smoothly look around over 2.0s using character movement thread (runs smooth_sequence with S-curve)
+                        gigi.run_character(movement_data={"torso": target_torso, "neck": target_neck, "duration": 2.0})
                         
                     # Eye look direction
                     eye_seq = random.choice(["look_left", "look_right", "look_up", "look_down"])
