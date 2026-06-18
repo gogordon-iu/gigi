@@ -20,14 +20,26 @@ basic_sequences['home'] = [
 # lower right shoulder
 basic_sequences["wave_hello"] = [
     {
-        "time": 1.0,
+        "time": 0.4,
         "motors": {
             "right_shoulder": 0.8,
             "right_elbow": 0.0
         }
     },
     {
-        "time": 1.2,
+        "time": 0.65,
+        "motors": {
+            "right_elbow": -0.8
+        }
+    },
+    {
+        "time": 0.9,
+        "motors": {
+            "right_elbow": 0.8
+        }
+    },
+    {
+        "time": 1.15,
         "motors": {
             "right_elbow": -0.8
         }
@@ -39,25 +51,7 @@ basic_sequences["wave_hello"] = [
         }
     },
     {
-        "time": 1.6,
-        "motors": {
-            "right_elbow": -0.8
-        }
-    },
-    {
         "time": 1.8,
-        "motors": {
-            "right_elbow": 0.8
-        }
-    },
-    {
-        "time": 2.0,
-        "motors": {
-            "right_elbow": -0.8
-        }
-    },
-    {
-        "time": 3.0,
         "motors": {
             "right_shoulder": -0.8,
             "right_elbow": 0.0

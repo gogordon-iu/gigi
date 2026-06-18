@@ -84,8 +84,10 @@ class Movement:
         return seq
 
     def is_sparse_sequence(self, motor_seq):
-        if not isinstance(motor_seq, list) or len(motor_seq) <= 1:
+        if not isinstance(motor_seq, list) or len(motor_seq) == 0:
             return False
+        if len(motor_seq) == 1:
+            return True
         for i in range(len(motor_seq) - 1):
             if motor_seq[i+1]["time"] - motor_seq[i]["time"] > 0.15:
                 return True
