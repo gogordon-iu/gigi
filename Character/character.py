@@ -290,7 +290,14 @@ class Character():
         elif self.face and image_data and self.face.preloaded_image is not None:
             self.face.show_face = False
             self.face.display_face(self.face.preloaded_image)
-            self._cv_wait(image_data.get('duration', 1.5))
+            if speech_thread:
+                speech_thread.start()
+                self._join_with_cv_loop(speech_thread)
+                speech_thread = None
+                viseme_sequence = None
+                face_data = None
+            else:
+                self._cv_wait(image_data.get('duration', 1.5))
 
         # Viseme animation (or plain face) with speech
         if self.face:
