@@ -25,6 +25,7 @@ class Face():
         self.IMAGE_OPTION = IMAGE_OPTION
         self.character = characters[character]
         self.show_face = True
+        self.face_running = True
         self.lock = threading.Lock()
         self.rendering_sequence = False
         self.face_update_counter = 0
@@ -121,12 +122,12 @@ class Face():
     @feedback_state.setter
     def feedback_state(self, val):
         self._feedback_state = val
-        # Force a refresh of the display using the last face image if available
-        if getattr(self, 'last_face_image', None) is not None:
-            self.display_face(self.last_face_image)
+        # Increment update counter to signal main thread to redraw (safe across threads)
+        self.face_update_counter = getattr(self, 'face_update_counter', 0) + 1
 
     def stop_face(self):
         self.show_face = False
+        self.face_running = False
         if IMAGE_OPTION == "pygame":
             try:
                 pygame.quit()
@@ -256,7 +257,8 @@ class Face():
 
 
     def display_face(self, image_):
-        if not getattr(self, 'show_face', True):
+        import cv2
+        if not getattr(self, 'face_running', True):
             return
         self.last_face_image = image_
         self.face_update_counter += 1
@@ -316,7 +318,21 @@ class Face():
                         
                     image_resized.blit(card_surf, (x0, y0))
                     
-                if getattr(self, 'show_face', True):
+                # Overlay camera feed if requested and vision is running
+                if getattr(self, 'show_camera_feed', False) and getattr(self, 'vision', None) is not None:
+                    if self.vision.running:
+                        cam_frame = self.vision.get_latest_frame()
+                        if cam_frame is not None:
+                            import cv2
+                            rgb_frame = cv2.cvtColor(cam_frame, cv2.COLOR_BGR2RGB)
+                            cam_h, cam_w = rgb_frame.shape[:2]
+                            scale_w = int(W * 0.25)
+                            scale_h = int(cam_h * scale_w / cam_w)
+                            rgb_resized = cv2.resize(rgb_frame, (scale_w, scale_h))
+                            pg_cam = pygame.image.fromstring(rgb_resized.tobytes(), (scale_w, scale_h), "RGB")
+                            image_resized.blit(pg_cam, (W - scale_w, H - scale_h))
+                    
+                if getattr(self, 'face_running', True):
                     self.screen.blit(image_resized, (0, 0))
                     pygame.display.flip()
             except Exception as e:
@@ -413,7 +429,19 @@ class Face():
                             current_y += 12 # spacing
                         image_resized[y0:y1, x0:x1] = roi_blended
                 
-                if getattr(self, 'show_face', True):
+                # Overlay camera feed if requested and vision is running
+                if getattr(self, 'show_camera_feed', False) and getattr(self, 'vision', None) is not None:
+                    if self.vision.running:
+                        cam_frame = self.vision.get_latest_frame()
+                        if cam_frame is not None:
+                            import cv2
+                            cam_h, cam_w = cam_frame.shape[:2]
+                            scale_w = int(W * 0.25)
+                            scale_h = int(cam_h * scale_w / cam_w)
+                            cam_resized = cv2.resize(cam_frame, (scale_w, scale_h))
+                            image_resized[H - scale_h:H, W - scale_w:W] = cam_resized
+                
+                if getattr(self, 'face_running', True):
                     with self.lock:
                         cv2.imshow(self.win_name, image_resized)
                         cv2.waitKey(1)

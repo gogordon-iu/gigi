@@ -32,7 +32,7 @@ def pause_vision(gigi):
     if gigi.vision:
         print("[Subroutine] Pausing vision processing for speech listening...")
         gigi.vision.set_processing_flags({
-            'face_detection': 0,
+            'face_detection': 8.0,
             'face_recognition': 0,
             'emotion': 0,
             'gesture': 0
@@ -75,6 +75,14 @@ def verify_name_step(gigi, timeout=10.0):
     Checks for Thumbs Up / Thumbs Down gesture in background thread while
     verbally listening for affirmation (yes/no) in main thread.
     """
+    # Clear any stale gesture data before starting name verification
+    if gigi.vision:
+        gigi.vision.hand_gesture = "Unknown"
+        all_faces = gigi.vision.face_cache.get_all_faces()
+        for face_id, face_info in all_faces.items():
+            face_info['gesture'] = 'Unknown'
+            face_info['gesture_timestamp'] = None
+
     gesture_result = [None]  # None, "yes", "no"
     stop_gesture_thread = threading.Event()
     
@@ -191,68 +199,78 @@ def register_new_friend(gigi, face_id):
     display_captured_face(gigi, face_crop, name)
     
     # 4. Verification loop
+    # 4. Verification loop
     verified = False
     verification_attempts = 0
     
-    while not verified and verification_attempts < 3:
-        gigi.run_character(
-            viseme_data={'text': "Is that you, and did I spell your name correctly? Give me a thumbs up or say yes or no.", 'file': None}
-        )
+    if gigi.vision and not gigi.vision.running:
+        gigi.vision.run_vision()
+    if gigi.face:
+        gigi.face.show_camera_feed = True
         
-        # Concurrent verify check
-        result = verify_name_step(gigi, timeout=10.0)
-        print(f"[Subroutine] Verification check result: {result}")
-        
-        if result == "yes":
-            verified = True
-            break
-        elif result == "no":
-            # Ask child to spell out their name
+    try:
+        while not verified and verification_attempts < 3:
             gigi.run_character(
-                viseme_data={'text': "Oh, I'm sorry! Can you please spell out your name for me, letter by letter?", 'file': None}
+                viseme_data={'text': "Is that you, and did I spell your name correctly? Give me a thumbs up or say yes or no.", 'file': None}
             )
             
-            pause_vision(gigi)
-            gigi.hearing.texts = []
-            gigi.listen_backchannel(timeout=10)
-            spelled_text = " ".join(gigi.hearing.texts).strip()
-            resume_vision(gigi)
+            # Concurrent verify check
+            result = verify_name_step(gigi, timeout=10.0)
+            print(f"[Subroutine] Verification check result: {result}")
             
-            if spelled_text:
-                system_prompt = (
-                    "You are a name extraction assistant. The user is spelling out their name. "
-                    "Convert the spelled-out input (e.g. 'G O R E N', 'G as in George, O, R, E, N') "
-                    "into a single, clean, properly capitalized name (e.g. 'Goren'). "
-                    "Output ONLY the extracted name, nothing else."
+            if result == "yes":
+                verified = True
+                break
+            elif result == "no":
+                # Ask child to spell out their name
+                gigi.run_character(
+                    viseme_data={'text': "Oh, I'm sorry! Can you please spell out your name for me, letter by letter?", 'file': None}
                 )
-                reconstructed = gigi.conversation.get_response(system_prompt=system_prompt, user_prompt=spelled_text)
-                name = reconstructed.strip().replace(".", "").replace("!", "")
-                # Enforce single word
-                if len(name.split()) > 1:
-                    name = name.split()[0]
-                print(f"[Subroutine] Reconstructed name from spelling: '{name}'")
-            else:
-                name = "Friend"
                 
-            # Update display with reconstructed name
-            display_captured_face(gigi, face_crop, name)
-            verification_attempts += 1
-        else:
+                pause_vision(gigi)
+                gigi.hearing.texts = []
+                gigi.listen_backchannel(timeout=10)
+                spelled_text = " ".join(gigi.hearing.texts).strip()
+                resume_vision(gigi)
+                
+                if spelled_text:
+                    system_prompt = (
+                        "You are a name extraction assistant. The user is spelling out their name. "
+                        "Convert the spelled-out input (e.g. 'G O R E N', 'G as in George, O, R, E, N') "
+                        "into a single, clean, properly capitalized name (e.g. 'Goren'). "
+                        "Output ONLY the extracted name, nothing else."
+                    )
+                    reconstructed = gigi.conversation.get_response(system_prompt=system_prompt, user_prompt=spelled_text)
+                    name = reconstructed.strip().replace(".", "").replace("!", "")
+                    # Enforce single word
+                    if len(name.split()) > 1:
+                        name = name.split()[0]
+                    print(f"[Subroutine] Reconstructed name from spelling: '{name}'")
+                else:
+                    name = "Friend"
+                    
+                # Update display with reconstructed name
+                display_captured_face(gigi, face_crop, name)
+                verification_attempts += 1
+            else:
+                gigi.run_character(
+                    viseme_data={'text': "I didn't catch a gesture or response. Let's try confirming again.", 'file': None}
+                )
+                verification_attempts += 1
+                
+        if not verified:
+            print("[Subroutine] Verification failed.")
+            # Restore default face
+            gigi.face.overlay_text = None
+            gigi.face.display_text(None)
+            gigi.face.run_sequence('idle')
             gigi.run_character(
-                viseme_data={'text': "I didn't catch a gesture or response. Let's try confirming again.", 'file': None}
+                viseme_data={'text': "I'm having some trouble confirming your name. Let's try again later!", 'file': None}
             )
-            verification_attempts += 1
-            
-    if not verified:
-        print("[Subroutine] Verification failed.")
-        # Restore default face
-        gigi.face.overlay_text = None
-        gigi.face.display_text(None)
-        gigi.face.run_sequence('idle')
-        gigi.run_character(
-            viseme_data={'text': "I'm having some trouble confirming your name. Let's try again later!", 'file': None}
-        )
-        return False
+            return False
+    finally:
+        if gigi.face:
+            gigi.face.show_camera_feed = False
         
     # 5. Capture speaker recognition / voice enrollment (ask a child-friendly question)
     gigi.run_character(
@@ -383,19 +401,14 @@ def play_make_friends():
                     if elapsed >= timeout_wait:
                         print(f"\n[Demo] Confirmed unknown face (ID: {face_id}). Launching registration subroutine...")
                         
-                        # Stop scanning during registration process
-                        gigi.vision.stop_vision()
-                        time.sleep(0.5)
-                        
+                        # Leave vision running during registration process
                         success = register_new_friend(gigi, face_id)
                         
                         if success:
                             demo_active = False  # End demo on success
                             break
                         else:
-                            # Resume vision and clean up timers on failure
-                            if gigi.vision:
-                                gigi.vision.run_vision()
+                            # Clean up timers on failure
                             unknown_faces_timers.clear()
                             break
                             

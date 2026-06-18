@@ -79,8 +79,8 @@ basic_sequences["open_arms"] = [
     {
         "time": 1.0,
         "motors": {
-            "right_shoulder": 0.8,
-            "left_shoulder": -0.8,
+            "right_shoulder": 0.3,
+            "left_shoulder": -0.3,
             "right_elbow": 0.0,
             "left_elbow": 0.0
         }
@@ -88,8 +88,8 @@ basic_sequences["open_arms"] = [
     {
         "time": 1.5,
         "motors": {
-            "right_elbow": 0.8,
-            "left_elbow": -0.8
+            "right_elbow": 0.3,
+            "left_elbow": -0.3
         }
     },
     {
@@ -108,8 +108,8 @@ basic_sequences["open_arms"] = [
         "time": 3.0,
         "motors": {
             "neck": 0.0,
-            "right_shoulder": -0.8,
-            "left_shoulder": 0.8,
+            "right_shoulder": -0.3,
+            "left_shoulder": 0.3,
             "right_elbow": 0.0,
             "left_elbow": 0.0
         }
@@ -121,8 +121,8 @@ basic_sequences["open_close_arms"] = [
     {
         "time": 1.0,
         "motors": {
-            "right_shoulder": 0.8,
-            "left_shoulder": -0.8,
+            "right_shoulder": 0.3,
+            "left_shoulder": -0.3,
             "right_elbow": 0.0,
             "left_elbow": 0.0
         }
@@ -130,8 +130,8 @@ basic_sequences["open_close_arms"] = [
     {
         "time": 1.5,
         "motors": {
-            "right_elbow": 0.8,
-            "left_elbow": -0.8
+            "right_elbow": 0.3,
+            "left_elbow": -0.3
         }
     },
     {
@@ -168,19 +168,19 @@ basic_sequences['arms_up'] = [
     {'time': 1,
      'motors': {'right_elbow': 0.0,
                 'left_elbow': 0.0,
-                'right_shoulder': 0.8,
-                'left_shoulder': -0.8}},
+                'right_shoulder': 0.3,
+                'left_shoulder': -0.3}},
                 ]
 
 basic_sequences['arms_up_and_down'] = [
     {'time': 1,
      'motors': {'right_elbow': 0.0,
                 'left_elbow': 0.0,
-                'right_shoulder': 0.8,
-                'left_shoulder': 0.8}},
+                'right_shoulder': 0.3,
+                'left_shoulder': 0.3}},
     {'time': 3,
-     'motors': {'right_shoulder': -0.8,
-                'left_shoulder': -0.8}},
+     'motors': {'right_shoulder': -0.3,
+                'left_shoulder': -0.3}},
     {'time': 4,
      'motors': {'right_shoulder': 0.0,
                 'left_shoulder': 0.0}}

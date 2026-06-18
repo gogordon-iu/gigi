@@ -176,6 +176,7 @@ class Vision:
         # While searching, continuously overlay the camera feed on Gigi's face screen in real-time
         dt = 0.05
         from faceDefinitions import global_parts
+        import numpy as np
         while not result_container['done']:
             if getattr(self, 'face', None):
                 # Draw the default face frame (idle sequence)
@@ -204,6 +205,30 @@ class Vision:
                         face_image.blit(pg_cam, (face_image.get_width() - scale_w, face_image.get_height() - scale_h))
                 
                 self.face.display_face(face_image)
+            
+            # Proportional non-blocking face tracking during look_for
+            gigi = getattr(self, 'gigi', None)
+            if gigi and self.running:
+                last_data = self.get_last_data()
+                if last_data:
+                    face_info = next(iter(last_data.values()))
+                    offset_x = face_info.get('offset', [0.0, 0.0])[0]
+                    
+                    T_c = gigi.movement.calc_normalized_angle(motor="torso") if gigi.movement else 0.0
+                    N_c = gigi.movement.calc_normalized_angle(motor="neck") if gigi.movement else 0.0
+                    
+                    T_target = gigi.lookat_coordinate(offset=offset_x, verbose=False)
+                    relative_angle = T_target - T_c
+                    
+                    delta_T = relative_angle * 0.15
+                    T_next = np.clip(T_c + delta_T, -0.9, 0.9)
+                    
+                    N_target = relative_angle - (T_next - T_c)
+                    delta_N = (N_target - N_c) * 0.35
+                    N_next = np.clip(N_c + delta_N, -0.9, 0.9)
+                    
+                    if gigi.movement:
+                        gigi.movement.move_motors({"torso": T_next, "neck": N_next})
             time.sleep(dt)
             
         return {'found': result_container['found'], 'data': result_container['data']}

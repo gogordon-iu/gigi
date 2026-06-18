@@ -113,6 +113,10 @@ class Character():
         if HAS_VISION:
             self.vision = Vision()
             self.vision.face = self.face
+            self.vision.gigi = self
+            if self.face:
+                self.face.vision = self.vision
+                self.face.gigi = self
         else:
             self.vision = None
 
@@ -372,7 +376,8 @@ class Character():
     def _main_thread_render(self):
         """Helper to render the face image from the main thread if updated."""
         if self.face and self.face.IMAGE_OPTION == "cv":
-            if getattr(self.face, 'face_update_counter', 0) > getattr(self.face, 'last_rendered_counter', 0):
+            # Always render if camera feed is shown to keep video fluid, or if face updated
+            if getattr(self.face, 'show_camera_feed', False) or getattr(self.face, 'face_update_counter', 0) > getattr(self.face, 'last_rendered_counter', 0):
                 last_img = getattr(self.face, 'last_face_image', None)
                 if last_img is not None:
                     self.face.display_face(last_img)
@@ -431,6 +436,12 @@ class Character():
             self.hearing.clear_audio_buffer()
             stop_event = threading.Event()
             
+            was_vision_running = self.vision.running if self.vision else False
+            if self.vision and not self.vision.running:
+                self.vision.run_vision()
+            if self.face:
+                self.face.show_camera_feed = True
+            
             recognition_stop = threading.Event()
             rec_thread = threading.Thread(target=self._speaker_recognition_worker, args=(recognition_stop,), daemon=True)
             rec_thread.start()
@@ -446,6 +457,24 @@ class Character():
                         self.speaker_gaze_target = None
                         self.lookat_person(target_name)
                     
+                    # Track face in real-time if vision is running
+                    if self.vision and self.vision.running:
+                        last_data = self.vision.get_last_data()
+                        if last_data:
+                            face_info = next(iter(last_data.values()))
+                            offset_x = face_info.get('offset', [0.0, 0.0])[0]
+                            T_c = self.movement.calc_normalized_angle(motor="torso") if self.movement else 0.0
+                            N_c = self.movement.calc_normalized_angle(motor="neck") if self.movement else 0.0
+                            T_target = self.lookat_coordinate(offset=offset_x, verbose=False)
+                            relative_angle = T_target - T_c
+                            delta_T = relative_angle * 0.15
+                            T_next = np.clip(T_c + delta_T, -0.9, 0.9)
+                            N_target = relative_angle - (T_next - T_c)
+                            delta_N = (N_target - N_c) * 0.35
+                            N_next = np.clip(N_c + delta_N, -0.9, 0.9)
+                            if self.movement:
+                                self.movement.move_motors({"torso": T_next, "neck": N_next})
+                    
                     if time.time() >= next_blink_time:
                         self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event, delay=0.08)
                         next_blink_time = time.time() + random.uniform(3.0, 6.0)
@@ -460,8 +489,15 @@ class Character():
                             except Exception as e:
                                 time.sleep(0.05)
                         else:
+                            # Render text page overlays (ear icon or camera feed) if either is active
+                            if (getattr(self.face, 'show_camera_feed', False) or getattr(self.face, 'feedback_state', None) is not None) and getattr(self.face, 'last_face_image', None) is not None:
+                                self.face.display_face(self.face.last_face_image)
                             time.sleep(0.05)
             finally:
+                if self.vision and not was_vision_running:
+                    self.vision.stop_vision()
+                if self.face:
+                    self.face.show_camera_feed = False
                 recognition_stop.set()
                 rec_thread.join(timeout=1.0)
                 hearing_thread.join()
@@ -491,6 +527,12 @@ class Character():
             self.current_speaker = None
             self.hearing.clear_audio_buffer()
             stop_event = threading.Event()
+            
+            was_vision_running = self.vision.running if self.vision else False
+            if self.vision and not self.vision.running:
+                self.vision.run_vision()
+            if self.face:
+                self.face.show_camera_feed = True
             
             rec_thread = None
             if run_speaker_recognition:
@@ -528,6 +570,24 @@ class Character():
                         self.speaker_gaze_target = None
                         self.lookat_person(target_name)
                     
+                    # Track face in real-time if vision is running
+                    if self.vision and self.vision.running:
+                        last_data = self.vision.get_last_data()
+                        if last_data:
+                            face_info = next(iter(last_data.values()))
+                            offset_x = face_info.get('offset', [0.0, 0.0])[0]
+                            T_c = self.movement.calc_normalized_angle(motor="torso") if self.movement else 0.0
+                            N_c = self.movement.calc_normalized_angle(motor="neck") if self.movement else 0.0
+                            T_target = self.lookat_coordinate(offset=offset_x, verbose=False)
+                            relative_angle = T_target - T_c
+                            delta_T = relative_angle * 0.15
+                            T_next = np.clip(T_c + delta_T, -0.9, 0.9)
+                            N_target = relative_angle - (T_next - T_c)
+                            delta_N = (N_target - N_c) * 0.35
+                            N_next = np.clip(N_c + delta_N, -0.9, 0.9)
+                            if self.movement:
+                                self.movement.move_motors({"torso": T_next, "neck": N_next})
+                    
                     if time.time() >= next_blink_time:
                         self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event, delay=0.08)
                         next_blink_time = time.time() + random.uniform(3.0, 6.0)
@@ -542,8 +602,15 @@ class Character():
                             except Exception as e:
                                 time.sleep(0.05)
                         else:
+                            # Render text page overlays (ear icon or camera feed) if either is active
+                            if (getattr(self.face, 'show_camera_feed', False) or getattr(self.face, 'feedback_state', None) is not None) and getattr(self.face, 'last_face_image', None) is not None:
+                                self.face.display_face(self.face.last_face_image)
                             time.sleep(0.05)
             finally:
+                if self.vision and not was_vision_running:
+                    self.vision.stop_vision()
+                if self.face:
+                    self.face.show_camera_feed = False
                 if rec_thread is not None:
                     recognition_stop.set()
                     rec_thread.join(timeout=1.0)

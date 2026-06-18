@@ -391,8 +391,14 @@ class ImprovedFaceCache:
             self.position_to_face[position_key] = face_id
             
             return face_id
+            
+    def _normalize_id(self, face_id):
+        if isinstance(face_id, str) and face_id.isdigit():
+            return int(face_id)
+        return face_id
     
     def update_face_name(self, face_id, name, position_key):
+        face_id = self._normalize_id(face_id)
         with self.lock:
             if face_id in self.faces:
                 old_position = self.faces[face_id].get('position_key')
@@ -407,6 +413,7 @@ class ImprovedFaceCache:
                 self.faces[face_id]['position_key'] = position_key
     
     def update_face(self, face_id, field, value):
+        face_id = self._normalize_id(face_id)
         with self.lock:
             if face_id in self.faces:
                 self.faces[face_id][field] = value
@@ -414,11 +421,13 @@ class ImprovedFaceCache:
                     self.faces[face_id]['last_emotion'] = time.time()
     
     def update_face_box(self, face_id, box):
+        face_id = self._normalize_id(face_id)
         with self.lock:
             if face_id in self.faces:
                 self.faces[face_id]['box'] = box
     
     def get_face_data(self, face_id):
+        face_id = self._normalize_id(face_id)
         with self.lock:
             return self.faces.get(face_id, {}).copy()
     
@@ -427,6 +436,7 @@ class ImprovedFaceCache:
             return {fid: data.copy() for fid, data in self.faces.items()}
     
     def needs_recognition(self, face_id):
+        face_id = self._normalize_id(face_id)
         with self.lock:
             if face_id not in self.faces:
                 return False
@@ -439,7 +449,7 @@ class ImprovedFaceCache:
                 return True
             
             return (not face_data.get('recognition_attempted', False) or 
-                   current_time - face_data.get('last_recognition', 0) > RECOGNITION_INTERVAL)
+                    current_time - face_data.get('last_recognition', 0) > RECOGNITION_INTERVAL)
     
     def cleanup_old_faces(self, timeout=5.0):
         with self.lock:

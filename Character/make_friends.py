@@ -264,7 +264,7 @@ class FaceRegistrationDemo:
         if self.pause_vision_during_stt:
             # Completely disable all processing for maximum performance
             self.vision.set_processing_flags({
-                'face_detection': 0,
+                'face_detection': 8.0,
                 'face_recognition': 0,
                 'emotion': 0,
                 'gesture': 0
@@ -454,9 +454,6 @@ class FaceRegistrationDemo:
         print("\n=== Asking for name ===")
         self.speech.run_speech(text="Hi! I'm Gigi. What's your name?")
         
-        # Wait a moment for speech to complete
-        time.sleep(2)
-        
         # Pause vision processing to free up resources for speech-to-text
         self.pause_vision_processing()
         
@@ -486,50 +483,75 @@ class FaceRegistrationDemo:
             face_info['gesture'] = 'Unknown'
             face_info['gesture_timestamp'] = None
         
-        self.speech.run_speech(text=f"Hi, {name}. Did I say it correctly? Give me a thumbs up or thumbs down.")
-        
-        # Wait a moment for speech to complete and user to prepare
-        time.sleep(2)
-        
-        # Wait for NEW gesture
-        print("Waiting for thumbs up or thumbs down gesture...")
-        start_time = time.time()
-        timeout = 15.0  # 15 seconds to respond
-        gesture_seen = False
-        
-        while time.time() - start_time < timeout and self.demo_running:
-            data = self.vision.get_last_data()
-            all_faces = self.vision.face_cache.get_all_faces()
+        # Show camera feed during confirmation
+        if self.vision and self.vision.face:
+            self.vision.face.show_camera_feed = True
             
-            # Check for gesture
-            if all_faces:
-                for face_id, face_info in all_faces.items():
-                    gesture = face_info.get('gesture', 'Unknown')
+        try:
+            self.speech.run_speech(text=f"Hi, {name}. Did I say it correctly? Give me a thumbs up or thumbs down.")
+            
+            # Wait for NEW gesture
+            print("Waiting for thumbs up or thumbs down gesture...")
+            start_time = time.time()
+            timeout = 15.0  # 15 seconds to respond
+            gesture_seen = False
+            
+            import numpy as np
+            while time.time() - start_time < timeout and self.demo_running:
+                data = self.vision.get_last_data()
+                all_faces = self.vision.face_cache.get_all_faces()
+                
+                # Proportional non-blocking face tracking during gesture wait
+                gigi = getattr(self.vision, 'gigi', None)
+                if gigi and all_faces:
+                    face_info = next(iter(all_faces.values()))
+                    offset_x = face_info.get('offset', [0.0, 0.0])[0]
                     
-                    # Only accept gesture if it's NEW (appeared after we started waiting)
-                    if gesture != 'Unknown' and not gesture_seen:
-                        gesture_seen = True
-                        print(f"\nDetected NEW gesture: {gesture}")
+                    T_c = gigi.movement.calc_normalized_angle(motor="torso") if gigi.movement else 0.0
+                    N_c = gigi.movement.calc_normalized_angle(motor="neck") if gigi.movement else 0.0
+                    T_target = gigi.lookat_coordinate(offset=offset_x, verbose=False)
+                    relative_angle = T_target - T_c
+                    
+                    delta_T = relative_angle * 0.15
+                    T_next = np.clip(T_c + delta_T, -0.9, 0.9)
+                    
+                    N_target = relative_angle - (T_next - T_c)
+                    delta_N = (N_target - N_c) * 0.35
+                    N_next = np.clip(N_c + delta_N, -0.9, 0.9)
+                    
+                    if gigi.movement:
+                        gigi.movement.move_motors({"torso": T_next, "neck": N_next})
+                
+                # Check for gesture
+                if all_faces:
+                    for face_id, face_info in all_faces.items():
+                        gesture = face_info.get('gesture', 'Unknown')
                         
-                        if gesture == 'Thumbs Up':
-                            print("✓ Got thumbs up!")
-                            # Clear gesture before returning
-                            face_info['gesture'] = 'Unknown'
-                            return True
-                        elif gesture == 'Thumbs Down':
-                            print("✗ Got thumbs down!")
-                            # Clear gesture before returning
-                            face_info['gesture'] = 'Unknown'
-                            return False
+                        # Only accept gesture if it's NEW (appeared after we started waiting)
+                        if gesture != 'Unknown' and not gesture_seen:
+                            gesture_seen = True
+                            print(f"\nDetected NEW gesture: {gesture}")
+                            
+                            if gesture == 'Thumbs Up':
+                                print("✓ Got thumbs up!")
+                                face_info['gesture'] = 'Unknown'
+                                return True
+                            elif gesture == 'Thumbs Down':
+                                print("✗ Got thumbs down!")
+                                face_info['gesture'] = 'Unknown'
+                                return False
+                
+                # Show remaining time
+                remaining = timeout - (time.time() - start_time)
+                print(f"Waiting for gesture... {remaining:.1f}s remaining", end='\r')
+                
+                time.sleep(0.1)
             
-            # Show remaining time
-            remaining = timeout - (time.time() - start_time)
-            print(f"Waiting for gesture... {remaining:.1f}s remaining", end='\r')
-            
-            time.sleep(0.1)
-        
-        print("\nTimeout waiting for gesture")
-        return None  # Return None for timeout to distinguish from False
+            print("\nTimeout waiting for gesture")
+            return None
+        finally:
+            if self.vision and self.vision.face:
+                self.vision.face.show_camera_feed = False
     
 
     def capture_voice_enrollment(self, name):
@@ -541,9 +563,6 @@ class FaceRegistrationDemo:
         self.speech.run_speech(
             text=f"Great, {name}! Now, please repeat after me to register your voice: {script}"
         )
-        
-        # Wait for speech to complete
-        time.sleep(3)
         
         # Pause vision processing to free up resources
         self.pause_vision_processing()

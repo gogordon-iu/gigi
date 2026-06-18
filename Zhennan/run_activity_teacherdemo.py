@@ -162,8 +162,6 @@ def robot_listen() -> str:
                     except Exception as e:
                         print(f"[Activity] Error saving egocentric location: {e}")
                         
-        gigi.vision.stop_vision()
-
     if gigi.face:
         gigi.face.guidance = None
         gigi.face.display_text(None)
@@ -182,6 +180,9 @@ def robot_listen() -> str:
 
 def greet_and_register():
     log("SYSTEM", "Looking around the room for familiar faces...")
+    if gigi.vision and not gigi.vision.running:
+        gigi.vision.run_vision()
+        
     gigi.run_character(
         viseme_data={'text': "Hello! Let me look around the room to see who is here today.", 'file': None},
         movement_data='look_from_side_to_side'
@@ -191,7 +192,6 @@ def greet_and_register():
     unknown_ids = []
     
     if gigi.vision:
-        gigi.vision.run_vision()
         start_time = time.time()
         # Look around for 5 seconds to scan faces
         while time.time() - start_time < 5.0:
@@ -211,8 +211,6 @@ def greet_and_register():
                         recognized_names.append(name)
             time.sleep(0.5)
             
-        gigi.vision.stop_vision()
-        
         # If there are any unknown faces, register them!
         if unknown_ids:
             try:
