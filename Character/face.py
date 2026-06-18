@@ -65,8 +65,8 @@ class Face():
                     # give WM a tiny moment to map the window
                     time.sleep(0.12)
                     
-                    # Set fullscreen after mapping
-                    cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    # Set fullscreen after mapping (commented out to prevent screen blanking / HDMI signal loss on Orange Pi)
+                    # cv2.setWindowProperty(self.win_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
                     win = self.win_name
 

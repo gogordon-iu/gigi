@@ -218,10 +218,12 @@ class Movement:
         return t
 
 
-    def home_position(self):
+    def home_position(self, duration=2.0):
         home = {m: 0.0 for m in self.motor_map.keys() if self.motor_map[m]['calibrated']}
-        # home = {"neck": 0.0}
-        self.move_motors(motors_=home)
+        if not home:
+            return
+        home_seq = self.smooth_sequence(motors_=home, duration=duration)
+        self.move_sequence(home_seq)
 
     def release(self):
         for k, v in self.motor_map.items():
