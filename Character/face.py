@@ -115,6 +115,11 @@ class Face():
         except Exception as e:
             print(f"[Face] Error loading visual feedback icons: {e}")
 
+        # Render the initial idle face immediately so the screen is not left black during startup
+        idle_face = {part: ("idle", "1") for part in global_parts}
+        face_image = self.set_face(idle_face)
+        self.display_face(face_image)
+
     @property
     def feedback_state(self):
         return self._feedback_state
@@ -880,6 +885,10 @@ class Face():
         else:
             self.preloaded_image = None
             self.show_face = True
+            # Force redrawing the default idle face immediately to prevent black screen flash
+            idle_face = {part: ("idle", "1") for part in global_parts}
+            face_image = self.set_face(idle_face)
+            self.display_face(face_image)
 
     def combine_seuqences(self, sequences=None):
         def densify_sequence(seq, delay, min_delay):
