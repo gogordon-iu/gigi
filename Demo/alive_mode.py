@@ -19,15 +19,6 @@ if character_dir not in sys.path:
 from character import Character
 from characterDefinitions import IS_ROBOT
 
-# Showcase phrases aimed at teachers
-SHOWCASE_PHRASES = [
-    "Hello everyone! I am Gigi, your friendly social robot companion.",
-    "Hi there! Welcome to our school demonstration. I love helping students learn!",
-    "Hello! I can help you with math, reading, and storytelling in the classroom.",
-    "Welcome teachers! I hope you are having a wonderful day.",
-    "Look at my screen. I can show text, numbers, and custom images to help teach!",
-    "Social robots can make learning so much more interactive and fun."
-]
 
 def main():
     print("====================================================")
@@ -42,6 +33,7 @@ def main():
     # State tracking variables
     running = True
     stop_event = threading.Event()
+    allow_track = True
     
     # Define signal handler for graceful exit (e.g. from SIGTERM / BT app stop command)
     def handle_signal(signum, frame):
@@ -79,12 +71,10 @@ def main():
                 gigi.face.run_sequence("blink")
                 next_blink_time = time.time() + random.uniform(3.0, 6.0)
                 
-            # 2. Periodic wave and speak (every 30 to 45 seconds)
+            # 2. Periodic wave hello (every 30 to 45 seconds) - no speech
             if time.time() - last_wave_time > random.uniform(30.0, 45.0):
-                phrase = random.choice(SHOWCASE_PHRASES)
-                print(f"[Alive Mode] Waving and speaking: '{phrase}'")
+                print("[Alive Mode] Waving hello once in a while...")
                 gigi.run_character(
-                    viseme_data={'text': phrase, 'file': None},
                     movement_data='wave_hello'
                 )
                 last_wave_time = time.time()
@@ -100,10 +90,11 @@ def main():
                     # If we have a face detected in the last 2 seconds
                     face_seen = len(last_data) > 0 and (time.time() - next(iter(last_data.values())).get('last_seen', 0) < 2.0)
                 
-                if face_seen:
+                if face_seen and allow_track:
                     print("[Alive Mode] Face detected! Following face smoothly...")
-                    # Delegate smoothly to follow_face for 6 seconds
-                    gigi.follow_face(timeout=6.0, stop_event=stop_event)
+                    # Track face for 5 seconds, then go to panning
+                    gigi.follow_face(timeout=5.0, stop_event=stop_event)
+                    allow_track = False  # Next cycle is forced to pan
                 else:
                     print("[Alive Mode] Smoothly looking around...")
                     # Smooth motor pan
@@ -123,6 +114,7 @@ def main():
                     
                     # Return eyes to center
                     gigi.face.run_sequence("idle")
+                    allow_track = True  # Panning finished, allow face-tracking next time
                     
                 last_look_around_time = time.time()
                 
