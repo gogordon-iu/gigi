@@ -214,7 +214,8 @@ class Character():
     def run_character(self, face_data=None, audio_data=None, 
                       viseme_data=None, movement_data=None, 
                       caption_data=None,
-                      image_data=None, video_data=None):
+                      image_data=None, video_data=None,
+                      restore_face=True):
         # Check if the robot talks to a specific person in egocentric DB
         text_to_check = None
         if viseme_data and viseme_data.get('text'):
@@ -298,9 +299,18 @@ class Character():
                 face_data = None
             else:
                 self._cv_wait(image_data.get('duration', 1.5))
+        elif self.face and not self.face.show_face:
+            # An image is already being displayed. We play the speech to completion
+            # while keeping the image on the screen.
+            if speech_thread:
+                speech_thread.start()
+                self._join_with_cv_loop(speech_thread)
+                speech_thread = None
+                viseme_sequence = None
+                face_data = None
 
         # Viseme animation (or plain face) with speech
-        if self.face:
+        if self.face and restore_face:
             self.face.display_image_file(filename=None)  # restore character face
             face_parts = []
             if face_data:
@@ -436,7 +446,7 @@ class Character():
             print(f"[LookAt Path] Target Torso Angle: {target_gaze_angle:.4f}")
         return target_gaze_angle
 
-    def listen_backchannel(self, timeout=15):
+    def listen_backchannel(self, timeout=15, show_camera_feed=True):
         if self.hearing and self.face:
             self.speaker_gaze_target = None
             self.current_speaker = None
@@ -445,8 +455,8 @@ class Character():
             
             was_vision_running = self.vision.running if self.vision else False
             if self.vision and not self.vision.running:
-                self.vision.run_vision()
-            if self.face:
+                self.vision.run_vision(show_window=show_camera_feed)
+            if self.face and show_camera_feed:
                 self.face.show_camera_feed = True
             
             recognition_stop = threading.Event()
@@ -528,7 +538,7 @@ class Character():
                     if hasattr(self, 'logger'):
                         self.logger.log_conversation(self.current_speaker or "User", final_text)
 
-    def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None, run_speaker_recognition=True):
+    def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None, run_speaker_recognition=True, show_camera_feed=True):
         if self.hearing and self.face:
             self.speaker_gaze_target = None
             self.current_speaker = None
@@ -537,8 +547,8 @@ class Character():
             
             was_vision_running = self.vision.running if self.vision else False
             if self.vision and not self.vision.running:
-                self.vision.run_vision()
-            if self.face:
+                self.vision.run_vision(show_window=show_camera_feed)
+            if self.face and show_camera_feed:
                 self.face.show_camera_feed = True
             
             rec_thread = None
@@ -826,12 +836,12 @@ class Character():
         self.face.run_sequence(face_sequence_name="idle")
         print(f"[LookAt Behavior] Motion finished. final Torso={T_final:.4f}, Neck={N_final:.4f}\n")
 
-    def lookat_something(self, what="face", timeout=-1):
+    def lookat_something(self, what="face", timeout=-1, show_camera_feed=True):
         # timeout - how long (seconds) to look for a face if one is not found
         start_time = time.time()
         if self.vision:            
             if self.lookat_calibration:     # if calibrated, look at something
-                self.vision.look_and_stop(what=what, timeout=1)
+                self.vision.look_and_stop(what=what, timeout=1, show_camera_feed=show_camera_feed)
                 print("DEBUG: ", what, self.vision.found)                
                 if len(self.vision.found[what]) > 0:
                     self.update_egocentric_locations()
@@ -855,9 +865,9 @@ class Character():
                         duration = time.time() - start_time
                         remaining_timeout = timeout - duration
                         print("Looking again ...")
-                        return self.lookat_something(what=what, timeout=remaining_timeout)
+                        return self.lookat_something(what=what, timeout=remaining_timeout, show_camera_feed=show_camera_feed)
             else:                           # if not calibrated, just report if found something
-                self.vision.look_and_stop(what=what, timeout=timeout)
+                self.vision.look_and_stop(what=what, timeout=timeout, show_camera_feed=show_camera_feed)
                 return len(self.vision.found[what]) > 0
         return False
 

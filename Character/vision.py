@@ -118,7 +118,7 @@ class Vision:
             
             time.sleep(0.001)
                 
-    def run_vision(self):
+    def run_vision(self, show_window=True):
         """
         Start the vision system.
         """
@@ -130,11 +130,11 @@ class Vision:
             self.vision_thread.start()
             self.running = True
     
-            if not self.is_robot:
+            if not self.is_robot and show_window:
                 time.sleep(0.5)  # Give camera time to initialize
                 self._display_loop()
             else:
-                print("Vision running in background (is_robot=True)")
+                print("Vision running in background (is_robot=True or show_window=False)")
     
     def stop_vision(self):
         if self.running:
@@ -160,17 +160,17 @@ class Vision:
     def get_timestamped_data(self):
         return self.timestamped_data.copy()
     
-    def look_and_stop(self, what, timeout=5.0):
-        result = self.look_for(what, timeout)
+    def look_and_stop(self, what, timeout=5.0, show_camera_feed=True):
+        result = self.look_for(what, timeout, show_camera_feed)
         
         return result
 
-    def look_for(self, what, timeout=5.0):
+    def look_for(self, what, timeout=5.0, show_camera_feed=True):
         result_container = {'found': False, 'data': None, 'done': False}
         stop_event = threading.Event()
         search_thread = threading.Thread(target=vh.VisionHelpers.look_for_worker,
-                                        args=(what, timeout, result_container, stop_event, self.get_last_data),
-                                        daemon=True)
+                                         args=(what, timeout, result_container, stop_event, self.get_last_data),
+                                         daemon=True)
         search_thread.start()
         
         # While searching, continuously overlay the camera feed on Gigi's face screen in real-time
@@ -184,25 +184,26 @@ class Vision:
                 face_image = self.face.set_face(face_state)
                 
                 # Fetch latest frame and overlay
-                cam_frame = self.get_latest_frame()
-                if cam_frame is not None:
-                    import cv2
-                    if self.face.IMAGE_OPTION == "cv":
-                        h, w = face_image.shape[:2]
-                        cam_h, cam_w = cam_frame.shape[:2]
-                        scale_w = int(w * 0.25)
-                        scale_h = int(cam_h * scale_w / cam_w)
-                        cam_resized = cv2.resize(cam_frame, (scale_w, scale_h))
-                        face_image[h - scale_h:h, w - scale_w:w] = cam_resized
-                    elif self.face.IMAGE_OPTION == "pygame":
-                        import pygame
-                        rgb_frame = cv2.cvtColor(cam_frame, cv2.COLOR_BGR2RGB)
-                        cam_h, cam_w = rgb_frame.shape[:2]
-                        scale_w = int(face_image.get_width() * 0.25)
-                        scale_h = int(cam_h * scale_w / cam_w)
-                        rgb_resized = cv2.resize(rgb_frame, (scale_w, scale_h))
-                        pg_cam = pygame.image.fromstring(rgb_resized.tobytes(), (scale_w, scale_h), "RGB")
-                        face_image.blit(pg_cam, (face_image.get_width() - scale_w, face_image.get_height() - scale_h))
+                if show_camera_feed:
+                    cam_frame = self.get_latest_frame()
+                    if cam_frame is not None:
+                        import cv2
+                        if self.face.IMAGE_OPTION == "cv":
+                            h, w = face_image.shape[:2]
+                            cam_h, cam_w = cam_frame.shape[:2]
+                            scale_w = int(w * 0.25)
+                            scale_h = int(cam_h * scale_w / cam_w)
+                            cam_resized = cv2.resize(cam_frame, (scale_w, scale_h))
+                            face_image[h - scale_h:h, w - scale_w:w] = cam_resized
+                        elif self.face.IMAGE_OPTION == "pygame":
+                            import pygame
+                            rgb_frame = cv2.cvtColor(cam_frame, cv2.COLOR_BGR2RGB)
+                            cam_h, cam_w = rgb_frame.shape[:2]
+                            scale_w = int(face_image.get_width() * 0.25)
+                            scale_h = int(cam_h * scale_w / cam_w)
+                            rgb_resized = cv2.resize(rgb_frame, (scale_w, scale_h))
+                            pg_cam = pygame.image.fromstring(rgb_resized.tobytes(), (scale_w, scale_h), "RGB")
+                            face_image.blit(pg_cam, (face_image.get_width() - scale_w, face_image.get_height() - scale_h))
                 
                 self.face.display_face(face_image)
             

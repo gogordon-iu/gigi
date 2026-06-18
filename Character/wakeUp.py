@@ -299,18 +299,25 @@ def execute_activity_json(activity_json):
             sentences = re.split(r'(?<=[.!?])\s+', clean)
             for i, sentence in enumerate(sentences):
                 viseme_data = {'text': sentence, 'file': None}
-                movement_data = random.choice(movement_options)
-                image_data = {'filename': image, 'duration': 6.0} if (i == 0 and image) else None
+                if image:
+                    image_data = {'filename': image, 'duration': 6.0} if i == 0 else None
+                    movement_data = "home"
+                    restore_face = (i == len(sentences) - 1)
+                else:
+                    image_data = None
+                    movement_data = random.choice(movement_options)
+                    restore_face = True
                 gigi.run_character(
                     viseme_data=viseme_data,
                     movement_data=movement_data,
-                    image_data=image_data
+                    image_data=image_data,
+                    restore_face=restore_face
                 )
                 
         def robot_listen():
             gigi.hearing.texts = []
             gigi.run_character(movement_data="home")
-            gigi.listen_backchannel()
+            gigi.listen_backchannel(show_camera_feed=False)
             if gigi.hearing.texts:
                 return gigi.hearing.texts[-1]
             return "[no response]"

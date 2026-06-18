@@ -284,12 +284,13 @@ class Face():
                     image_resized.blit(icon_resized, (W - scale_w - 10, 10))
                 
                 if getattr(self, 'guidance', None) in self.guidance_images:
-                    guidance_img = self.guidance_images[self.guidance]
-                    gh, gw = guidance_img.get_height(), guidance_img.get_width()
-                    scale_w = int(W * 0.2)
-                    scale_h = int(gh * scale_w / gw)
-                    guidance_resized = pygame.transform.smoothscale(guidance_img, (scale_w, scale_h))
-                    image_resized.blit(guidance_resized, (0, H - scale_h))
+                    if self.feedback_state not in self.feedback_icons:
+                        guidance_img = self.guidance_images[self.guidance]
+                        gh, gw = guidance_img.get_height(), guidance_img.get_width()
+                        scale_w = int(W * 0.2)
+                        scale_h = int(gh * scale_w / gw)
+                        guidance_resized = pygame.transform.smoothscale(guidance_img, (scale_w, scale_h))
+                        image_resized.blit(guidance_resized, (0, H - scale_h))
 
                 if getattr(self, 'reading_fluency_active', False):
                     self.draw_reading_fluency_overlay_pygame(image_resized)
@@ -371,15 +372,16 @@ class Face():
                     image_resized[roi_y0:roi_y1, roi_x0:roi_x1] = roi
                 
                 if getattr(self, 'guidance', None) in self.guidance_images:
-                    guidance_img = self.guidance_images[self.guidance]
-                    gh, gw = guidance_img.shape[:2]
-                    scale_w = int(W * 0.2)
-                    scale_h = int(gh * scale_w / gw)
-                    try:
-                        guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
-                        image_resized[H - scale_h:H, 0:scale_w] = guidance_resized
-                    except Exception as e:
-                        print(f"[Face] Warning: Error resizing guidance image in display_face: {e}")
+                    if self.feedback_state not in self.feedback_icons:
+                        guidance_img = self.guidance_images[self.guidance]
+                        gh, gw = guidance_img.shape[:2]
+                        scale_w = int(W * 0.2)
+                        scale_h = int(gh * scale_w / gw)
+                        try:
+                            guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
+                            image_resized[H - scale_h:H, 0:scale_w] = guidance_resized
+                        except Exception as e:
+                            print(f"[Face] Warning: Error resizing guidance image in display_face: {e}")
 
                 if getattr(self, 'reading_fluency_active', False):
                     self.draw_reading_fluency_overlay_cv(image_resized)

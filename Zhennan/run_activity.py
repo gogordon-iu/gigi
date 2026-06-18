@@ -80,7 +80,6 @@ gigi.conversation.use_rag = IS_STRATEGY
 movement_options = [
     "look_from_side_to_side", "look_left", "look_right"
 ]
-
 def robot_speak(text: str, image: str = None):
     log("ROBOT", text)
     clean = strip_nonverbals(text)
@@ -89,28 +88,24 @@ def robot_speak(text: str, image: str = None):
     if gigi.face:
         gigi.face.guidance = "listen"
         
-    if image:
-        # If an image is specified, do not split into sentences so the image
-        # is shown for the entire duration of the substep.
-        viseme_data   = {'text': clean, 'file': None}
-        image_data    = {'filename': image, 'duration': 6.0}
-        movement_data = "home"
+    sentences = re.split(r'(?<=[.!?])\s+', clean)
+    for idx, sentence in enumerate(sentences):
+        viseme_data   = {'text': sentence, 'file': None}
+        if image:
+            image_data    = {'filename': image, 'duration': 6.0} if idx == 0 else None
+            movement_data = "home"
+            restore_face  = (idx == len(sentences) - 1)
+        else:
+            image_data    = None
+            movement_data = random.choice(movement_options)
+            restore_face  = True
+            
         gigi.run_character(
             viseme_data=viseme_data,
             movement_data=movement_data,
-            image_data=image_data
+            image_data=image_data,
+            restore_face=restore_face
         )
-    else:
-        # Otherwise, split into sentences to keep the natural visemes/facial animations
-        sentences = re.split(r'(?<=[.!?])\s+', clean)
-        for sentence in sentences:
-            viseme_data   = {'text': sentence, 'file': None}
-            movement_data = random.choice(movement_options)
-            gigi.run_character(
-                viseme_data=viseme_data,
-                movement_data=movement_data,
-                image_data=None
-            )
             
     if gigi.face:
         gigi.face.guidance = None
@@ -121,7 +116,7 @@ def robot_listen() -> str:
         gigi.face.guidance = "speak"
     gigi.hearing.texts = []
     gigi.run_character(movement_data="home")
-    gigi.listen_backchannel()
+    gigi.listen_backchannel(show_camera_feed=False)
 
     if gigi.face:
         gigi.face.guidance = None
@@ -140,7 +135,7 @@ def robot_listen() -> str:
 def greet_and_register():
     log("SYSTEM", "Looking around the room for familiar faces...")
     if gigi.vision and not gigi.vision.running:
-        gigi.vision.run_vision()
+        gigi.vision.run_vision(show_window=False)
         
     gigi.run_character(
         viseme_data={'text': "Hello! Let me look around the room to see who is here today.", 'file': None},
