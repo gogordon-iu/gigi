@@ -184,7 +184,8 @@ class Vision:
                 face_image = self.face.set_face(face_state)
                 
                 # Fetch latest frame and overlay
-                if show_camera_feed:
+                show_feed = show_camera_feed and getattr(getattr(self, 'gigi', None), 'show_camera_feed', True)
+                if show_feed:
                     cam_frame = self.get_latest_frame()
                     if cam_frame is not None:
                         import cv2

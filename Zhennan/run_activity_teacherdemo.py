@@ -75,6 +75,7 @@ def find_file_in_dir(directory: str, filename: str, extensions: list = None) -> 
 # Init hardware
 # ------------------------------------------------------------------
 gigi = Character()
+gigi.show_camera_feed = False
 gigi.set_activity(activity_name="educational_activity")
 gigi.conversation.use_rag = IS_STRATEGY
 

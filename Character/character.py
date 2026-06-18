@@ -144,6 +144,7 @@ class Character():
         self.current_speaker = None
         self.activity_log = []
         self.logger = InteractionLogger(self)
+        self.show_camera_feed = True
 
         self.lookat_calibration = None
         if self.face and self.movement and self.vision:
@@ -394,7 +395,8 @@ class Character():
         """Helper to render the face image from the main thread if updated."""
         if self.face and self.face.IMAGE_OPTION == "cv":
             # Always render if camera feed is shown to keep video fluid, or if face updated
-            if getattr(self.face, 'show_camera_feed', False) or getattr(self.face, 'face_update_counter', 0) > getattr(self.face, 'last_rendered_counter', 0):
+            show_feed = getattr(self.face, 'show_camera_feed', False) and getattr(self, 'show_camera_feed', True)
+            if show_feed or getattr(self.face, 'face_update_counter', 0) > getattr(self.face, 'last_rendered_counter', 0):
                 last_img = getattr(self.face, 'last_face_image', None)
                 if last_img is not None:
                     self.face.display_face(last_img)
@@ -806,7 +808,7 @@ class Character():
                     face_state[part] = ("idle", "1")
             
             face_image = self.face.set_face(face_state)
-            if self.vision:
+            if self.vision and getattr(self, 'show_camera_feed', True):
                 cam_frame = self.vision.get_latest_frame()
                 if cam_frame is not None:
                     import cv2

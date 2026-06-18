@@ -283,14 +283,7 @@ class Face():
                     # Position it on top-right to avoid bottom overlay area
                     image_resized.blit(icon_resized, (W - scale_w - 10, 10))
                 
-                if getattr(self, 'guidance', None) in self.guidance_images:
-                    if self.feedback_state not in self.feedback_icons:
-                        guidance_img = self.guidance_images[self.guidance]
-                        gh, gw = guidance_img.get_height(), guidance_img.get_width()
-                        scale_w = int(W * 0.2)
-                        scale_h = int(gh * scale_w / gw)
-                        guidance_resized = pygame.transform.smoothscale(guidance_img, (scale_w, scale_h))
-                        image_resized.blit(guidance_resized, (0, H - scale_h))
+                # Bottom-left guidance icons are completely removed per user request
 
                 if getattr(self, 'reading_fluency_active', False):
                     self.draw_reading_fluency_overlay_pygame(image_resized)
@@ -324,8 +317,9 @@ class Face():
                         
                     image_resized.blit(card_surf, (x0, y0))
                     
-                # Overlay camera feed if requested and vision is running
-                if getattr(self, 'show_camera_feed', False) and getattr(self, 'vision', None) is not None:
+                # Overlay camera feed if requested, vision is running, and generic flag allows it
+                show_feed = getattr(self, 'show_camera_feed', False) and getattr(getattr(self, 'gigi', None), 'show_camera_feed', True)
+                if show_feed and getattr(self, 'vision', None) is not None:
                     if self.vision.running:
                         cam_frame = self.vision.get_latest_frame()
                         if cam_frame is not None:
@@ -371,17 +365,7 @@ class Face():
                         roi[:, :, c] = (icon_alpha * icon_rgb[:, :, c] + (1 - icon_alpha) * roi[:, :, c]).astype(np.uint8)
                     image_resized[roi_y0:roi_y1, roi_x0:roi_x1] = roi
                 
-                if getattr(self, 'guidance', None) in self.guidance_images:
-                    if self.feedback_state not in self.feedback_icons:
-                        guidance_img = self.guidance_images[self.guidance]
-                        gh, gw = guidance_img.shape[:2]
-                        scale_w = int(W * 0.2)
-                        scale_h = int(gh * scale_w / gw)
-                        try:
-                            guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
-                            image_resized[H - scale_h:H, 0:scale_w] = guidance_resized
-                        except Exception as e:
-                            print(f"[Face] Warning: Error resizing guidance image in display_face: {e}")
+                # Bottom-left guidance icons are completely removed per user request
 
                 if getattr(self, 'reading_fluency_active', False):
                     self.draw_reading_fluency_overlay_cv(image_resized)
@@ -436,8 +420,9 @@ class Face():
                             current_y += 12 # spacing
                         image_resized[y0:y1, x0:x1] = roi_blended
                 
-                # Overlay camera feed if requested and vision is running
-                if getattr(self, 'show_camera_feed', False) and getattr(self, 'vision', None) is not None:
+                # Overlay camera feed if requested, vision is running, and generic flag allows it
+                show_feed = getattr(self, 'show_camera_feed', False) and getattr(getattr(self, 'gigi', None), 'show_camera_feed', True)
+                if show_feed and getattr(self, 'vision', None) is not None:
                     if self.vision.running:
                         cam_frame = self.vision.get_latest_frame()
                         if cam_frame is not None:
@@ -486,17 +471,7 @@ class Face():
                             face[part] = (part_data[0], part_data[1][i])
                     face_image = self.set_face(face)
                     
-                    if self.guidance in self.guidance_images:
-                        guidance_img = self.guidance_images[self.guidance]
-                        h, w = face_image.shape[:2]
-                        guidance_h, guidance_w = guidance_img.shape[:2]
-                        scale_w = int(w * 0.2)
-                        scale_h = int(guidance_h * scale_w / guidance_w)
-                        try:
-                            guidance_resized = cv2.resize(guidance_img, (scale_w, scale_h))
-                            face_image[h - scale_h:h, 0:scale_w] = guidance_resized
-                        except Exception as e:
-                            print(f"[Face] Warning: Error resizing guidance image in generate_face: {e}")
+                    # Bottom-left guidance icons are completely removed per user request
                         
                     self.display_face(face_image)
 
