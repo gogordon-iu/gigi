@@ -7,14 +7,29 @@
       "step_type": "canned",
       "sub_steps": [
         {
-          "text": "Hello, science explorers! Today we are going to dive into the amazing world of waves and energy. Take a look at this picture showing different types of waves we experience every day.",
-          "facial": "[image:wave_types.png]",
+          "text": "Hello, science explorers!",
+          "facial": "[smile]",
           "movement": "[wave]"
         },
         {
-          "text": "Waves are all around us, from the water in the ocean to the light we see and the sounds we hear. But here is the big question: what actually travels when a wave moves? Let's find out.",
+          "text": "Today we are going to dive into the amazing world of waves and energy.",
+          "facial": "[image:wave_types.png]",
+          "movement": "[home]"
+        },
+        {
+          "text": "Waves are all around us, from the water in the ocean to the light we see and the sounds we hear.",
           "facial": "[smile]",
           "movement": "[gesture to students]"
+        },
+        {
+          "text": "But here is the big question: what actually travels when a wave moves?",
+          "facial": "[curious face]",
+          "movement": "[gesture to students]"
+        },
+        {
+          "text": "Let's find out!",
+          "facial": "[smile]",
+          "movement": "[nod]"
         }
       ]
     },
@@ -37,14 +52,44 @@
       "step_type": "canned",
       "sub_steps": [
         {
-          "text": "You hit the nail on the head! The water particles and the duck just bob up and down. Only the energy travels forward across the pool.",
+          "text": "You hit the nail on the head!",
           "facial": "[smile]",
-          "movement": "[point to screen]"
+          "movement": "[clap]"
         },
         {
-          "text": "Now, look back at me. Let's think about sound waves. When I speak to you, does the air from my mouth travel all the way to your ears? No, the air molecules just vibrate back and forth, passing the energy along. Look at this diagram of a speaker vibrating the air molecules.",
-          "facial": "[image:speaker_vibration.png]",
+          "text": "The water particles and the duck just bob up and down.",
+          "facial": "[image:duck_wave_bobbing.png]",
+          "movement": "[home]"
+        },
+        {
+          "text": "Only the energy travels forward across the pool.",
+          "facial": "[image:duck_wave_bobbing.png]",
+          "movement": "[home]"
+        },
+        {
+          "text": "Now, look back at me.",
+          "facial": "[smile]",
           "movement": "[gesture to students]"
+        },
+        {
+          "text": "Let's think about sound waves.",
+          "facial": "[smile]",
+          "movement": "[nod]"
+        },
+        {
+          "text": "When I speak to you, does the air from my mouth travel all the way to your ears?",
+          "facial": "[curious face]",
+          "movement": "[gesture to students]"
+        },
+        {
+          "text": "No, the air molecules just vibrate back and forth, passing the energy along.",
+          "facial": "[smile]",
+          "movement": "[nod]"
+        },
+        {
+          "text": "Look at this diagram of a speaker vibrating the air molecules.",
+          "facial": "[image:speaker_vibration.png]",
+          "movement": "[home]"
         }
       ]
     },
@@ -67,12 +112,32 @@
       "step_type": "canned",
       "sub_steps": [
         {
-          "text": "Exactly! Sound waves need a medium like air or water to travel, which is why space is completely silent. But light waves are electromagnetic and can travel through the vacuum of empty space.",
-          "facial": "[image:energy_bulb_waves.png]",
+          "text": "Exactly!",
+          "facial": "[smile]",
           "movement": "[nod]"
         },
         {
-          "text": "You all did an outstanding job discussing these tricky science concepts today! Keep asking questions and exploring the world around you. See you next time, science explorers!",
+          "text": "Sound waves need a medium like air or water to travel, which is why space is completely silent.",
+          "facial": "[image:space_sound_light.png]",
+          "movement": "[home]"
+        },
+        {
+          "text": "But light waves are electromagnetic and can travel through the vacuum of empty space.",
+          "facial": "[image:energy_bulb_waves.png]",
+          "movement": "[home]"
+        },
+        {
+          "text": "You all did an outstanding job discussing these tricky science concepts today!",
+          "facial": "[smile]",
+          "movement": "[cheer]"
+        },
+        {
+          "text": "Keep asking questions and exploring the world around you.",
+          "facial": "[smile]",
+          "movement": "[nod]"
+        },
+        {
+          "text": "See you next time, science explorers!",
           "facial": "[smile]",
           "movement": "[wave]"
         }

@@ -98,16 +98,29 @@ def robot_speak(text: str, image: str = None):
     if gigi.face:
         gigi.face.guidance = "listen"
 
-    sentences = re.split(r'(?<=[.!?])\s+', clean)
-    for i, sentence in enumerate(sentences):
-        viseme_data   = {'text': sentence, 'file': None}
-        image_data    = {'filename': image, 'duration': 6.0} if (i == 0 and image) else None
-        movement_data = "home" if image_data else random.choice(movement_options)
+    if image:
+        # If an image is specified, do not split into sentences so the image
+        # is shown for the entire duration of the substep.
+        viseme_data   = {'text': clean, 'file': None}
+        image_data    = {'filename': image, 'duration': 6.0}
+        movement_data = "home"
         gigi.run_character(
             viseme_data=viseme_data,
             movement_data=movement_data,
             image_data=image_data
         )
+    else:
+        # Otherwise, split into sentences to keep the natural visemes/facial animations
+        sentences = re.split(r'(?<=[.!?])\s+', clean)
+        for sentence in sentences:
+            viseme_data   = {'text': sentence, 'file': None}
+            movement_data = random.choice(movement_options)
+            gigi.run_character(
+                viseme_data=viseme_data,
+                movement_data=movement_data,
+                image_data=None
+            )
+            
     if gigi.face:
         gigi.face.guidance = None
 
