@@ -127,7 +127,6 @@ def robot_listen() -> str:
     
     if gigi.face:
         gigi.face.guidance = "speak"
-        gigi.face.display_text("Speak Now")
         
     # Start vision to look for face / track speaker coordinates
     if gigi.vision and not gigi.vision.running:
@@ -164,7 +163,6 @@ def robot_listen() -> str:
                         
     if gigi.face:
         gigi.face.guidance = None
-        gigi.face.display_text(None)
 
     if gigi.hearing and gigi.hearing.texts:
         heard = gigi.hearing.texts[-1]
@@ -227,25 +225,50 @@ def greet_and_register():
                     if name not in recognized_names:
                         recognized_names.append(name)
                         
-    if recognized_names:
-        names_str = " and ".join(recognized_names)
-        gigi.current_speaker = recognized_names[0]
-        # Look at the first recognized person
+    has_unrecognized = False
+    final_recognized = []
+    if gigi.vision:
+        all_faces = gigi.vision.face_cache.get_all_faces()
+        for face_id, face_info in all_faces.items():
+            name = face_info.get('name', 'Unknown')
+            is_face_pattern = re.match(r'^face_\d{4}$', name) is not None
+            is_unknown = (name == 'Unknown' or is_face_pattern or name == 'Recognizing...')
+            if is_unknown:
+                has_unrecognized = True
+            else:
+                if name not in final_recognized:
+                    final_recognized.append(name)
+
+    if final_recognized:
+        gigi.current_speaker = final_recognized[0]
         gigi.lookat_person(gigi.current_speaker)
-        gigi.run_character(
-            viseme_data={'text': f"Ah, hello {names_str}! I am so happy to see you today! Let's begin our activity.", 'file': None},
-            movement_data='wave_hello'
-        )
+        
+        if has_unrecognized:
+            names_str = ", ".join(final_recognized) + " and Friends"
+        else:
+            if len(final_recognized) == 1:
+                names_str = final_recognized[0]
+            elif len(final_recognized) == 2:
+                names_str = f"{final_recognized[0]} and {final_recognized[1]}"
+            else:
+                names_str = ", ".join(final_recognized[:-1]) + ", and " + final_recognized[-1]
+                
+        greeting_text = f"Ah, hello {names_str}! I am so happy to see you today! Let's begin our activity."
     else:
-        # Fallback: look at the most recent person in the egocentric location db
         if gigi.egocentric_db:
             most_recent_person = max(gigi.egocentric_db.keys(), key=lambda k: gigi.egocentric_db[k].get("timestamp", 0))
             gigi.current_speaker = most_recent_person
             gigi.lookat_person(most_recent_person)
-        gigi.run_character(
-            viseme_data={'text': "Hello everyone! I see some wonderful new faces. Welcome to our activity!", 'file': None},
-            movement_data='wave_hello'
-        )
+            
+        if has_unrecognized:
+            greeting_text = "Hello everyone! I see some wonderful new faces. Welcome to our activity!"
+        else:
+            greeting_text = "Hello everyone! Let's begin our activity."
+
+    gigi.run_character(
+        viseme_data={'text': greeting_text, 'file': None},
+        movement_data='wave_hello'
+    )
     gigi.run_character(movement_data='home')
 
 # ------------------------------------------------------------------
@@ -297,16 +320,27 @@ for i, step in enumerate(steps):
     if step_type in ("canned", "introduction", "core_content", "conclusion"):
         sub_steps = step.get("sub_steps", [])
         if sub_steps:
-            script = " ".join(s["text"] for s in sub_steps if s.get("text"))
+            for s in sub_steps:
+                text = s.get("text", "")
+                facial = s.get("facial", "")
+                image = None
+                if facial:
+                    image_match = re.match(r"\[image:(.+)\]", facial)
+                    if image_match:
+                        image_ref = image_match.group(1)
+                        image = find_file_in_dir(activity_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
+                if text:
+                    robot_speak(text, image)
+                    history.append({"role": "assistant", "content": text})
         else:
             script = step.get("robot_script", "")
-        image_ref = step.get("image_filename", step.get("image_path", step.get("image", None)))
-        image = None
-        if image_ref:
-            image = find_file_in_dir(activity_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
-        if script:
-            robot_speak(script, image)
-            history.append({"role": "assistant", "content": script})
+            image_ref = step.get("image_filename", step.get("image_path", step.get("image", None)))
+            image = None
+            if image_ref:
+                image = find_file_in_dir(activity_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
+            if script:
+                robot_speak(script, image)
+                history.append({"role": "assistant", "content": script})
         if i < len(steps) - 1:
             time.sleep(2)
 

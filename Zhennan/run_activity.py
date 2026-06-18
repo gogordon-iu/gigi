@@ -60,6 +60,15 @@ def strip_nonverbals(text: str) -> str:
     clean = re.sub(r"\[([^\]]+)\]", _rep, text).strip()
     return re.sub(r" {2,}", " ", clean).strip()
 
+def find_file_in_dir(directory: str, filename: str, extensions: list = None) -> str:
+    base_name = os.path.splitext(os.path.basename(filename))[0]
+    for root, _, files in os.walk(directory):
+        for file in files:
+            file_base, file_ext = os.path.splitext(file)
+            if file_base == base_name:
+                if not extensions or file_ext.lower() in extensions:
+                    return os.path.join(root, file).replace("\\", "/")
+    return None
 
 # ------------------------------------------------------------------
 # Init hardware
@@ -164,17 +173,42 @@ def greet_and_register():
                     if name not in recognized_names:
                         recognized_names.append(name)
                         
-    if recognized_names:
-        names_str = " and ".join(recognized_names)
-        gigi.run_character(
-            viseme_data={'text': f"Ah, hello {names_str}! I am so happy to see you today! Let's begin our activity.", 'file': None},
-            movement_data='wave_hello'
-        )
+    has_unrecognized = False
+    final_recognized = []
+    if gigi.vision:
+        all_faces = gigi.vision.face_cache.get_all_faces()
+        for face_id, face_info in all_faces.items():
+            name = face_info.get('name', 'Unknown')
+            is_face_pattern = re.match(r'^face_\d{4}$', name) is not None
+            is_unknown = (name == 'Unknown' or is_face_pattern or name == 'Recognizing...')
+            if is_unknown:
+                has_unrecognized = True
+            else:
+                if name not in final_recognized:
+                    final_recognized.append(name)
+
+    if final_recognized:
+        if has_unrecognized:
+            names_str = ", ".join(final_recognized) + " and Friends"
+        else:
+            if len(final_recognized) == 1:
+                names_str = final_recognized[0]
+            elif len(final_recognized) == 2:
+                names_str = f"{final_recognized[0]} and {final_recognized[1]}"
+            else:
+                names_str = ", ".join(final_recognized[:-1]) + ", and " + final_recognized[-1]
+                
+        greeting_text = f"Ah, hello {names_str}! I am so happy to see you today! Let's begin our activity."
     else:
-        gigi.run_character(
-            viseme_data={'text': "Hello everyone! I see some wonderful new faces. Welcome to our activity!", 'file': None},
-            movement_data='wave_hello'
-        )
+        if has_unrecognized:
+            greeting_text = "Hello everyone! I see some wonderful new faces. Welcome to our activity!"
+        else:
+            greeting_text = "Hello everyone! Let's begin our activity."
+
+    gigi.run_character(
+        viseme_data={'text': greeting_text, 'file': None},
+        movement_data='wave_hello'
+    )
     gigi.run_character(movement_data='home')
 
 
@@ -219,13 +253,33 @@ for i, step in enumerate(steps):
     if step_type in ("canned", "introduction", "core_content", "conclusion"):
         sub_steps = step.get("sub_steps", [])
         if sub_steps:
-            script = " ".join(s["text"] for s in sub_steps if s.get("text"))
+            for s in sub_steps:
+                text = s.get("text", "")
+                facial = s.get("facial", "")
+                image = None
+                if facial:
+                    image_match = re.match(r"\[image:(.+)\]", facial)
+                    if image_match:
+                        image_ref = image_match.group(1)
+                        plan_dir = os.path.dirname(os.path.abspath(plan_file))
+                        image = find_file_in_dir(plan_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
+                        if not image:
+                            image = find_file_in_dir(os.path.join(gigi_dir, "Assets"), image_ref, extensions=['.png', '.jpg', '.jpeg'])
+                if text:
+                    robot_speak(text, image)
+                    history.append({"role": "assistant", "content": text})
         else:
             script = step.get("robot_script", "")
-        image  = step.get("image_path", step.get("image", None))
-        if script:
-            robot_speak(script, image)
-            history.append({"role": "assistant", "content": script})
+            image_ref = step.get("image_filename", step.get("image_path", step.get("image", None)))
+            image = None
+            if image_ref:
+                plan_dir = os.path.dirname(os.path.abspath(plan_file))
+                image = find_file_in_dir(plan_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
+                if not image:
+                    image = find_file_in_dir(os.path.join(gigi_dir, "Assets"), image_ref, extensions=['.png', '.jpg', '.jpeg'])
+            if script:
+                robot_speak(script, image)
+                history.append({"role": "assistant", "content": script})
         if i < len(steps) - 1:
             time.sleep(2)
 
@@ -233,7 +287,13 @@ for i, step in enumerate(steps):
     elif step_type in ("open", "open_conversation"):
         log("SYSTEM", "(Interaction phase. Say or type '/next' to advance.)")
         script = step.get("robot_script", "")
-        image  = step.get("image_path", step.get("image", None))
+        image_ref = step.get("image_filename", step.get("image_path", step.get("image", None)))
+        image = None
+        if image_ref:
+            plan_dir = os.path.dirname(os.path.abspath(plan_file))
+            image = find_file_in_dir(plan_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
+            if not image:
+                image = find_file_in_dir(os.path.join(gigi_dir, "Assets"), image_ref, extensions=['.png', '.jpg', '.jpeg'])
         if script:
             robot_speak(script, image)
             history.append({"role": "assistant", "content": script})

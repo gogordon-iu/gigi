@@ -4,23 +4,19 @@
   "number_of_students": "5 students",
   "steps": [
     {
-      "image_filename": "wave_types.png",
-      "image_prompt": "A vibrant, educational 3D digital illustration for 5th graders depicting three types of waves side-by-side: a blue water wave, a colorful light wave, and sound waves vibrating from a bell. Sleek modern style with clear labels.",
-      "image_url": "/static/temp_images/wave_types.png",
       "step_type": "canned",
       "sub_steps": [
         {
           "text": "Hello, science explorers! Today we are going to dive into the amazing world of waves and energy. Take a look at this picture showing different types of waves we experience every day.",
-          "facial": "[smile]",
+          "facial": "[image:wave_types.png]",
           "movement": "[wave]"
         },
         {
           "text": "Waves are all around us, from the water in the ocean to the light we see and the sounds we hear. But here is the big question: what actually travels when a wave moves? Let's find out.",
-          "facial": "[curious face]",
+          "facial": "[smile]",
           "movement": "[gesture to students]"
         }
-      ],
-      "image_path": "images/wave_types.png"
+      ]
     },
     {
       "closing_condition": "After each student shares their thoughts and the group agrees on whether water molecules travel with the wave.",
@@ -38,23 +34,19 @@
       "robot_script": "Imagine a rubber duck floating on water. When a wave passes, does the water itself move forward, carrying the duck to the other side of the pool? Or does the water just move up and down? What do you think?"
     },
     {
-      "image_filename": "speaker_vibration.png",
-      "image_prompt": "A clear, educational 3D digital illustration showing a loudspeaker on the left vibrating and sending waves through air molecules (represented as small blue spheres). The air molecules are clustered in compressions and spread out in rarefactions, showing they vibrate in place rather than traveling forward.",
-      "image_url": "/static/temp_images/speaker_vibration.png",
       "step_type": "canned",
       "sub_steps": [
         {
           "text": "You hit the nail on the head! The water particles and the duck just bob up and down. Only the energy travels forward across the pool.",
-          "facial": "[nod]",
+          "facial": "[smile]",
           "movement": "[point to screen]"
         },
         {
           "text": "Now, look back at me. Let's think about sound waves. When I speak to you, does the air from my mouth travel all the way to your ears? No, the air molecules just vibrate back and forth, passing the energy along. Look at this diagram of a speaker vibrating the air molecules.",
-          "facial": "[curious face]",
+          "facial": "[image:speaker_vibration.png]",
           "movement": "[gesture to students]"
         }
-      ],
-      "image_path": "images/speaker_vibration.png"
+      ]
     },
     {
       "closing_condition": "After the group discusses why space is silent and concludes that light doesn't need air to travel.",
@@ -72,14 +64,11 @@
       "robot_script": "Now, let's think about outer space. In movies, we often hear huge explosions with loud booming sounds in space. But in real life, could we actually hear a spaceship explosion? And what about the light\u2014can we see stars in space? Why can light travel through space, but sound cannot?"
     },
     {
-      "image_filename": "energy_bulb_waves.png",
-      "image_prompt": "A vibrant, friendly 3D digital illustration of a glowing yellow lightbulb sending out circular energy waves, representing light and electromagnetic energy traveling through space.",
-      "image_url": "/static/temp_images/energy_bulb_waves.png",
       "step_type": "canned",
       "sub_steps": [
         {
           "text": "Exactly! Sound waves need a medium like air or water to travel, which is why space is completely silent. But light waves are electromagnetic and can travel through the vacuum of empty space.",
-          "facial": "[smile]",
+          "facial": "[image:energy_bulb_waves.png]",
           "movement": "[nod]"
         },
         {
@@ -87,8 +76,7 @@
           "facial": "[smile]",
           "movement": "[wave]"
         }
-      ],
-      "image_path": "images/energy_bulb_waves.png"
+      ]
     }
   ],
   "target_audience": "Grade 5 (10-11 years old)"
