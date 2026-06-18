@@ -59,7 +59,11 @@ def main():
             movement_data='wave_hello'
         )
         
-        last_wave_time = time.time()
+        # Keep arms down after greeting
+        print("[Alive Mode] Lowering arms...")
+        gigi.run_character(movement_data='arms_down')
+        
+        last_shift_time = time.time()
         last_look_around_time = time.time()
         next_blink_time = time.time() + random.uniform(3.0, 6.0)
         
@@ -71,13 +75,12 @@ def main():
                 gigi.face.run_sequence("blink")
                 next_blink_time = time.time() + random.uniform(3.0, 6.0)
                 
-            # 2. Periodic wave hello (every 30 to 45 seconds) - no speech
-            if time.time() - last_wave_time > random.uniform(30.0, 45.0):
-                print("[Alive Mode] Waving hello once in a while...")
-                gigi.run_character(
-                    movement_data='wave_hello'
-                )
-                last_wave_time = time.time()
+            # 2. Periodic subtle body shift/movement (every 15 to 25 seconds) using new smooth sequences
+            if time.time() - last_shift_time > random.uniform(15.0, 25.0):
+                shift_seq = random.choice(["alive_shift", "alive_look_around", "alive_gently_look_left", "alive_gently_look_right"])
+                print(f"[Alive Mode] Executing smooth movement: {shift_seq}")
+                gigi.run_character(movement_data=shift_seq)
+                last_shift_time = time.time()
                 # Push back other timers to avoid overlapping animations
                 last_look_around_time = time.time()
                 next_blink_time = time.time() + random.uniform(4.0, 7.0)

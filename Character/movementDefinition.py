@@ -331,3 +331,85 @@ basic_sequences["look_right"] = [
     {'time': 1,
      'motors': {'neck': -0.8}}
 ]
+
+basic_sequences["alive_look_around"] = [
+    {
+        "time": 1.0,
+        "motors": {
+            "neck": -0.2,
+            "torso": 0.1
+        }
+    },
+    {
+        "time": 2.5,
+        "motors": {
+            "neck": 0.2,
+            "torso": -0.1
+        }
+    },
+    {
+        "time": 4.0,
+        "motors": {
+            "neck": 0.0,
+            "torso": 0.0
+        }
+    }
+]
+
+basic_sequences["alive_gently_look_left"] = [
+    {
+        "time": 1.5,
+        "motors": {
+            "neck": 0.25,
+            "torso": 0.15
+        }
+    },
+    {
+        "time": 3.0,
+        "motors": {
+            "neck": 0.0,
+            "torso": 0.0
+        }
+    }
+]
+
+basic_sequences["alive_gently_look_right"] = [
+    {
+        "time": 1.5,
+        "motors": {
+            "neck": -0.25,
+            "torso": -0.15
+        }
+    },
+    {
+        "time": 3.0,
+        "motors": {
+            "neck": 0.0,
+            "torso": 0.0
+        }
+    }
+]
+
+basic_sequences["alive_shift"] = [
+    {
+        "time": 1.0,
+        "motors": {
+            "neck": 0.1,
+            "torso": -0.08
+        }
+    },
+    {
+        "time": 2.0,
+        "motors": {
+            "neck": -0.1,
+            "torso": 0.08
+        }
+    },
+    {
+        "time": 3.0,
+        "motors": {
+            "neck": 0.0,
+            "torso": 0.0
+        }
+    }
+]
