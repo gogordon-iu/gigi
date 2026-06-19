@@ -20,7 +20,7 @@ def main():
     print("=== STARTING PUSH TO ROBOT ===")
     
     # 1. Sync source folders
-    folders = ["Character", "Demo", "Zhennan", "Assets/activity_plan_waves_energy"]
+    folders = ["Character", "Demo", "Zhennan", "Assets/activity_plan_waves_energy", "Assets/activity_plan_test_llm", "scratch", "Setup"]
     for folder in folders:
         # Ensure remote directory exists
         mkdir_cmd = f'plink -pw {PASSWORD} orangepi@{ROBOT_IP} "mkdir -p {REMOTE_PATH}/{folder}"'
@@ -43,6 +43,16 @@ def main():
     if not run_cmd(cmd):
         print("Failed to restore robot-specific motor calibration on the robot!")
         sys.exit(1)
+        
+    # 4. Sync face databases
+    print("Syncing face databases...")
+    mkdir_cmd = f'plink -pw {PASSWORD} orangepi@{ROBOT_IP} "mkdir -p {REMOTE_PATH}/Resources"'
+    run_cmd(mkdir_cmd)
+    for db_file in ["emoface.pkl", "emoface_2.pkl"]:
+        cmd = f'pscp -pw {PASSWORD} Resources/{db_file} orangepi@{ROBOT_IP}:{REMOTE_PATH}/Resources/{db_file}'
+        if not run_cmd(cmd):
+            print(f"Failed to sync face database: {db_file}")
+            sys.exit(1)
         
     print("=== PUSH COMPLETED SUCCESSFULLY ===")
 

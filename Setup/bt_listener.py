@@ -403,10 +403,68 @@ def handle_client_connection(client_wrapper):
         client_wrapper.close()
         print("[BluetoothListener] Client connection closed.")
 
+def save_plan_images(plan, plan_dir, images_dict):
+    """
+    Saves base64-encoded images from the images_dict to the plan's images/ directory
+    and updates the local paths in the JSON.
+    """
+    import base64
+    import re
+    
+    images_dir = os.path.join(plan_dir, "images")
+    os.makedirs(images_dir, exist_ok=True)
+    
+    if not images_dict:
+        images_dict = {}
+        
+    # 1. Traverse steps
+    for step in plan.get("steps", []):
+        # Open step check
+        img_filename = step.get("image_filename")
+        if img_filename and img_filename in images_dict:
+            filename = os.path.basename(img_filename)
+            local_path = os.path.join(images_dir, filename)
+            try:
+                print(f"[BluetoothListener] Saving open step base64 image: {filename} -> {local_path}")
+                img_data = base64.b64decode(images_dict[img_filename])
+                with open(local_path, "wb") as f:
+                    f.write(img_data)
+                # Update references in JSON
+                step["image_path"] = f"images/{filename}"
+                step["image_filename"] = filename
+            except Exception as e:
+                print(f"[BluetoothListener] Error saving open step image: {e}")
+                
+        # Sub-steps check (Canned steps)
+        for sub_step in step.get("sub_steps", []):
+            facial = sub_step.get("facial", "")
+            img_filename = sub_step.get("image_filename")
+            
+            # Find filename from facial tag if missing in sub_step
+            if not img_filename and "[image:" in facial:
+                match = re.search(r"\[image:(.+?)\]", facial)
+                if match:
+                    img_filename = match.group(1)
+                    
+            if img_filename and img_filename in images_dict:
+                filename = os.path.basename(img_filename)
+                local_path = os.path.join(images_dir, filename)
+                try:
+                    print(f"[BluetoothListener] Saving sub_step base64 image: {filename} -> {local_path}")
+                    img_data = base64.b64decode(images_dict[img_filename])
+                    with open(local_path, "wb") as f:
+                        f.write(img_data)
+                    # Update references in JSON
+                    sub_step["image_filename"] = filename
+                    sub_step["image_path"] = f"images/{filename}"
+                except Exception as e:
+                    print(f"[BluetoothListener] Error saving sub_step image: {e}")
+
 def process_command_line(line):
     # Try to parse line as JSON command first
     command = None
     target_name = None
+    msg = None
     
     try:
         msg = json.loads(line)
@@ -491,6 +549,54 @@ def process_command_line(line):
             "available_zhennan": sorted([info["filename"] for info in zhennan.values()]),
             "available_activity_plans": plans
         })
+
+    elif command == "save_plan":
+        if not target_name:
+            send_to_active_client({
+                "status": "error",
+                "message": "Missing plan folder name. Specify 'name'."
+            })
+            return
+            
+        plan_data = msg.get("plan") if isinstance(msg, dict) else None
+        images_dict = msg.get("images") if isinstance(msg, dict) else None
+        
+        if not plan_data:
+            send_to_active_client({
+                "status": "error",
+                "message": "Missing plan content in 'plan' field."
+            })
+            return
+            
+        try:
+            base_dir = get_base_dir()
+            folder_name = os.path.basename(target_name)
+            if not folder_name.startswith("activity_plan_"):
+                folder_name = "activity_plan_" + folder_name
+                
+            plan_dir = os.path.join(base_dir, "Assets", folder_name)
+            os.makedirs(plan_dir, exist_ok=True)
+            
+            plan_file = os.path.join(plan_dir, "activity_plan.json")
+            # Save any base64 images passed in the payload
+            try:
+                save_plan_images(plan_data, plan_dir, images_dict)
+            except Exception as save_err:
+                print(f"[BluetoothListener] Image save warning: {save_err}")
+                
+            with open(plan_file, "w", encoding="utf-8") as f:
+                json.dump(plan_data, f, indent=2)
+                
+            send_to_active_client({
+                "status": "success",
+                "message": f"Successfully saved activity plan to '{folder_name}'",
+                "folder": folder_name
+            })
+        except Exception as e:
+            send_to_active_client({
+                "status": "error",
+                "message": f"Failed to save plan: {str(e)}"
+            })
 
     elif command == "exit":
         send_to_active_client({
