@@ -88,7 +88,7 @@ class InteractionLogger:
         # Set up unique session folder
         timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
         # Sanitize script name for path compatibility
-        safe_script_name = re.sub(r'[^\w\-]', '_', script_name)
+        safe_script_name = re.sub(r'[^\w\-]', '_', script_name or "None")
         
         primary_dir = os.path.join(users_root, self.user_id, f"{timestamp}_{safe_script_name}")
         

@@ -17,6 +17,10 @@ USE_NPU_TRANSCRIPTION = IS_ROBOT  # Default: True on Linux (Orange Pi), False on
 #                  (Note: CPU execution is recommended to prevent NPU scheduling bottlenecks and resource contention).
 USE_NPU_SPEAKER = False  # Default: False (keeps PyTorch CPU to run in parallel with NPU transcription)
 
+# USE_NPU_PRONUNCIATION: If True, uses the local NPU-accelerated Citrinet-256 + GOP model for pronunciation tasks.
+#                         If False, falls back to the Vosk-based CPU model.
+USE_NPU_PRONUNCIATION = IS_ROBOT  # Default: True on Linux (Orange Pi), False on Windows
+
 if IS_ROBOT:
     HAS_FACE = True
     HAS_SPEECH = True

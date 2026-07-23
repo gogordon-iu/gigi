@@ -64,6 +64,7 @@ echo "[*] Cleaning up old processes..."
 pkill -f "rfcomm watch" || true
 pkill -f "Setup/bt_listener.py" || true
 pkill -f "Setup/bt_agent.py" || true
+pkill -f "flask_server.py" || true
 sleep 1
 
 # 3. Register Serial Port Profile (SPP) in BlueZ
@@ -87,6 +88,14 @@ echo "[*] Starting Bluetooth Command Listener..."
 "$PYTHON_EXEC" -u "$SCRIPT_DIR/bt_listener.py" > "$LOG_DIR/bt_listener.log" 2>&1 &
 LISTENER_PID=$!
 echo "    -> Listener started in background (PID: $LISTENER_PID). Logs: $LOG_DIR/bt_listener.log"
+
+# 7. Set NPU/CPU frequencies and start NPU LLM Server
+echo "[*] Setting NPU and CPU frequencies to maximum performance..."
+bash /home/orangepi/Code/gigi/Resources/rknn-llm/examples/rkllm_server_demo/rkllm_server/fix_freq_rk3588.sh || true
+
+echo "[*] Starting NPU LLM Server..."
+su - orangepi -c "nohup /home/orangepi/Code/gigi/llm_server.sh > /home/orangepi/Code/gigi/llm_server.log 2>&1 &"
+echo "    -> LLM Server started in background. Logs: /home/orangepi/Code/gigi/llm_server.log"
 
 echo "============================================================"
 echo "  All services started successfully in background!"

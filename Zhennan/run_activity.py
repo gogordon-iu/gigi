@@ -98,7 +98,7 @@ def robot_speak(text: str, image: str = None):
             restore_face  = (idx == len(sentences) - 1)
         else:
             image_data    = None
-            movement_data = random.choice(movement_options)
+            movement_data = random.choice(movement_options) if random.random() < 0.5 else None
             restore_face  = True
             
         gigi.run_character(

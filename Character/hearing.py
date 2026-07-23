@@ -247,7 +247,7 @@ elif HEARING_OPTION == "vosk":
 class Hearing():
     def __init__(self, languages="en", verbose=False):
         print("Initializing hearing ...")
-        from characterDefinitions import USE_NPU_TRANSCRIPTION
+        from characterDefinitions import USE_NPU_TRANSCRIPTION, USE_NPU_PRONUNCIATION
         self.verbose = verbose
         self.recognizer = None
         self.words = None
@@ -261,6 +261,10 @@ class Hearing():
         self.pronunciation_mode = False
         self.pronunciation_grammar = []
         self.vosk_model = None
+        self.citrinet_gop = None
+        self.use_citrinet_gop = USE_NPU_PRONUNCIATION
+        self.pronunciation_engine = 'vosk'
+        self.stream_lock = threading.Lock()
 
         if HEARING_OPTION == "sr":
             self.recognizer = sr.Recognizer()
@@ -346,6 +350,18 @@ class Hearing():
             self.vosk_model = Model(vosk_path)
             print("[Hearing] Vosk model loaded successfully.")
 
+    def load_citrinet_gop(self):
+        if self.citrinet_gop is None:
+            try:
+                import sys
+                _char_dir = os.path.dirname(os.path.abspath(__file__))
+                if _char_dir not in sys.path:
+                    sys.path.append(_char_dir)
+                from citrinet_gop import CitrinetGOP
+                self.citrinet_gop = CitrinetGOP()
+            except Exception as e:
+                print(f"[Hearing] Failed to load CitrinetGOP: {e}")
+
     def get_usb_microphone(self):
         devices = sd.query_devices()
         usb_devices = [
@@ -361,40 +377,43 @@ class Hearing():
         Attempt to open a sounddevice InputStream.
         First tries with self.mic_index, and falls back to None (default device) if it fails.
         """
-        stream = None
-        try:
-            print(f"[Hearing] Attempting to open sd.InputStream with mic_index={self.mic_index}...")
-            stream = sd.InputStream(
-                samplerate=INPUT_SAMPLE_RATE,
-                channels=1,
-                device=self.mic_index,
-                callback=callback,
-                blocksize=8192,
-                dtype='int16'
-            )
-            print(f"[Hearing] Successfully opened InputStream on device {self.mic_index}.")
-        except Exception as e:
-            print(f"[Hearing] Failed to open InputStream with mic_index={self.mic_index}: {e}")
-            if self.mic_index is not None:
-                print("[Hearing] Retrying with default device index (None)...")
-                try:
-                    stream = sd.InputStream(
-                        samplerate=INPUT_SAMPLE_RATE,
-                        channels=1,
-                        device=None,
-                        callback=callback,
-                        blocksize=8192,
-                        dtype='int16'
-                    )
-                    print("[Hearing] Successfully opened InputStream on default device.")
-                except Exception as e2:
-                    print(f"[Hearing] Failed to open InputStream on default device: {e2}")
+        import time
+        time.sleep(0.15)
+        with self.stream_lock:
+            stream = None
+            try:
+                print(f"[Hearing] Attempting to open sd.InputStream with mic_index={self.mic_index}...")
+                stream = sd.InputStream(
+                    samplerate=INPUT_SAMPLE_RATE,
+                    channels=1,
+                    device=self.mic_index,
+                    callback=callback,
+                    blocksize=8192,
+                    dtype='int16'
+                )
+                print(f"[Hearing] Successfully opened InputStream on device {self.mic_index}.")
+            except Exception as e:
+                print(f"[Hearing] Failed to open InputStream with mic_index={self.mic_index}: {e}")
+                if self.mic_index is not None:
+                    print("[Hearing] Retrying with default device index (None)...")
+                    try:
+                        stream = sd.InputStream(
+                            samplerate=INPUT_SAMPLE_RATE,
+                            channels=1,
+                            device=None,
+                            callback=callback,
+                            blocksize=8192,
+                            dtype='int16'
+                        )
+                        print("[Hearing] Successfully opened InputStream on default device.")
+                    except Exception as e2:
+                        print(f"[Hearing] Failed to open InputStream on default device: {e2}")
+                        import traceback
+                        traceback.print_exc()
+                else:
                     import traceback
                     traceback.print_exc()
-            else:
-                import traceback
-                traceback.print_exc()
-        return stream
+            return stream
 
     def contains_speech(self, audio_data):
         """
@@ -465,31 +484,41 @@ class Hearing():
             return ""
 
         if getattr(self, 'pronunciation_mode', False):
-            try:
-                self.load_vosk_model()
-                from vosk import KaldiRecognizer
-                import re
-                
-                grammar_list = [w.lower().replace("’", "'") for w in getattr(self, 'pronunciation_grammar', []) if w]
-                grammar_list = [re.sub(r"[^\w']", "", w) for w in grammar_list]
-                grammar_list = [w for w in grammar_list if w]
-                
-                if "[unk]" not in grammar_list:
-                    grammar_list.append("[unk]")
-                
-                grammar_json = json.dumps(grammar_list)
-                rec = KaldiRecognizer(self.vosk_model, 16000, grammar_json)
-                
-                audio_int16 = (audio_float * 32767.0).astype(np.int16)
-                rec.AcceptWaveform(audio_int16.tobytes())
-                result_json = json.loads(rec.FinalResult())
-                text = result_json.get("text", "")
-                
-                if self.verbose:
-                    print(f"[Vosk Pronunciation] Grammar: {grammar_json} -> Result: '{text}'")
-                return text
-            except Exception as e:
-                print(f"[Vosk Pronunciation] Error: {e}")
+            is_citrinet_engine = (getattr(self, 'pronunciation_engine', 'vosk') == 'citrinet')
+            if is_citrinet_engine and getattr(self, 'use_citrinet_gop', True):
+                self.load_citrinet_gop()
+            
+            if is_citrinet_engine and getattr(self, 'citrinet_gop', None) is not None and not self.citrinet_gop.use_mock:
+                # Bypass Vosk chunk-by-chunk decoding to use the real NPU Citrinet GOP pipeline.
+                # Falling through to the standard ASR (Whisper/SenseVoice) so self.texts is populated.
+                pass
+            else:
+                # Fallback to Vosk if Citrinet NPU is not available or running in mock or engine is vosk
+                try:
+                    self.load_vosk_model()
+                    from vosk import KaldiRecognizer
+                    import re
+                    
+                    grammar_list = [w.lower().replace("’", "'") for w in getattr(self, 'pronunciation_grammar', []) if w]
+                    grammar_list = [re.sub(r"[^\w']", "", w) for w in grammar_list]
+                    grammar_list = [w for w in grammar_list if w]
+                    
+                    if "[unk]" not in grammar_list:
+                        grammar_list.append("[unk]")
+                    
+                    grammar_json = json.dumps(grammar_list)
+                    rec = KaldiRecognizer(self.vosk_model, 16000, grammar_json)
+                    
+                    audio_int16 = (audio_float * 32767.0).astype(np.int16)
+                    rec.AcceptWaveform(audio_int16.tobytes())
+                    result_json = json.loads(rec.FinalResult())
+                    text = result_json.get("text", "")
+                    
+                    if self.verbose:
+                        print(f"[Vosk Pronunciation] Grammar: {grammar_json} -> Result: '{text}'")
+                    return text
+                except Exception as e:
+                    print(f"[Vosk Pronunciation] Error: {e}")
 
         if getattr(self, 'use_rknn', False):
             # ── RKNN path ─────────────────────────────────────────────────────

@@ -1,4 +1,23 @@
 import json
+import re
+
+def remove_trailing_questions(text: str) -> str:
+    """
+    If the text contains multiple sentences and the last sentence ends with a question mark,
+    removes that last sentence. Otherwise, if the whole text is a question, replaces it
+    with a default transition statement.
+    """
+    text = text.strip()
+    if not text:
+        return text
+    # Split on sentence boundaries (. ! ?) followed by whitespace or string end
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    while sentences and sentences[-1].strip().endswith('?'):
+        sentences.pop()
+    cleaned = " ".join(s.strip() for s in sentences if s.strip())
+    if not cleaned:
+        cleaned = "Let's move on to the next step."
+    return cleaned
 
 class InteractionManager:
     def __init__(self, conversation, strategy_catalog=None):
@@ -32,22 +51,23 @@ Keep your vocabulary simple, engaging, and age-appropriate."""
             user_prompt += f"{vision_context}\n\n"
 
         user_prompt += """Above is the interaction history between you and the student. I gave you this to understand the context.
-
+ 
 YOUR ROLE:
 1. Generate a response to briefly acknowledge and appreciate the student based on their response and move to the next step.
 2. Do not ask the student to do anything or speak anything. Just appreciate and acknowledge
 2. The response shouldn't have any questions or follow up questions or responses which ends with question mark.
-
+ 
 MANDATORY OUTPUT RULES of the response:
 - Reply with MAXIMUM ONE or TWO short sentences.
 - DO NOT use lists, bullet points, or paragraphs.
 - DO NOT ask follow up questions or responses which ends with QUESTION MARKS.
 - Speak naturally like you are talking out loud.
 - Include non-verbal actions in square brackets (e.g., [smile], [nod]).
-
+ 
 These are the output rules you must follow at any cost. You'll be rewarded if you follow these rules.
-
+ 
 Generate the response:"""
 
         response = self.conversation.get_response(system_prompt, user_prompt)
+        response = remove_trailing_questions(response)
         return response

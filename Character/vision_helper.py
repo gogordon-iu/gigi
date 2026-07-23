@@ -90,10 +90,10 @@ class FaceDatabase:
         
         if not self.known_encodings:
             print("[Face Recognition Debug] Database is empty. Face registered as new ID.")
-            return self.generate_face_id(), True
+            return self.generate_face_id(), True, "None", 1.0
         
-        best_name = None
-        min_distance = float('inf')
+        best_name = "None"
+        min_distance = 1.0
         matched_name = None
         is_recognized = False
         
@@ -101,7 +101,7 @@ class FaceDatabase:
             face_distances = face_recognition.face_distance(self.known_encodings, encoding)
             if len(face_distances) > 0:
                 best_match_idx = np.argmin(face_distances)
-                min_distance = face_distances[best_match_idx]
+                min_distance = float(face_distances[best_match_idx])
                 best_name = self.known_names[best_match_idx]
                 
                 print(f"[Face Recognition Debug] Closest database face: '{best_name}' with distance: {min_distance:.4f} (tolerance threshold: {tolerance})")
@@ -119,11 +119,11 @@ class FaceDatabase:
             print(f"[Face Recognition Debug] Error during face comparison: {e}")
             
         if is_recognized and matched_name:
-            return matched_name, False
+            return matched_name, False, best_name, min_distance
             
         new_id = self.generate_face_id()
         print(f"[Face Recognition Debug] Assigned new temporary ID: '{new_id}'")
-        return new_id, True
+        return new_id, True, best_name, min_distance
     
     def generate_face_id(self):
         return f"face_{random.randint(1000, 9999)}"
@@ -177,22 +177,25 @@ def face_recognition_worker(face_queue, result_queue, stop_event, face_db):
                 if face_crop.size == 0:
                     continue
                     
-                small_face = cv2.resize(face_crop, (0, 0), fx=0.5, fy=0.5)
-                face_crop_rgb = cv2.cvtColor(small_face, cv2.COLOR_BGR2RGB)
-                face_encodings = face_recognition.face_encodings(face_crop_rgb)
+                face_crop_rgb = cv2.cvtColor(face_crop, cv2.COLOR_BGR2RGB)
+                h_crop, w_crop = face_crop_rgb.shape[:2]
+                # Pass the crop bounding box as the known location to bypass HOG detector
+                face_location = [(0, w_crop, h_crop, 0)]
+                face_encodings = face_recognition.face_encodings(face_crop_rgb, face_location)
                 
                 if face_encodings:
                     encoding = face_encodings[0]
-                    name, is_new = face_db.recognize_face_once(encoding)
+                    name, is_new, closest_name, closest_dist = face_db.recognize_face_once(encoding)
                     
                     # if is_new and name.startswith("face_"):
                     #     face_db.save_face_to_db(name, encoding)
                     
-                    result_queue.put(('recognition', face_id, name, is_new, position_key, timestamp))
+                    result_queue.put(('recognition', face_id, name, is_new, position_key, timestamp, closest_name, closest_dist))
                 else:
-                    result_queue.put(('recognition', face_id, "Unknown", False, position_key, timestamp))
-            except:
-                result_queue.put(('recognition', face_id, "Unknown", False, position_key, timestamp))
+                    result_queue.put(('recognition', face_id, "Unknown", False, position_key, timestamp, "None", 1.0))
+            except Exception as e:
+                print(f"[Face Recognition Worker Error] {e}")
+                result_queue.put(('recognition', face_id, "Unknown", False, position_key, timestamp, "None", 1.0))
             
             face_queue.task_done()
         except Empty:
@@ -475,8 +478,8 @@ class MediaPipeInitializers:
                 static_image_mode=False,
                 max_num_faces=2,
                 refine_landmarks=False,
-                min_detection_confidence=0.7,
-                min_tracking_confidence=0.7
+                min_detection_confidence=0.4,
+                min_tracking_confidence=0.4
             )
             return face_mesh
         except Exception as e:
@@ -616,6 +619,23 @@ class VisionHelpers:
             offset_y = (h / 2.0 - face_data.get('y', 0)) / float(h)
             current_face_data['offset'] = [offset_x, offset_y]
             last_data[face_id_str]['offset'] = current_face_data['offset']
+            
+            # Copy all additional fields needed by diagnostic and receptionist scripts
+            last_data[face_id_str]['last_seen'] = face_data.get('last_seen', 0.0)
+            last_data[face_id_str]['closest_name'] = face_data.get('closest_name', 'None')
+            last_data[face_id_str]['closest_dist'] = face_data.get('closest_dist', 1.0)
+            last_data[face_id_str]['is_new'] = face_data.get('is_new', False)
+            last_data[face_id_str]['box'] = face_data.get('box', (0, 0, 0, 0))
+            last_data[face_id_str]['x'] = face_data.get('x', 0)
+            last_data[face_id_str]['y'] = face_data.get('y', 0)
+            
+            current_face_data['last_seen'] = last_data[face_id_str]['last_seen']
+            current_face_data['closest_name'] = last_data[face_id_str]['closest_name']
+            current_face_data['closest_dist'] = last_data[face_id_str]['closest_dist']
+            current_face_data['is_new'] = last_data[face_id_str]['is_new']
+            current_face_data['box'] = last_data[face_id_str]['box']
+            current_face_data['x'] = last_data[face_id_str]['x']
+            current_face_data['y'] = last_data[face_id_str]['y']
             
             current_data[face_id_str] = current_face_data
         

@@ -278,8 +278,15 @@ class Vision:
             try:
                 result = self.result_queue.get_nowait()
                 if result[0] == 'recognition':
-                    _, face_id, name, is_new, position_key, timestamp = result
+                    closest_name = "None"
+                    closest_dist = 1.0
+                    if len(result) == 8:
+                        _, face_id, name, is_new, position_key, timestamp, closest_name, closest_dist = result
+                    else:
+                        _, face_id, name, is_new, position_key, timestamp = result
                     self.face_cache.update_face_name(face_id, name, position_key)
+                    self.face_cache.update_face(face_id, 'closest_name', closest_name)
+                    self.face_cache.update_face(face_id, 'closest_dist', closest_dist)
                 elif result[0] == 'emotion':
                     _, face_id, emotion, timestamp = result
                     self.face_cache.update_face(face_id, 'emotion', emotion)
@@ -390,6 +397,14 @@ class Vision:
                 self.face_cache.cleanup_old_faces()
             
             vh.VisionHelpers.update_data_structure(self.face_cache, self.last_data, self.timestamped_data, w, h)
+            
+            gigi = getattr(self, 'gigi', None)
+            if gigi and self.running:
+                try:
+                    gigi.update_egocentric_locations()
+                except Exception as e:
+                    print(f"Error in automatic egocentric location update: {e}")
+                    
             return frame, self.get_last_data()
         except:
             return frame, self.get_last_data()

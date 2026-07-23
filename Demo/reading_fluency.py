@@ -241,10 +241,10 @@ def play_reading_fluency(show_karaoke=True):
             face_data={'guidance': theme_img} if theme_img else None
         )
 
-        # Stop initial vision thread so background tracker can manage its lifecycle cleanly
-        if gigi.vision:
-            gigi.vision.stop_vision()
-            time.sleep(0.5)
+        # Keep initial vision thread active to prevent camera restart race conditions
+        # if gigi.vision:
+        #     gigi.vision.stop_vision()
+        #     time.sleep(0.5)
 
         # Load selected passage and questions files
         passage_file = os.path.join(assets_dir, f"{selected_option}_passage.txt")
@@ -315,245 +315,257 @@ def play_reading_fluency(show_karaoke=True):
                 passage_words = active_words # check_fluency runs against active_words
                 word_states = active_states # check_fluency updates active_states
                 current_word_idx = 0
-                sentence_mistakes = []
                 
-                # Enable pronunciation verification mode for the active sentence
-                gigi.hearing.pronunciation_mode = True
-                # Start with the first 4 words of the sentence as grammar
-                gigi.hearing.pronunciation_grammar = active_words[:4]
+                while current_word_idx < len(active_words):
+                    sentence_mistakes = []
+                    
+                    # Enable pronunciation verification mode for the active sentence
+                    gigi.hearing.pronunciation_mode = True
+                    gigi.hearing.pronunciation_engine = 'citrinet'
+                    # Set pronunciation grammar to the entire active sentence so Vosk can recognize any word in it
+                    gigi.hearing.pronunciation_grammar = active_words
 
-                if show_karaoke and gigi.face:
-                    gigi.face.update_reading_fluency(
-                        active=True,
-                        passage_words=display_words,
-                        current_word_idx=current_word_idx,
-                        word_states=display_states,
-                        last_wrong_heard=None
-                    )
-                
-                # Dynamic callback to detect mistakes vs off-topic talking in real time
-                def check_fluency(text):
-                    nonlocal current_word_idx, word_states, sentence_mistakes
-                    words_heard = [w.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation)) for w in text.split()]
-                    words_heard = [w for w in words_heard if w]
-                    if not words_heard:
-                        return False
-                        
-                    local_word_states = ['unread'] * len(passage_words)
-                    local_sentence_mistakes = []
-                    p_idx = 0
-                    
-                    matched_count = 0
-                    unmatched_count = 0
-                    last_wrong = None
-                    
-                    # Define words we always auto-pass
-                    AUTO_PASS_WORDS = {
-                        "a", "an", "the", "and", "in", "on", "at", "to", "of", "for", "by", 
-                        "is", "it", "its", "it's", "as", "or", "if", "up", "so", "but", "with"
-                    }
-
-                    h_idx = 0
-                    while h_idx < len(words_heard):
-                        h_word = words_heard[h_idx]
-                        if h_word in fillers:
-                            h_idx += 1
-                            continue
-                        
-                        # Sliding window of 4 expected words starting at p_idx
-                        window_size = 4
-                        window = passage_words[p_idx : p_idx + window_size]
-                        found_match = False
-                        for offset, exp_word in enumerate(window):
-                            expected_clean = exp_word.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
-                            if is_match(h_word, expected_clean):
-                                # Mark skipped words as wrong, except small words in AUTO_PASS_WORDS
-                                for j in range(p_idx, p_idx + offset):
-                                    expected_skip = passage_words[j].lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
-                                    if expected_skip in AUTO_PASS_WORDS:
-                                        local_word_states[j] = 'correct'
-                                    else:
-                                        local_word_states[j] = 'wrong'
-                                        local_sentence_mistakes.append({
-                                            "sentence": active_sentence,
-                                            "expected": passage_words[j],
-                                            "heard": "[skipped]"
-                                        })
-                                # Mark matched word as correct
-                                local_word_states[p_idx + offset] = 'correct'
-                                p_idx = p_idx + offset + 1
-                                matched_count += 1
-                                found_match = True
-                                break
-                                
-                        if found_match:
-                            h_idx += 1
-                        else:
-                            # If the current expected word is in AUTO_PASS_WORDS, we auto-pass it
-                            if p_idx < len(passage_words):
-                                expected_clean = passage_words[p_idx].lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
-                                if expected_clean in AUTO_PASS_WORDS:
-                                    local_word_states[p_idx] = 'correct'
-                                    p_idx += 1
-                                    # Do not increment h_idx, so we try to match h_word again!
-                                    continue
-                                else:
-                                    local_word_states[p_idx] = 'wrong'
-                                    local_sentence_mistakes.append({
-                                        "sentence": active_sentence,
-                                        "expected": passage_words[p_idx],
-                                        "heard": h_word
-                                    })
-                                    last_wrong = {"heard": h_word, "expected": passage_words[p_idx]}
-                                    p_idx += 1
-                            unmatched_count += 1
-                            h_idx += 1
-                            
-                    # Update grammar window based on our current matching position p_idx
-                    current_word_idx = p_idx
-                    next_grammar = active_words[current_word_idx : current_word_idx + 4]
-                    if next_grammar:
-                        gigi.hearing.pronunciation_grammar = next_grammar
-                    
-                    # Also update word_states and sentence_mistakes nonlocal variables
-                    word_states = local_word_states
-                    sentence_mistakes = local_sentence_mistakes
-                    
-                    # Determine if finished or talking off-topic
-                    is_talking = (matched_count == 0) or (unmatched_count >= 3 and matched_count < unmatched_count)
-                    
-                    if not is_talking:
-                        if show_karaoke and gigi.face:
-                            local_display_states = word_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else word_states
-                            gigi.face.update_reading_fluency(
-                                active=True,
-                                passage_words=display_words,
-                                current_word_idx=current_word_idx,
-                                word_states=local_display_states,
-                                last_wrong_heard=last_wrong
-                            )
-                        # We are done when we have processed/matched all words in the sentence
-                        return current_word_idx >= len(passage_words)
-                    return False
-
-                print(f"Listening to sentence {current_sentence_idx}...")
-                gigi.listen_fluid(timeout=30, n_transcripts=1, check_callback=check_fluency, run_speaker_recognition=False)
-                
-                # Append sentence mistakes to the main list
-                reading_mistakes.extend(sentence_mistakes)
-                gigi.log_variable("reading_mistakes", reading_mistakes)
-                
-                # Make sure the UI has the final state displayed
-                if show_karaoke and gigi.face:
-                    local_display_states = word_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else word_states
-                    gigi.face.update_reading_fluency(
-                        active=True,
-                        passage_words=display_words,
-                        current_word_idx=current_word_idx,
-                        word_states=local_display_states,
-                        last_wrong_heard=None
-                    )
-                
-                print(f"[Reading Fluency] Finished sentence {current_sentence_idx} successfully. Beginning review of mistakes.")
-                
-                # Disable pronunciation mode temporarily
-                gigi.hearing.pronunciation_mode = False
-                
-                # Check for mistakes in the read sentence
-                mistake_indices = [i for i, state in enumerate(word_states) if state == 'wrong']
-                if mistake_indices:
-                    # Select the longest word with the most syllables
-                    def get_mistake_score(idx):
-                        w = passage_words[idx]
-                        return count_syllables(w) * 1000 + len(w)
-                    
-                    selected_idx = max(mistake_indices, key=get_mistake_score)
-                    selected_word = passage_words[selected_idx]
-                    
-                    print(f"[Sentence Review] Selected mistake for review: '{selected_word}' at index {selected_idx}")
-                    
-                    # Light up the selected word (mark it wrong, others correct/unread)
-                    temp_states = ['correct'] * len(passage_words)
-                    temp_states[selected_idx] = 'wrong'
-                    temp_display_states = temp_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else temp_states
-                    
                     if show_karaoke and gigi.face:
+                        local_display_states = word_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else word_states
                         gigi.face.update_reading_fluency(
                             active=True,
                             passage_words=display_words,
-                            current_word_idx=selected_idx,
-                            word_states=temp_display_states,
+                            current_word_idx=current_word_idx,
+                            word_states=local_display_states,
                             last_wrong_heard=None
                         )
                     
-                    # Switch to pronunciation verification mode for this specific word
-                    gigi.hearing.pronunciation_mode = True
-                    gigi.hearing.pronunciation_grammar = [selected_word]
-                    
-                    review_prompts = [
-                        "Can you try saying the highlighted word one more time?",
-                        "Let's try that highlighted word again! Can you read it for me?",
-                        "How do we say this highlighted word? Can you read it again?",
-                        "I want to make sure I heard you correctly. Could you say that word again?",
-                        "Let's practice this highlighted one. Can you say it one more time?",
-                        "How does the highlighted word sound? Can you read it again?",
-                        "Let's take another look at the highlighted word. Can you say it?",
-                        "Can you give the highlighted word another try?",
-                        "I missed the highlighted word. Could you read it again?",
-                        "Let's try to fix the highlighted word. Can you say it one more time?",
-                        "Could you say the highlighted word again for me?",
-                        "Let's give the highlighted word another go. Can you read it?",
-                        "Let's try pronouncing the highlighted word again. What does it say?",
-                        "Can we try the highlighted word one more time? Say it.",
-                        "I'd love to hear you say the highlighted word again. Can you try?",
-                        "Let's double-check the highlighted word. Can you read it one more time?",
-                        "Let's practice saying the highlighted word. Can you try it?",
-                        "Can you try reading the highlighted word again for me?",
-                        "Let's give the highlighted word another shot. Can you say it?",
-                        "Could you try to read the highlighted word one more time?"
-                    ]
-                    prompt = random.choice(review_prompts)
-                    gigi.run_character(
-                        viseme_data={'text': prompt, 'file': None},
-                        movement_data='open_close_arms'
-                    )
-                    
-                    success = False
-                    if gigi.hearing:
-                        gigi.hearing.texts = []
-                        gigi.listen_backchannel(timeout=8)
+                    # Dynamic callback to detect mistakes vs off-topic talking in real time
+                    def check_fluency(text):
+                        nonlocal current_word_idx, word_states, sentence_mistakes
+                        words_heard = [w.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation)) for w in text.split()]
+                        words_heard = [w for w in words_heard if w]
+                        if not words_heard:
+                            return False
+                            
+                        local_word_states = list(word_states)
+                        local_sentence_mistakes = []
+                        p_idx = current_word_idx
                         
-                        corrected_text = " ".join(gigi.hearing.texts).strip()
-                        corrected_words = [w.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation)) for w in corrected_text.split()]
-                        corrected_words = [w for w in corrected_words if w]
+                        matched_count = 0
+                        unmatched_count = 0
+                        last_wrong = None
                         
-                        expected_clean = selected_word.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
-                        for cw in corrected_words:
-                            if is_match(cw, expected_clean):
-                                success = True
-                                break
+                        # Define words we always auto-pass
+                        AUTO_PASS_WORDS = {
+                            "a", "an", "the", "and", "in", "on", "at", "to", "of", "for", "by", 
+                            "is", "it", "its", "it's", "as", "or", "if", "up", "so", "but", "with"
+                        }
+
+                        h_idx = 0
+                        while h_idx < len(words_heard):
+                            h_word = words_heard[h_idx]
+                            if h_word in fillers:
+                                h_idx += 1
+                                continue
+                            
+                            # Sliding window of 4 expected words starting at p_idx
+                            window_size = 4
+                            window = passage_words[p_idx : p_idx + window_size]
+                            found_match = False
+                            for offset, exp_word in enumerate(window):
+                                expected_clean = exp_word.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
+                                if is_match(h_word, expected_clean):
+                                    # Mark skipped words as wrong, except small words in AUTO_PASS_WORDS
+                                    for j in range(p_idx, p_idx + offset):
+                                        expected_skip = passage_words[j].lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
+                                        if expected_skip in AUTO_PASS_WORDS:
+                                            local_word_states[j] = 'correct'
+                                        else:
+                                            local_word_states[j] = 'wrong'
+                                            local_sentence_mistakes.append({
+                                                "expected": passage_words[j],
+                                                "heard": "[skipped]",
+                                                "index": j
+                                            })
+                                    # Mark matched word as correct
+                                    local_word_states[p_idx + offset] = 'correct'
+                                    p_idx = p_idx + offset + 1
+                                    matched_count += 1
+                                    found_match = True
+                                    break
+                                    
+                            if found_match:
+                                h_idx += 1
+                            else:
+                                # If the current expected word is in AUTO_PASS_WORDS, we auto-pass it
+                                if p_idx < len(passage_words):
+                                    expected_clean = passage_words[p_idx].lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
+                                    if expected_clean in AUTO_PASS_WORDS:
+                                        local_word_states[p_idx] = 'correct'
+                                        p_idx += 1
+                                        # Do not increment h_idx, so we try to match h_word again!
+                                        continue
+                                    else:
+                                        local_word_states[p_idx] = 'wrong'
+                                        local_sentence_mistakes.append({
+                                            "expected": passage_words[p_idx],
+                                            "heard": h_word,
+                                            "index": p_idx
+                                        })
+                                        last_wrong = {"heard": h_word, "expected": passage_words[p_idx]}
+                                        p_idx += 1
+                                unmatched_count += 1
+                                h_idx += 1
                                 
-                    if success:
-                        word_states[selected_idx] = 'correct'
-                        affirmations = [
-                            "You got it! Great job!",
-                            "Perfect! You solved it!",
-                            "Awesome job! That is correct!",
-                            "Yes, that's it! Wonderful!"
-                        ]
-                        affirmation = random.choice(affirmations)
-                        gigi.run_character(
-                            viseme_data={'text': affirmation, 'file': None},
-                            face_data={'sequence': 'smile'}
-                        )
-                    else:
-                        word_states[selected_idx] = 'correct'
-                        gigi.run_character(
-                            viseme_data={'text': f"The word is {selected_word}.", 'file': None}
-                        )
+                        # Update nonlocal variables
+                        word_states = local_word_states
+                        sentence_mistakes = local_sentence_mistakes
+                        
+                        # Determine if finished or talking off-topic
+                        is_talking = (matched_count == 0) or (unmatched_count >= 3 and matched_count < unmatched_count)
+                        
+                        if not is_talking:
+                            if show_karaoke and gigi.face:
+                                local_display_states = word_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else word_states
+                                gigi.face.update_reading_fluency(
+                                    active=True,
+                                    passage_words=display_words,
+                                    current_word_idx=p_idx,
+                                    word_states=local_display_states,
+                                    last_wrong_heard=last_wrong
+                                )
+                            # Stop immediately if there's any mistake OR if we finished the sentence
+                            return unmatched_count >= 1 or p_idx >= len(passage_words)
+                        return False
+
+                    print(f"Listening to sentence starting at word index {current_word_idx}...")
+                    gigi.listen_fluid(timeout=30, n_transcripts=1, check_callback=check_fluency, run_speaker_recognition=False, show_camera_feed=False)
                     
-                    # Disable pronunciation mode after review
-                    gigi.hearing.pronunciation_mode = False
+                    # Inspect results after fluid listening returns
+                    if sentence_mistakes:
+                        first_mistake = sentence_mistakes[0]
+                        selected_word = first_mistake["expected"]
+                        selected_idx = first_mistake["index"]
+                        
+                        print(f"[Word Correct] Immediate correction for: '{selected_word}' at index {selected_idx}")
+                        
+                        # Log mistake details
+                        reading_mistakes.append({
+                            "sentence": active_sentence,
+                            "expected": selected_word,
+                            "heard": first_mistake["heard"]
+                        })
+                        gigi.log_variable("reading_mistakes", reading_mistakes)
+                        
+                        # Light up the selected word (mark it wrong, others correct/unread)
+                        temp_states = list(word_states)
+                        temp_states[selected_idx] = 'wrong'
+                        temp_display_states = temp_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else temp_states
+                        
+                        if show_karaoke and gigi.face:
+                            gigi.face.update_reading_fluency(
+                                active=True,
+                                passage_words=display_words,
+                                current_word_idx=selected_idx,
+                                word_states=temp_display_states,
+                                last_wrong_heard=None
+                            )
+                        
+                        # Switch to pronunciation verification mode for this specific word
+                        gigi.hearing.pronunciation_mode = True
+                        gigi.hearing.pronunciation_engine = 'citrinet'
+                        gigi.hearing.pronunciation_grammar = [selected_word]
+                        
+                        review_prompts = [
+                            "Can you try saying the highlighted word one more time?",
+                            "Let's try that highlighted word again! Can you read it for me?",
+                            "How do we say this highlighted word? Can you read it again?",
+                            "I want to make sure I heard you correctly. Could you say that word again?",
+                            "Let's practice this highlighted one. Can you say it one more time?",
+                            "How does the highlighted word sound? Can you read it again?",
+                            "Let's take another look at the highlighted word. Can you say it?",
+                            "Can you give the highlighted word another try?",
+                            "I missed the highlighted word. Could you read it again?",
+                            "Let's try to fix the highlighted word. Can you say it one more time?",
+                            "Could you say the highlighted word again for me?",
+                            "Let's give the highlighted word another go. Can you read it?",
+                            "Let's try pronouncing the highlighted word again. What does it say?",
+                            "Can we try the highlighted word one more time? Say it.",
+                            "I'd love to hear you say the highlighted word again. Can you try?",
+                            "Let's double-check the highlighted word. Can you read it one more time?",
+                            "Let's practice saying the highlighted word. Can you try it?",
+                            "Can you try reading the highlighted word again for me?",
+                            "Let's give the highlighted word another shot. Can you say it?",
+                            "Could you try to read the highlighted word one more time?"
+                        ]
+                        prompt = random.choice(review_prompts)
+                        gigi.run_character(
+                            viseme_data={'text': prompt, 'file': None},
+                            movement_data='open_close_arms'
+                        )
+                        
+                        success = False
+                        if gigi.hearing:
+                            gigi.hearing.texts = []
+                            gigi.listen_backchannel(timeout=8, show_camera_feed=False)
+                            
+                            corrected_text = " ".join(gigi.hearing.texts).strip()
+                            corrected_words = [w.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation)) for w in corrected_text.split()]
+                            corrected_words = [w for w in corrected_words if w]
+                            
+                            expected_clean = selected_word.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
+                            for cw in corrected_words:
+                                if is_match(cw, expected_clean):
+                                    success = True
+                                    break
+                                    
+                            # Incorporate SOTA Citrinet-GOP scoring from NPU/Numpy
+                            raw_audio = gigi.hearing.get_full_audio()
+                            if raw_audio is not None and getattr(gigi.hearing, 'citrinet_gop', None) is not None:
+                                gop_score = gigi.hearing.citrinet_gop.calculate_gop(raw_audio, expected_clean, transcription=corrected_text)
+                                print(f"[Citrinet GOP] Word: '{expected_clean}' -> GOP Score: {gop_score:.2f}")
+                                if gop_score >= 50.0:
+                                    success = True
+                                    
+                        if success:
+                            # Corrected! Reset the entire sentence so they read it again
+                            word_states = ['unread'] * len(active_words)
+                            current_word_idx = 0
+                            
+                            affirmations = [
+                                "You got it! Great job!",
+                                "Perfect! You solved it!",
+                                "Awesome job! That is correct!",
+                                "Yes, that's it! Wonderful!"
+                            ]
+                            affirmation = random.choice(affirmations)
+                            gigi.run_character(
+                                viseme_data={'text': f"{affirmation} Now, please read the sentence again from the beginning.", 'file': None},
+                                face_data={'sequence': 'smile'}
+                            )
+                            time.sleep(0.5)
+                        else:
+                            # Not corrected, tell them the word and move past
+                            word_states[selected_idx] = 'correct'
+                            current_word_idx = selected_idx + 1
+                            
+                            if show_karaoke and gigi.face:
+                                local_display_states = word_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else word_states
+                                gigi.face.update_reading_fluency(
+                                    active=True,
+                                    passage_words=display_words,
+                                    current_word_idx=current_word_idx,
+                                    word_states=local_display_states,
+                                    last_wrong_heard=None
+                                )
+                            
+                            gigi.run_character(
+                                viseme_data={'text': f"The word is {selected_word}. Let's keep reading!", 'file': None}
+                            )
+                            time.sleep(0.5)
+                            
+                        # Disable pronunciation mode after review
+                        gigi.hearing.pronunciation_mode = False
+                        gigi.hearing.pronunciation_engine = 'vosk'
+                    else:
+                        # Completed sentence without mistakes
+                        current_word_idx = len(active_words)
                 
                 # Make sure all words are marked correct when moving to the next sentence
                 for j in range(len(word_states)):
@@ -575,6 +587,9 @@ def play_reading_fluency(show_karaoke=True):
                     gigi.face.guidance = theme_img
                 else:
                     gigi.face.guidance = None
+            
+            gigi.hearing.pronunciation_mode = False
+            gigi.hearing.pronunciation_engine = 'vosk'
         else:
             print("Hearing module is not enabled. Simulating reading time...")
             if show_karaoke and gigi.face:
@@ -616,7 +631,7 @@ def play_reading_fluency(show_karaoke=True):
                 gigi.face.set_reading_status("listening")
                 
                 gigi.hearing.texts = []
-                gigi.listen_backchannel(timeout=10)
+                gigi.listen_backchannel(timeout=10, show_camera_feed=False)
                 
                 gigi.face.set_reading_status("idle")
                 

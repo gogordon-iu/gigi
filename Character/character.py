@@ -173,30 +173,31 @@ class Character():
         from characterDefinitions import USE_NPU_SPEAKER
         self.use_npu_speaker = USE_NPU_SPEAKER
         
-        try:
+        if HAS_HEARING:
             try:
-                from Character.make_friends import SpeakerDatabase
-            except ImportError:
-                from make_friends import SpeakerDatabase
-            db_path = CHARACTER_FOLDER + "../Resources/speaker_db.pkl"
-            self.speaker_db = SpeakerDatabase(db_path=db_path)
-            
-            if self.use_npu_speaker:
                 try:
-                    self.voice_encoder = VoiceEncoderRKNN()
-                    print("[OK] NPU-accelerated Speaker Recognition VoiceEncoder initialized.")
-                except Exception as npu_err:
-                    print(f"Warning: Failed to load NPU speaker encoder ({npu_err}). Falling back to CPU.")
-                    self.use_npu_speaker = False
-            
-            if not self.use_npu_speaker:
-                from resemblyzer import VoiceEncoder
-                print("Loading CPU speaker recognition model in Character...")
-                self.voice_encoder = VoiceEncoder()
-                print("[OK] CPU Speaker recognition components initialized.")
+                    from Character.make_friends import SpeakerDatabase
+                except ImportError:
+                    from make_friends import SpeakerDatabase
+                db_path = CHARACTER_FOLDER + "../Resources/speaker_db.pkl"
+                self.speaker_db = SpeakerDatabase(db_path=db_path)
                 
-        except Exception as e:
-            print(f"Warning: Could not load speaker recognition: {e}")
+                if self.use_npu_speaker:
+                    try:
+                        self.voice_encoder = VoiceEncoderRKNN()
+                        print("[OK] NPU-accelerated Speaker Recognition VoiceEncoder initialized.")
+                    except Exception as npu_err:
+                        print(f"Warning: Failed to load NPU speaker encoder ({npu_err}). Falling back to CPU.")
+                        self.use_npu_speaker = False
+                
+                if not self.use_npu_speaker:
+                    from resemblyzer import VoiceEncoder
+                    print("Loading CPU speaker recognition model in Character...")
+                    self.voice_encoder = VoiceEncoder()
+                    print("[OK] CPU Speaker recognition components initialized.")
+                    
+            except Exception as e:
+                print(f"Warning: Could not load speaker recognition: {e}")
 
         time.sleep(1)       # wait for all the initializations to complete
         print("Done initializing character!")
@@ -1056,6 +1057,8 @@ class Character():
         Scans current face tracking data, and if any recognized face is present,
         updates the persistent egocentric location database with their room angle.
         Also triggers logging and records visual events.
+        
+        Includes I/O throttling to prevent constant disk writes.
         """
         if not self.vision:
             return
@@ -1082,12 +1085,35 @@ class Character():
                         "timestamp": time.time()
                     }
                     updated = True
+        
         if updated:
-            try:
-                with open(CHARACTER_FOLDER + "egocentric_locations.json", "w") as f:
-                    json.dump(self.egocentric_db, f, indent=4)
-            except Exception as e:
-                print(f"Error saving egocentric locations: {e}")
+            current_time = time.time()
+            should_save = False
+            
+            if not hasattr(self, '_last_written_db'):
+                self._last_written_db = {}
+                self._last_egocentric_write_time = 0.0
+                
+            for name, entry in self.egocentric_db.items():
+                if name not in self._last_written_db:
+                    should_save = True
+                    break
+                prev_entry = self._last_written_db[name]
+                if abs(entry["angle"] - prev_entry["angle"]) > 0.03:
+                    should_save = True
+                    break
+                    
+            if current_time - self._last_egocentric_write_time > 2.0:
+                should_save = True
+                
+            if should_save:
+                try:
+                    self._last_written_db = {k: v.copy() for k, v in self.egocentric_db.items()}
+                    self._last_egocentric_write_time = current_time
+                    with open(CHARACTER_FOLDER + "egocentric_locations.json", "w") as f:
+                        json.dump(self.egocentric_db, f, indent=4)
+                except Exception as e:
+                    print(f"Error saving egocentric locations: {e}")
 
     def log_user_name(self, name):
         """Initializes logging session when user name is resolved/recognized."""
@@ -1109,20 +1135,16 @@ class Character():
         Looks up a person by name in the egocentric database, and moves the robot's
         gaze (neck and torso) to look at their last known physical location.
         """
-        # First, check if there is an active face detected in the camera right now.
-        # If so, look at the actively detected face instead of the stale database angle!
+        # First, check if there is an active face detected in the camera right now with the matching name.
         if self.vision and self.vision.running:
             last_data = self.vision.get_last_data()
-            if len(last_data) > 0:
-                # Get the detected face (try matching by name, or fallback to first one)
-                face_info = None
-                for f_info in last_data.values():
-                    if f_info.get('name', 'Unknown') == name:
-                        face_info = f_info
-                        break
-                if face_info is None:
-                    face_info = next(iter(last_data.values()))
-                
+            face_info = None
+            for f_info in last_data.values():
+                if f_info.get('name', 'Unknown') == name:
+                    face_info = f_info
+                    break
+            
+            if face_info is not None:
                 offset_x = face_info.get('offset', [0.0, 0.0])[0]
                 target_angle = self.lookat_coordinate(offset=offset_x, verbose=False)
                 print(f"Looking at '{name}' using active camera detection (offset={offset_x:.3f}, target_angle={target_angle:.3f})")
@@ -1136,14 +1158,26 @@ class Character():
                 self.update_egocentric_locations()
                 return True
 
+        # Fallback to database lookup if person is not currently in camera frame
         if name in self.egocentric_db:
             target_angle = self.egocentric_db[name]["angle"]
             print(f"Looking at '{name}' at last known egocentric location: {target_angle:.3f}")
             self.lookat_behavior(target_coor=target_angle)
             return True
-        else:
-            print(f"Person '{name}' not found in egocentric database.")
-            return False
+            
+        # Last resort fallback if name is not in database, but there is ANY active face detected
+        if self.vision and self.vision.running:
+            last_data = self.vision.get_last_data()
+            if len(last_data) > 0:
+                face_info = next(iter(last_data.values()))
+                offset_x = face_info.get('offset', [0.0, 0.0])[0]
+                target_angle = self.lookat_coordinate(offset=offset_x, verbose=False)
+                print(f"Looking at fallback face (offset={offset_x:.3f}, target_angle={target_angle:.3f})")
+                self.lookat_behavior(target_coor=target_angle)
+                return True
+
+        print(f"Person '{name}' not found and no active fallback face seen.")
+        return False
 
     def conversational_turn(self, file):
         if self.viseme:

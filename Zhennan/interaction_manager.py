@@ -2,6 +2,24 @@ import json
 import re
 from strategy_catalog import StrategyCatalog
 
+def remove_trailing_questions(text: str) -> str:
+    """
+    If the text contains multiple sentences and the last sentence ends with a question mark,
+    removes that last sentence. Otherwise, if the whole text is a question, replaces it
+    with a default transition statement.
+    """
+    text = text.strip()
+    if not text:
+        return text
+    # Split on sentence boundaries (. ! ?) followed by whitespace or string end
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    while sentences and sentences[-1].strip().endswith('?'):
+        sentences.pop()
+    cleaned = " ".join(s.strip() for s in sentences if s.strip())
+    if not cleaned:
+        cleaned = "Let's move on to the next step."
+    return cleaned
+
 class InteractionManager:
     def __init__(self, conversation, strategy_catalog: StrategyCatalog):
         """
@@ -56,4 +74,20 @@ MANDATORY OUTPUT RULES:
 
         # The conversation.get_response method handles RAG retrieval and sentence truncation internally.
         response = self.conversation.get_response(system_prompt, user_prompt)
+        
+        # Strip trailing questions if the response transitions to the next step
+        next_step_match = re.search(r"\[NEXT[ _]STEP\]", response, re.IGNORECASE)
+        if next_step_match:
+            pre_text = response[:next_step_match.start()].strip()
+            tag = next_step_match.group(0)
+            post_text = response[next_step_match.end():].strip()
+            
+            cleaned_pre = remove_trailing_questions(pre_text)
+            response = f"{cleaned_pre} {tag}"
+            if post_text:
+                cleaned_post = remove_trailing_questions(post_text)
+                if cleaned_post:
+                    response = f"{cleaned_pre} {tag} {cleaned_post}"
+            response = response.strip()
+            
         return response
