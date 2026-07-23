@@ -650,6 +650,10 @@ def save_plan_images(plan, plan_dir, images_dict):
             except Exception as e:
                 print(f"[BluetoothListener] Error saving open step image: {e}")
                 
+        # Clean image_url if it contains base64 string
+        if "image_url" in step and isinstance(step["image_url"], str) and step["image_url"].startswith("data:"):
+            step["image_url"] = step.get("image_path", step.get("image_filename", ""))
+
         # Sub-steps check (Canned steps)
         for sub_step in step.get("sub_steps", []):
             facial = sub_step.get("facial", "")
@@ -674,6 +678,10 @@ def save_plan_images(plan, plan_dir, images_dict):
                     sub_step["image_path"] = f"images/{filename}"
                 except Exception as e:
                     print(f"[BluetoothListener] Error saving sub_step image: {e}")
+
+            # Clean image_url in sub_step if it contains base64 string
+            if "image_url" in sub_step and isinstance(sub_step["image_url"], str) and sub_step["image_url"].startswith("data:"):
+                sub_step["image_url"] = sub_step.get("image_path", sub_step.get("image_filename", ""))
 
 def process_command_line(line):
     # Try to parse line as JSON command first
