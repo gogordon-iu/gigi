@@ -30,9 +30,6 @@ class InteractionManager:
         """
         Generates a single acknowledgment and then moves to the next step.
         """
-        # Create a cleaned version of the step without the fields we don't want the LLM to see
-        clean_step = {k: v for k, v in step.items() if k not in ["goal", "closing_condition", "suggested_topics"]}
-
         # Keep last 6 turns for context
         history_lines = []
         for e in history[-6:]:
@@ -40,41 +37,26 @@ class InteractionManager:
             history_lines.append(f"{role}: {e['content']}")
         history_str = "\n".join(history_lines)
 
-        system_prompt = f"""You are Gigi, a friendly educational robot talking to a 3rd grade student (8-9 years old).
-Speak in the first person ("I", "my", "we"). You are the speaker.
-CRITICAL PERSONALITY RULES:
-- Never address yourself by name ("Gigi"). Do NOT start your response with "Gigi, ..." or mention "Gigi" as a separate person.
-- Respond directly and warmly in the first person to what the student just said (e.g. "I love looking at trees too!").
-- Keep your vocabulary simple, engaging, and age-appropriate.
+        # Extract a short description of the current topic to guide the transition
+        topic_desc = step.get("image_prompt", "")
+        if len(topic_desc) > 80:
+            topic_desc = topic_desc[:77] + "..."
 
-CURRENT STEP DETAILS:
-{json.dumps(clean_step, indent=2)}"""
+        system_prompt = f"""You are Gigi, a friendly educational robot talking to an 8-year-old student.
+Speak in the first person ("I", "my"). You are the speaker.
+RULES:
+1. Never say the name "Gigi" or refer to yourself by name.
+2. Reply directly to the student's last message in 1 warm sentence (no question marks).
+3. Transition naturally towards the next step: {topic_desc}"""
 
-        user_prompt = f"""Recent Interaction History:
+        user_prompt = f"""Recent History:
 {history_str}
 
 """
         if vision_context:
             user_prompt += f"{vision_context}\n\n"
 
-        user_prompt += """Above is the interaction history between you and the student. I gave you this to understand the context.
- 
-YOUR ROLE:
-1. Respond to what the student just said in the first person, acknowledging and appreciating their thoughts (e.g., "I think that's a wonderful idea!").
-2. Connect your response smoothly to a continuation towards the next step/topic described in the CURRENT STEP DETAILS.
-3. Do not ask the student to do anything or speak anything. Just appreciate and transition.
-4. The response must not have any questions or end with a question mark.
- 
-MANDATORY OUTPUT RULES of the response:
-- Reply with MAXIMUM ONE or TWO short sentences.
-- DO NOT use lists, bullet points, or paragraphs.
-- DO NOT ask follow up questions or responses which ends with QUESTION MARKS.
-- Speak naturally like you are talking out loud.
-- Include non-verbal actions in square brackets (e.g., [smile], [nod]).
- 
-These are the output rules you must follow at any cost. You'll be rewarded if you follow these rules.
- 
-Generate the response:"""
+        user_prompt += "Generate Robot Response:"
 
         response = self.conversation.get_response(system_prompt, user_prompt)
         response = remove_trailing_questions(response)

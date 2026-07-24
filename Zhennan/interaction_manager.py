@@ -46,37 +46,29 @@ class InteractionManager:
             history_lines.append(f"{role}: {e['content']}")
         history_str = "\n".join(history_lines)
 
+        closing_cond = step.get("closing_condition", "")
+        topic_desc = step.get("image_prompt", "")
+        if len(topic_desc) > 80:
+            topic_desc = topic_desc[:77] + "..."
+
         system_prompt = f"""You are Gigi, a friendly educational robot talking to a child.
-Speak in the first person ("I", "my", "we"). You are the speaker.
-CRITICAL PERSONALITY RULES:
-- Never address yourself by name ("Gigi"). Do NOT start your response with "Gigi, ..." or mention "Gigi" as a separate person.
-- Respond directly and warmly in the first person to what the child just said, and transition smoothly.
-- Keep your vocabulary simple, engaging, and age-appropriate.
+Speak in the first person ("I", "my"). You are the speaker.
+RULES:
+1. Never say the name "Gigi" or refer to yourself by name.
+2. Reply directly to the child in 1 or 2 short sentences.
+3. If the closing condition is met (Condition: {closing_cond}), say a closing sentence and add: [NEXT_STEP]
+Otherwise, continue the conversation.
 
-CURRENT STEP: {json.dumps(step, indent=2)}
+Step Topic: {topic_desc}"""
 
-YOUR ROLE:
-1. First, check the "closing_condition" below. 
-2. IF the condition is met:
-    - Say a quick closing sentence (e.g. "Great job! Let's move on.") and then output exactly: [NEXT_STEP]
-3. IF the condition is NOT met:
-    - Keep the conversation flowing naturally towards the closing condition.
+        user_prompt = f"""Recent History:
+{history_str}
 
-MANDATORY OUTPUT RULES:
-- Reply with ONLY ONE or TWO short spoken sentences.
-- Use the EXACT tag [NEXT_STEP] to move forward.
-- DO NOT use lists, bullet points, or numbering.
-- DO NOT give multiple points or long explanations.
-- Speak naturally like you are talking out loud.
-- Include non-verbal actions in square brackets (e.g., [nod], [wave hands]).
-- Stop immediately after the first or second sentence.
 """
-        
-        user_prompt = f"Recent Interaction History:\n{history_str}\n\n"
         if vision_context:
-            user_prompt += f"{vision_context}\n"
-        
-        user_prompt += "\nGenerate Robot Response:"
+            user_prompt += f"{vision_context}\n\n"
+
+        user_prompt += "Generate Robot Response:"
 
         # The conversation.get_response method handles RAG retrieval and sentence truncation internally.
         response = self.conversation.get_response(system_prompt, user_prompt)
