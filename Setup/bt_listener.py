@@ -683,6 +683,69 @@ def save_plan_images(plan, plan_dir, images_dict):
             if "image_url" in sub_step and isinstance(sub_step["image_url"], str) and sub_step["image_url"].startswith("data:"):
                 sub_step["image_url"] = sub_step.get("image_path", sub_step.get("image_filename", ""))
 
+def pregenerate_activity_speech(plan_data, activity_folder):
+    try:
+        print(f"[SpeechPregen] Extracting text to pregenerate for activity '{activity_folder}'...")
+        texts_to_generate = []
+        steps = plan_data.get("steps", plan_data.get("phases", []))
+        for step in steps:
+            # 1. Traversal for step's text/sub_steps
+            sub_steps = step.get("sub_steps", [])
+            for sub in sub_steps:
+                if isinstance(sub, dict) and "text" in sub:
+                    txt = sub["text"].strip()
+                    if txt:
+                        texts_to_generate.append(txt)
+            if "text" in step and isinstance(step["text"], str):
+                txt = step["text"].strip()
+                if txt:
+                    texts_to_generate.append(txt)
+
+        if not texts_to_generate:
+            print("[SpeechPregen] No static texts found in plan steps.")
+            return
+
+        print(f"[SpeechPregen] Found {len(texts_to_generate)} texts to pregenerate.")
+        
+        # Import speech engine
+        import sys
+        import os
+        import re
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        char_dir = os.path.join(base_dir, "Character")
+        if char_dir not in sys.path:
+            sys.path.insert(0, char_dir)
+            
+        from speech import Speech
+        
+        # Initialize Speech for this specific activity
+        # This will create the activity's speech directory automatically
+        print("[SpeechPregen] Initializing Speech engine...")
+        speech_engine = Speech(activity=activity_folder)
+        
+        # Generate speech for each text
+        for txt in texts_to_generate:
+            try:
+                # Strip square bracket tags (e.g. [smile]) and clean spaces
+                clean_txt = re.sub(r'\[.*?\]', '', txt).strip()
+                clean_txt = re.sub(r'\s+', ' ', clean_txt)
+                sentences = re.split(r'(?<=[.!?])\s+', clean_txt)
+                for sentence in sentences:
+                    sentence = sentence.strip()
+                    if sentence:
+                        print(f"[SpeechPregen] Generating: '{sentence[:30]}...'")
+                        speech_engine.update_audio_objects(text=sentence)
+            except Exception as gen_err:
+                print(f"[SpeechPregen] Error generating speech for '{txt[:30]}': {gen_err}")
+                
+        # Clean up to free memory
+        del speech_engine
+        import gc
+        gc.collect()
+        print("[SpeechPregen] Speech pregeneration complete. Memory cleaned up.")
+    except Exception as e:
+        print(f"[SpeechPregen] Failed to pregenerate speech: {e}")
+
 def process_command_line(line):
     # Try to parse line as JSON command first
     command = None
@@ -819,6 +882,14 @@ def process_command_line(line):
                 
             with open(plan_file, "w", encoding="utf-8") as f:
                 json.dump(plan_data, f, indent=2)
+                
+            # Pre-generate speech audio files in the background to avoid delay during runtime
+            pregen_thread = threading.Thread(
+                target=pregenerate_activity_speech,
+                args=(plan_data, folder_name),
+                daemon=True
+            )
+            pregen_thread.start()
                 
             send_to_active_client({
                 "status": "success",
