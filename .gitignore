@@ -210,4 +210,16 @@ Assets/**/*.npy
 # Ignore dynamic databases and logs
 Character/egocentric_locations.json
 logs/
-Users/
+Logs/
+Zhennan/logs/
+Users/
+
+# User Biometric Privacy (Face, Voice, Speaker databases & User Recordings)
+# All user biometric data generated on the robot stays exclusively on the robot
+Resources/emoface*.pkl
+Resources/speaker_db*.pkl
+Resources/voice_db*.pkl
+Resources/face_db*.pkl
+Verification/motion_*.jpg
+Verification/test.wav
+Assets/recorded_speech/*.wav

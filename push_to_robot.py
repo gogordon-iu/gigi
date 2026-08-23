@@ -44,16 +44,8 @@ def main():
         print("Failed to restore robot-specific motor calibration on the robot!")
         sys.exit(1)
         
-    # 4. Sync face databases
-    print("Syncing face databases...")
-    mkdir_cmd = f'plink -pw {PASSWORD} orangepi@{ROBOT_IP} "mkdir -p {REMOTE_PATH}/Resources"'
-    run_cmd(mkdir_cmd)
-    for db_file in ["emoface.pkl", "emoface_2.pkl"]:
-        cmd = f'pscp -pw {PASSWORD} Resources/{db_file} orangepi@{ROBOT_IP}:{REMOTE_PATH}/Resources/{db_file}'
-        if not run_cmd(cmd):
-            print(f"Failed to sync face database: {db_file}")
-            sys.exit(1)
-        
+    # 4. User data & face databases are NOT synced to ensure privacy (stays on the robot)
+    print("User privacy policy: Face and speaker databases remain exclusively local on the robot.")
     print("=== PUSH COMPLETED SUCCESSFULLY ===")
 
 if __name__ == "__main__":
