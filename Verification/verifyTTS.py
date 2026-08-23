@@ -22,7 +22,7 @@ nix_model_dir = os.path.join(project_root, 'Resources', 'nix', 'models')
 nix = NixTTSInference(model_dir=nix_model_dir)
 
 # Input paragraph
-text = ("Hey, Gowtham, how are you doing today? It is nice to see you again. "
+text = ("Hey, Goren, how are you doing today? It is nice to see you again. "
         "How is your family? I hope they are doing well.")
 
 # Split into sentences
