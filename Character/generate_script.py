@@ -206,7 +206,8 @@ def create_files_with_header(parsed_lines, added_code, output_dir, header, child
                         else:
                             node_string += f"face=basic_sequences['{value.strip()}'], "
                     elif key == "hear":
-                        node_string += f"words=[{', '.join([f'\'{word.strip()}\'' for word in value.split(',')])}], "
+                        quoted_words = [f"'{w.strip()}'" for w in value.split(',')]
+                        node_string += f"words=[{', '.join(quoted_words)}], "
                     elif key == "data" or key == "timeout" or key == "edge" or key == "goto" or key == "end":
                         pass
                     else:
