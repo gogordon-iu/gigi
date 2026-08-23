@@ -103,7 +103,7 @@ class Script:
                             local_var = current_data['conversation'].split('%')[-1].strip()
                             print(f'local_var: {local_var}')
                             if local_var in self.data['types']:
-                                print(f'prompt: {self.data['types'][local_var]}')
+                                print(f"prompt: {self.data['types'][local_var]}")
                                 prompt_data = self.data['types'][local_var].replace("RESPONSE", output)
                                 print(f'prompt data: {prompt_data}')
                                 response = self.character.conv.get_response_with_tts_sync(prompt_data)
