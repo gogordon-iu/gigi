@@ -121,9 +121,10 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
             except Exception as e:
                 print(f"[Logger Error] Could not write to session log: {e}")
 
-    def on_ui_state_update(active, passage_words, current_word_idx, word_states, last_wrong_heard, reading_status):
+    def on_ui_state_update(active, passage_words, current_word_idx, word_states, last_wrong_heard, reading_status, render_engine="cv", frame_number=0):
+        engine_label = "OpenCV cv2.imshow" if render_engine == "cv" else "Pygame display.flip"
         if not active:
-            log_reading_event(f"[UI Display] active=False (Overlay Hidden)")
+            log_reading_event(f"[ACTUAL SCREEN RENDERED ({engine_label}), frame=#{frame_number}] active=False (Overlay Hidden)")
             return
         words_summary = []
         if passage_words:
@@ -137,7 +138,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                 words_summary.append(f"{idx}:'{w}'({color_label}{box_label})")
         highlight_word = passage_words[current_word_idx] if (passage_words and current_word_idx is not None and 0 <= current_word_idx < len(passage_words)) else "None"
         status_str = f", status='{reading_status}'" if reading_status else ""
-        log_reading_event(f"[UI Display Update{status_str}] HighlightedWord: '{highlight_word}' (idx={current_word_idx}) | Words: [{', '.join(words_summary)}]")
+        log_reading_event(f"[ACTUAL SCREEN RENDERED ({engine_label}), frame=#{frame_number}{status_str}] HighlightedWord: '{highlight_word}' (idx={current_word_idx}) | Words: [{', '.join(words_summary)}]")
 
     if gigi.face:
         gigi.face.ui_logger = on_ui_state_update

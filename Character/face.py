@@ -336,6 +336,7 @@ class Face():
                 if getattr(self, 'face_running', True):
                     self.screen.blit(image_resized, (0, 0))
                     pygame.display.flip()
+                    self._notify_screen_rendered(render_engine="pygame")
             except Exception as e:
                 print(f"[Face] Warning: Error during pygame display update: {e}")
             
@@ -435,8 +436,35 @@ class Face():
                     with self.lock:
                         cv2.imshow(self.win_name, image_resized)
                         cv2.waitKey(1)
+                    self._notify_screen_rendered(render_engine="cv")
             except Exception as e:
                 print(f"[Face] Warning: Error during cv2 display update: {e}")
+
+    def _notify_screen_rendered(self, render_engine):
+        if not callable(self.ui_logger):
+            return
+        current_state = (
+            self.reading_fluency_active,
+            self.reading_current_word_idx,
+            tuple(self.reading_word_states) if self.reading_word_states else (),
+            self.reading_status,
+            str(self.reading_last_wrong_heard)
+        )
+        if current_state != getattr(self, '_last_notified_ui_state', None):
+            self._last_notified_ui_state = current_state
+            try:
+                self.ui_logger(
+                    active=self.reading_fluency_active,
+                    passage_words=self.reading_passage_words,
+                    current_word_idx=self.reading_current_word_idx,
+                    word_states=self.reading_word_states,
+                    last_wrong_heard=self.reading_last_wrong_heard,
+                    reading_status=self.reading_status,
+                    render_engine=render_engine,
+                    frame_number=self.face_update_counter
+                )
+            except Exception as e:
+                pass
 
     def get_sequence_length(self, sequence):
         max_length = 0
@@ -544,42 +572,14 @@ class Face():
         elif passage_words is not None:
             self.reading_word_states = ['unread'] * len(passage_words)
         self.reading_last_wrong_heard = last_wrong_heard
-        
-        # Invoke UI logger hook if configured
-        if callable(self.ui_logger):
-            try:
-                self.ui_logger(
-                    active=self.reading_fluency_active,
-                    passage_words=self.reading_passage_words,
-                    current_word_idx=self.reading_current_word_idx,
-                    word_states=self.reading_word_states,
-                    last_wrong_heard=self.reading_last_wrong_heard,
-                    reading_status=self.reading_status
-                )
-            except Exception:
-                pass
 
-        # Force a refresh of the display using the last face image if available
+        # Force a refresh of the physical display using the last face image if available
         if getattr(self, 'last_face_image', None) is not None:
             self.display_face(self.last_face_image)
 
     def set_reading_status(self, status):
         self.reading_status = status
-        # Invoke UI logger hook if configured
-        if callable(self.ui_logger):
-            try:
-                self.ui_logger(
-                    active=self.reading_fluency_active,
-                    passage_words=self.reading_passage_words,
-                    current_word_idx=self.reading_current_word_idx,
-                    word_states=self.reading_word_states,
-                    last_wrong_heard=self.reading_last_wrong_heard,
-                    reading_status=self.reading_status
-                )
-            except Exception:
-                pass
-
-        # Force a refresh of the display using the last face image if available
+        # Force a refresh of the physical display using the last face image if available
         if getattr(self, 'last_face_image', None) is not None:
             self.display_face(self.last_face_image)
 
