@@ -95,6 +95,7 @@ class Face():
         self.reading_last_wrong_heard = None
         self.last_face_image = None
         self.reading_status = "idle"
+        self.ui_logger = None
         
         # Initialize visual feedback icons
         self._feedback_state = None
@@ -547,12 +548,40 @@ class Face():
             self.reading_word_states = ['unread'] * len(passage_words)
         self.reading_last_wrong_heard = last_wrong_heard
         
+        # Invoke UI logger hook if configured
+        if callable(self.ui_logger):
+            try:
+                self.ui_logger(
+                    active=self.reading_fluency_active,
+                    passage_words=self.reading_passage_words,
+                    current_word_idx=self.reading_current_word_idx,
+                    word_states=self.reading_word_states,
+                    last_wrong_heard=self.reading_last_wrong_heard,
+                    reading_status=self.reading_status
+                )
+            except Exception:
+                pass
+
         # Force a refresh of the display using the last face image if available
         if getattr(self, 'last_face_image', None) is not None:
             self.display_face(self.last_face_image)
 
     def set_reading_status(self, status):
         self.reading_status = status
+        # Invoke UI logger hook if configured
+        if callable(self.ui_logger):
+            try:
+                self.ui_logger(
+                    active=self.reading_fluency_active,
+                    passage_words=self.reading_passage_words,
+                    current_word_idx=self.reading_current_word_idx,
+                    word_states=self.reading_word_states,
+                    last_wrong_heard=self.reading_last_wrong_heard,
+                    reading_status=self.reading_status
+                )
+            except Exception:
+                pass
+
         # Force a refresh of the display using the last face image if available
         if getattr(self, 'last_face_image', None) is not None:
             self.display_face(self.last_face_image)

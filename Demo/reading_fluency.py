@@ -2,6 +2,7 @@ import os
 import json
 import sys
 import time
+import datetime
 import string
 import re
 import random
@@ -98,11 +99,19 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
     tracker = BackgroundFaceTracker(gigi)
 
     session_log_file = None
+    start_session_time = time.time()
+    last_event_time = start_session_time
+
     def log_reading_event(msg):
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        log_line = f"[{timestamp}] {msg}"
+        nonlocal last_event_time, session_log_file
+        now = time.time()
+        elapsed = now - start_session_time
+        dt = now - last_event_time
+        last_event_time = now
+
+        timestamp = datetime.datetime.fromtimestamp(now).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        log_line = f"[{timestamp}] (+{elapsed:6.3f}s, dt={dt:6.3f}s) {msg}"
         print(log_line)
-        nonlocal session_log_file
         if not session_log_file and getattr(gigi, 'logger', None) and gigi.logger.session_dir:
             session_log_file = os.path.join(gigi.logger.session_dir, "reading_fluency_session.log")
         if session_log_file:
@@ -111,6 +120,40 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                     f.write(log_line + "\n")
             except Exception as e:
                 print(f"[Logger Error] Could not write to session log: {e}")
+
+    def on_ui_state_update(active, passage_words, current_word_idx, word_states, last_wrong_heard, reading_status):
+        if not active:
+            log_reading_event(f"[UI Display] active=False (Overlay Hidden)")
+            return
+        words_summary = []
+        if passage_words:
+            for idx, w in enumerate(passage_words):
+                if w == "\n":
+                    words_summary.append("[NEWLINE]")
+                    continue
+                st = word_states[idx] if (word_states and idx < len(word_states)) else 'unread'
+                color_label = "GREEN" if st == 'correct' else ("RED" if st == 'wrong' else "WHITE/GRAY")
+                box_label = " [YELLOW HIGHLIGHT BOX]" if (current_word_idx is not None and idx == current_word_idx) else ""
+                words_summary.append(f"{idx}:'{w}'({color_label}{box_label})")
+        highlight_word = passage_words[current_word_idx] if (passage_words and current_word_idx is not None and 0 <= current_word_idx < len(passage_words)) else "None"
+        status_str = f", status='{reading_status}'" if reading_status else ""
+        log_reading_event(f"[UI Display Update{status_str}] HighlightedWord: '{highlight_word}' (idx={current_word_idx}) | Words: [{', '.join(words_summary)}]")
+
+    if gigi.face:
+        gigi.face.ui_logger = on_ui_state_update
+
+    def speak_and_log(text, sequence=None, movement=None):
+        t_start = time.time()
+        log_reading_event(f"[Robot Speech START] text='{text}' | sequence={sequence} | movement={movement}")
+        kwargs = {'viseme_data': {'text': text, 'file': None}}
+        if sequence:
+            kwargs['face_data'] = {'sequence': sequence}
+        if movement:
+            kwargs['movement_data'] = movement
+        gigi.run_character(**kwargs)
+        t_end = time.time()
+        duration = t_end - t_start
+        log_reading_event(f"[Robot Speech END] duration={duration:.3f}s for text='{text}'")
 
     try:
         log_reading_event("Starting Reading Fluency session...")
@@ -126,10 +169,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                 time.sleep(1.0)
 
             # Introduction
-            gigi.run_character(
-                viseme_data={'text': 'Hello! My name is Gigi. I am your reading assistant today.', 'file': None},
-                movement_data='wave_hello'
-            )
+            speak_and_log('Hello! My name is Gigi. I am your reading assistant today.', movement='wave_hello')
             
             # Greet the person by name if recognized during introduction
             name = None
@@ -151,20 +191,17 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                     print("[Reading Fluency] No recognized registered user found in face cache.")
                         
             if name:
-                gigi.run_character(
-                    viseme_data={'text': f'Hello {name}, it is great to see you again!', 'file': None},
-                    face_data={'sequence': 'smile'}
-                )
+                speak_and_log(f'Hello {name}, it is great to see you again!', sequence='smile')
             else:
                 # Fallback to asking name via speech and extracting it using robust LLM-based name extraction
-                gigi.run_character(
-                    viseme_data={'text': "What is your name? Tell me clearly!", 'file': None}
-                )
+                speak_and_log("What is your name? Tell me clearly!")
                 if gigi.hearing:
                     gigi.hearing.texts = []
+                    t_name_start = time.time()
                     gigi.listen_backchannel(timeout=8)
+                    t_name_end = time.time()
                     heard_text = " ".join(gigi.hearing.texts).strip()
-                    print(f"[Reading Fluency] Raw hearing transcript: '{heard_text}'")
+                    log_reading_event(f"[Name Recognition] Heard '{heard_text}' in {t_name_end - t_name_start:.3f}s")
                     if heard_text:
                         name = extract_name(heard_text, gigi=gigi)
                     else:
@@ -172,10 +209,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                 else:
                     name = "Friend"
                     
-                gigi.run_character(
-                    viseme_data={'text': f"It is wonderful to meet you, {name}!", 'file': None},
-                    face_data={'sequence': 'smile'}
-                )
+                speak_and_log(f"It is wonderful to meet you, {name}!", sequence='smile')
             
         # Initialize logging session with the resolved user name
         gigi.log_user_name(name)
@@ -222,16 +256,16 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
         selected_option = None
         if run_selection:
             # Story selection via voice response
-            gigi.run_character(
-                viseme_data={'text': f"I have some stories for you to read. We can read about {options_text}. Which one would you like to choose?", 'file': None}
-            )
+            speak_and_log(f"I have some stories for you to read. We can read about {options_text}. Which one would you like to choose?")
             
             if gigi.hearing:
                 for attempt in range(3):
                     gigi.hearing.texts = []
+                    t_sel_start = time.time()
                     gigi.listen_backchannel(timeout=8)
+                    t_sel_end = time.time()
                     heard_text = " ".join(gigi.hearing.texts).strip().lower()
-                    log_reading_event(f"[Story Selection] Attempt {attempt + 1}: Heard text '{heard_text}'")
+                    log_reading_event(f"[Story Selection] Attempt {attempt + 1}: Heard '{heard_text}' in {t_sel_end - t_sel_start:.3f}s")
                     
                     for opt in options:
                         base_opt = opt.rstrip('s')
@@ -247,9 +281,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                         break
                         
                     if attempt < 2:
-                        gigi.run_character(
-                            viseme_data={'text': f"Sorry, I didn't catch that. Which story would you like: {options_text}?", 'file': None}
-                        )
+                        speak_and_log(f"Sorry, I didn't catch that. Which story would you like: {options_text}?")
                 
                 if not selected_option:
                     selected_option = options[0]
@@ -292,10 +324,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
             else:
                 theme_img = None
 
-        gigi.run_character(
-            viseme_data={'text': f"Great selection! Let's read the {selected_option} story. Please read the passage in front of you slowly and clearly.", 'file': None},
-            face_data={'guidance': theme_img} if theme_img else None
-        )
+        speak_and_log(f"Great selection! Let's read the {selected_option} story. Please read the passage in front of you slowly and clearly.")
 
         # Disable face tracking during reading to prevent user distraction
         gigi.disable_face_tracking = True
@@ -632,12 +661,21 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                             return should_stop
                         return False
 
-                    log_reading_event(f"Listening to sentence starting at word index {current_word_idx}...")
+                    t_listen_start = time.time()
+                    log_reading_event(f"[Listening Turn START] Starting at word index {current_word_idx} ('{active_words[current_word_idx]}')")
+                    if gigi.face:
+                        gigi.face.set_reading_status("listening")
+
                     gigi.listen_fluid(timeout=30, n_transcripts=1, check_callback=check_fluency, run_speaker_recognition=False, show_camera_feed=False)
                     
+                    t_listen_end = time.time()
+                    listen_duration = t_listen_end - t_listen_start
+                    if gigi.face:
+                        gigi.face.set_reading_status("idle")
+
                     # Inspect results after fluid listening returns
                     words_read_this_turn = current_word_idx - listen_start_word_idx
-                    log_reading_event(f"Fluid listening returned. words_read_this_turn={words_read_this_turn}, mistakes={sentence_mistakes}")
+                    log_reading_event(f"[Listening Turn FINISHED] duration={listen_duration:.3f}s | words_read_this_turn={words_read_this_turn} | mistakes={sentence_mistakes}")
 
                     # Silence management: Handle >5s pure silence (coax on 1st silence, advance on 2nd silence)
                     if words_read_this_turn == 0 and len(sentence_mistakes) == 0:
@@ -651,18 +689,12 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                             ]
                             coax_text = random.choice(coax_prompts)
                             log_reading_event(f"[Silence Manager] 1st silence. Coaxing user: '{coax_text}'")
-                            gigi.run_character(
-                                viseme_data={'text': coax_text, 'file': None},
-                                face_data={'sequence': 'smile'}
-                            )
+                            speak_and_log(coax_text, sequence='smile')
                             continue
                         else:
                             advance_text = "OK, let's continue to the next sentence."
                             log_reading_event(f"[Silence Manager] 2nd consecutive silence. Advancing to next sentence: '{advance_text}'")
-                            gigi.run_character(
-                                viseme_data={'text': advance_text, 'file': None},
-                                face_data={'sequence': 'smile'}
-                            )
+                            speak_and_log(advance_text, sequence='smile')
                             consecutive_silence_count = 0
                             current_sentence_idx += 1
                             break
@@ -681,10 +713,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                         log_reading_event(f"[Reading Fluency] Sentence corrections count incremented to {sentence_corrections_count} (out of 3)")
                         if sentence_corrections_count >= 3:
                             log_reading_event(f"[Reading Fluency] 3rd correction reached for this sentence. Resetting to beginning with corrections disabled.")
-                            gigi.run_character(
-                                viseme_data={'text': "Let's read this sentence one more time from the beginning. Just read it all the way through!", 'file': None},
-                                face_data={'sequence': 'smile'}
-                            )
+                            speak_and_log("Let's read this sentence one more time from the beginning. Just read it all the way through!", sequence='smile')
                             time.sleep(0.5)
                             word_states = ['unread'] * len(active_words)
                             current_word_idx = 0
@@ -769,10 +798,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                             prompt = random.choice(review_prompts)
                             log_reading_event(f"[Pronunciation Review] Selecting review prompt: '{prompt}'")
                             
-                        gigi.run_character(
-                            viseme_data={'text': prompt, 'file': None},
-                            movement_data='open_close_arms'
-                        )
+                        speak_and_log(prompt, movement='open_close_arms')
                         
                         success = False
                         if gigi.hearing:
@@ -782,10 +808,19 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                             gigi.hearing.silence_duration = 0.5
                             log_reading_event("Pronunciation check: temporarily reduced silence_duration to 0.5s")
                             
+                            t_pron_start = time.time()
+                            if gigi.face:
+                                gigi.face.set_reading_status("listening")
+
                             gigi.listen_backchannel(timeout=8, show_camera_feed=False)
                             
+                            t_pron_end = time.time()
+                            pron_duration = t_pron_end - t_pron_start
+                            if gigi.face:
+                                gigi.face.set_reading_status("idle")
+
                             gigi.hearing.silence_duration = old_silence
-                            log_reading_event("Pronunciation check: restored original silence_duration")
+                            log_reading_event(f"Pronunciation check listening completed in {pron_duration:.3f}s. Restored original silence_duration.")
                             
                             corrected_text = " ".join(gigi.hearing.texts).strip()
                             log_reading_event(f"[Pronunciation ASR] Heard text: '{corrected_text}'")
@@ -826,10 +861,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                                 "Yes, that's it! Wonderful!"
                             ]
                             affirmation = random.choice(affirmations)
-                            gigi.run_character(
-                                viseme_data={'text': f"{affirmation} Now, please read the sentence again from the beginning.", 'file': None},
-                                face_data={'sequence': 'smile'}
-                            )
+                            speak_and_log(f"{affirmation} Now, please read the sentence again from the beginning.", sequence='smile')
                             time.sleep(0.5)
                         else:
                             # Not corrected, tell them the word and move past
@@ -850,9 +882,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                                     last_wrong_heard=None
                                 )
                             
-                            gigi.run_character(
-                                viseme_data={'text': f"The word is {selected_word}. Let's keep reading!", 'file': None}
-                            )
+                            speak_and_log(f"The word is {selected_word}. Let's keep reading!")
                             time.sleep(0.5)
                             
                         # Disable pronunciation mode after review
@@ -862,10 +892,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                         if current_word_idx < len(active_words) and not all(s == 'correct' for s in word_states):
                             # Incomplete reading: student paused or stopped before finishing the sentence
                             log_reading_event(f"[Sentence Loop] Partial reading detected ({current_word_idx}/{len(active_words)} words). Prompting to continue.")
-                            gigi.run_character(
-                                viseme_data={'text': "You're doing great! Let's keep reading the rest of the sentence.", 'file': None},
-                                face_data={'sequence': 'smile'}
-                            )
+                            speak_and_log("You're doing great! Let's keep reading the rest of the sentence.", sequence='smile')
                             time.sleep(0.5)
                             continue
                         else:
@@ -906,10 +933,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                             last_wrong_heard=None
                         )
                     
-                    gigi.run_character(
-                        viseme_data={'text': "Great!", 'file': None},
-                        face_data={'sequence': 'smile'}
-                    )
+                    speak_and_log("Great!", sequence='smile')
                     time.sleep(0.5)
 
             if show_karaoke and gigi.face:
@@ -933,9 +957,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
         # Comprehension questions check
         if run_comprehension:
             log_reading_event("Initiating comprehension check...")
-            gigi.run_character(
-                viseme_data={'text': 'Great job reading the story! Now, let us answer some questions.', 'file': None}
-            )
+            speak_and_log('Great job reading the story! Now, let us answer some questions.')
             
             discussion_responses = []
             if os.path.exists(questions_file):
@@ -955,29 +977,29 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
             
             for q in questions:
                 log_reading_event(f"Gigi asks question: '{q}'")
-                gigi.run_character(
-                    viseme_data={'text': q, 'file': None}
-                )
+                speak_and_log(q)
                 
                 if gigi.hearing:
                     log_reading_event("Listening for answer...")
-                    gigi.face.set_reading_status("listening")
+                    if gigi.face:
+                        gigi.face.set_reading_status("listening")
                     
+                    t_ans_start = time.time()
                     gigi.hearing.texts = []
                     gigi.listen_backchannel(timeout=10, show_camera_feed=False)
+                    t_ans_end = time.time()
+                    ans_duration = t_ans_end - t_ans_start
                     
-                    gigi.face.set_reading_status("idle")
+                    if gigi.face:
+                        gigi.face.set_reading_status("idle")
                     
                     answer = " ".join(gigi.hearing.texts).strip()
-                    log_reading_event(f"Student answered: '{answer}'")
+                    log_reading_event(f"Student answered in {ans_duration:.3f}s: '{answer}'")
                     discussion_responses.append({"question": q, "answer": answer})
                     gigi.log_variable("discussion", discussion_responses)
                     
                     feedback = random.choice(positive_feedbacks)
-                    gigi.run_character(
-                        viseme_data={'text': feedback, 'file': None},
-                        face_data={'sequence': 'smile'}
-                    )
+                    speak_and_log(feedback, sequence='smile')
                 else:
                     discussion_responses.append({"question": q, "answer": None})
                     gigi.log_variable("discussion", discussion_responses)
@@ -985,10 +1007,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                     
             # Goodbye / Final activity feedback
             log_reading_event("Concluding session. Gigi waves goodbye.")
-            gigi.run_character(
-                viseme_data={'text': 'We are all done for today. You did wonderful with the reading and questions! Goodbye for now!', 'file': None},
-                movement_data='wave_hello'
-            )
+            speak_and_log('We are all done for today. You did wonderful with the reading and questions! Goodbye for now!', movement='wave_hello')
         
         # Return to home position
         if gigi.movement:
