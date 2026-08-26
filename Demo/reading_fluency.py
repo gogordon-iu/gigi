@@ -346,8 +346,21 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                 gigi.hearing._raw_buf_duration = 0.8
                 log_reading_event("Set hearing _raw_buf_duration to 0.8s")
 
+            NUMBER_MAP = {
+                '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five',
+                '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', '10': 'ten',
+                '11': 'eleven', '12': 'twelve', '13': 'thirteen', '14': 'fourteen', '15': 'fifteen',
+                '16': 'sixteen', '17': 'seventeen', '18': 'eighteen', '19': 'nineteen', '20': 'twenty'
+            }
+
+            def normalize_word_str(w):
+                clean = w.lower().strip().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
+                return NUMBER_MAP.get(clean, clean)
+
             def is_match(w1, w2):
-                return w1 == w2 or SequenceMatcher(None, w1, w2).ratio() > 0.75
+                n1 = normalize_word_str(w1)
+                n2 = normalize_word_str(w2)
+                return n1 == n2 or SequenceMatcher(None, n1, n2).ratio() > 0.75
 
             fillers = {"um", "uh", "ah", "like", "so", "well", "and", "i", "mean"}
 
@@ -374,8 +387,8 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                 Check if 'heard' is a syllable, prefix, or partial sounding-out of 'expected'.
                 Helps prevent interrupting users who read slowly or sound out words syllable-by-syllable.
                 """
-                h = heard.lower().strip().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
-                e = expected.lower().strip().replace("’", "'").translate(str.maketrans('', '', string.punctuation))
+                h = normalize_word_str(heard)
+                e = normalize_word_str(expected)
                 if not h or not e:
                     return False
                 if e.startswith(h):
@@ -436,7 +449,13 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                     gigi.hearing.pronunciation_mode = True
                     gigi.hearing.pronunciation_engine = 'citrinet'
                     # Set pronunciation grammar to the entire active sentence so Vosk can recognize any word in it
-                    gigi.hearing.pronunciation_grammar = active_words
+                    grammar_words = []
+                    for w in active_words:
+                        grammar_words.append(w)
+                        norm = normalize_word_str(w)
+                        if norm != w:
+                            grammar_words.append(norm)
+                    gigi.hearing.pronunciation_grammar = grammar_words
 
                     if show_karaoke and gigi.face:
                         local_display_states = word_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else word_states
