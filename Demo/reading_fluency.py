@@ -712,16 +712,13 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                             continue
                             
                         sentence_corrections_count += 1
-                        log_reading_event(f"[Reading Fluency] Sentence corrections count incremented to {sentence_corrections_count} (out of 3)")
-                        if sentence_corrections_count >= 3:
-                            log_reading_event(f"[Reading Fluency] 3rd correction reached for this sentence. Resetting to beginning with corrections disabled.")
-                            speak_and_log("Let's read this sentence one more time from the beginning. Just read it all the way through!", sequence='smile')
-                            time.sleep(0.5)
-                            word_states = ['unread'] * len(active_words)
-                            current_word_idx = 0
-                            no_more_corrections_for_sentence = True
+                        log_reading_event(f"[Reading Fluency] Sentence corrections count incremented to {sentence_corrections_count} (max 2 allowed)")
+                        if sentence_corrections_count > 2:
+                            log_reading_event(f"[Reading Fluency] Maximum 2 corrections reached for this sentence. Auto-passing remaining words and advancing.")
+                            word_states = ['correct'] * len(active_words)
+                            current_word_idx = len(active_words)
                             sentence_mistakes = []
-                            continue
+                            break
 
                         first_mistake = sentence_mistakes[0]
                         selected_word = first_mistake["expected"]
@@ -846,13 +843,10 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                                     success = True
                                     
                         log_reading_event(f"[Pronunciation Outcome] Correction succeeded? {success}")
+                        word_states[selected_idx] = 'correct'
+                        
                         if success:
-                            # Corrected! Reset the entire sentence so they read it again
-                            log_reading_event(f"[Pronunciation Outcome] Resetting sentence index to 0. Updating word bank mapping '{expected_clean}' -> 'correct'")
-                            word_states = ['unread'] * len(active_words)
-                            current_word_idx = 0
-                            
-                            # If corrected on second attempt, change mark from "incorrect" to "correct"
+                            log_reading_event(f"[Pronunciation Outcome] Updating word bank mapping '{expected_clean}' -> 'correct'")
                             word_bank[expected_clean] = "correct"
                             save_word_bank()
                             
@@ -863,29 +857,34 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                                 "Yes, that's it! Wonderful!"
                             ]
                             affirmation = random.choice(affirmations)
-                            speak_and_log(f"{affirmation} Now, please read the sentence again from the beginning.", sequence='smile')
-                            time.sleep(0.5)
+                            
+                            # If all words in the sentence are already green, don't make them re-read the sentence!
+                            if all(st == 'correct' for st in word_states):
+                                log_reading_event("[Pronunciation Outcome] All words in sentence are green! Advancing past sentence.")
+                                current_word_idx = len(active_words)
+                                speak_and_log(f"{affirmation} You finished the sentence! Great job!", sequence='smile')
+                                time.sleep(0.5)
+                            else:
+                                current_word_idx = selected_idx + 1
+                                log_reading_event(f"[Pronunciation Outcome] Continuing sentence from word index {current_word_idx} ('{active_words[current_word_idx] if current_word_idx < len(active_words) else ''}')")
+                                speak_and_log(f"{affirmation} Let's keep reading the rest of the sentence!", sequence='smile')
+                                time.sleep(0.5)
                         else:
-                            # Not corrected, tell them the word and move past
-                            log_reading_event(f"[Pronunciation Outcome] Correction failed. Moving past word. Updating word bank mapping '{expected_clean}' -> 'incorrect' (if not already 'correct')")
-                            word_states[selected_idx] = 'correct'
-                            current_word_idx = selected_idx + 1
+                            # Not corrected, model the word for them and move past
+                            log_reading_event(f"[Pronunciation Outcome] Correction failed. Modeling word '{selected_word}'.")
                             if word_bank.get(expected_clean) != "correct":
                                 word_bank[expected_clean] = "incorrect"
                                 save_word_bank()
                             
-                            if show_karaoke and gigi.face:
-                                local_display_states = word_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else word_states
-                                gigi.face.update_reading_fluency(
-                                    active=True,
-                                    passage_words=display_words,
-                                    current_word_idx=current_word_idx,
-                                    word_states=local_display_states,
-                                    last_wrong_heard=None
-                                )
-                            
-                            speak_and_log(f"The word is {selected_word}. Let's keep reading!")
-                            time.sleep(0.5)
+                            if all(st == 'correct' for st in word_states):
+                                log_reading_event("[Pronunciation Outcome] Sentence complete after modeling. Advancing.")
+                                current_word_idx = len(active_words)
+                                speak_and_log(f"The word is {selected_word}. Awesome, let's keep going!", sequence='smile')
+                                time.sleep(0.5)
+                            else:
+                                current_word_idx = selected_idx + 1
+                                speak_and_log(f"The word is {selected_word}. Let's keep reading the rest of the sentence!", sequence='smile')
+                                time.sleep(0.5)
                             
                         # Disable pronunciation mode after review
                         gigi.hearing.pronunciation_mode = False
