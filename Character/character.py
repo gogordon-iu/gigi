@@ -338,7 +338,7 @@ class Character():
                 self.face.generate_face(
                     parts_selected=face_sequence, 
                     stop_event=stop_event, 
-                    stop_condition="face", 
+                    stop_condition=None, 
                     delay=min_delay,
                     start_time=(start_time - sync_offset) if start_time is not None else None
                 )
@@ -471,14 +471,15 @@ class Character():
             hearing_thread.start()
             try:
                 next_blink_time = time.time() + random.uniform(3.0, 6.0)
+                next_eye_move_time = time.time() + random.uniform(2.0, 5.0)
                 while not stop_event.is_set():
                     if self.speaker_gaze_target is not None:
                         target_name = self.speaker_gaze_target
                         self.speaker_gaze_target = None
                         self.lookat_person(target_name)
                     
-                    # Track face in real-time if vision is running
-                    if self.vision and self.vision.running:
+                    # Track face in real-time if vision is running AND face tracking is not disabled
+                    if self.vision and self.vision.running and not getattr(self, 'disable_face_tracking', False):
                         last_data = self.vision.get_last_data()
                         if last_data:
                             face_info = next(iter(last_data.values()))
@@ -494,6 +495,13 @@ class Character():
                             N_next = np.clip(N_c + delta_N, -0.9, 0.9)
                             if self.movement:
                                 self.movement.move_motors({"torso": T_next, "neck": N_next})
+                    
+                    if getattr(self, 'disable_face_tracking', False):
+                        if time.time() >= next_eye_move_time:
+                            eye_dir = random.choice(["look_left", "look_right", "look_up", "look_down", "idle"])
+                            if eye_dir in basic_sequences:
+                                self.face.generate_face(parts_selected=basic_sequences[eye_dir], stop_event=stop_event, delay=0.1)
+                            next_eye_move_time = time.time() + random.uniform(2.0, 5.0)
                     
                     if time.time() >= next_blink_time:
                         self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event, delay=0.08)
@@ -584,14 +592,15 @@ class Character():
             
             try:
                 next_blink_time = time.time() + random.uniform(3.0, 6.0)
+                next_eye_move_time = time.time() + random.uniform(2.0, 5.0)
                 while not stop_event.is_set():
                     if self.speaker_gaze_target is not None:
                         target_name = self.speaker_gaze_target
                         self.speaker_gaze_target = None
                         self.lookat_person(target_name)
                     
-                    # Track face in real-time if vision is running
-                    if self.vision and self.vision.running:
+                    # Track face in real-time if vision is running AND face tracking is not disabled
+                    if self.vision and self.vision.running and not getattr(self, 'disable_face_tracking', False):
                         last_data = self.vision.get_last_data()
                         if last_data:
                             face_info = next(iter(last_data.values()))
@@ -607,6 +616,13 @@ class Character():
                             N_next = np.clip(N_c + delta_N, -0.9, 0.9)
                             if self.movement:
                                 self.movement.move_motors({"torso": T_next, "neck": N_next})
+                    
+                    if getattr(self, 'disable_face_tracking', False):
+                        if time.time() >= next_eye_move_time:
+                            eye_dir = random.choice(["look_left", "look_right", "look_up", "look_down", "idle"])
+                            if eye_dir in basic_sequences:
+                                self.face.generate_face(parts_selected=basic_sequences[eye_dir], stop_event=stop_event, delay=0.1)
+                            next_eye_move_time = time.time() + random.uniform(2.0, 5.0)
                     
                     if time.time() >= next_blink_time:
                         self.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=stop_event, delay=0.08)

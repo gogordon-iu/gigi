@@ -606,8 +606,8 @@ class Speech():
                 while elapsed < duration_ms:
                     elapsed += clock.tick(30)
                     if stop_event is not None and stop_event.is_set():
+                        sound.stop()
                         break
-                sound.stop()
                 if AUDIO_DELAY:
                     sleep_time.sleep(AUDIO_DELAY)
                 if stop_condition is not None and "audio" in stop_condition and stop_event is not None:
@@ -630,8 +630,8 @@ class Speech():
                 while elapsed < duration_ms:
                     elapsed += clock.tick(30)
                     if stop_event is not None and stop_event.is_set():
+                        sound.stop()
                         break
-                sound.stop()
                 if AUDIO_DELAY:
                     sleep_time.sleep(AUDIO_DELAY)
                 if stop_condition is not None and "audio" in stop_condition and stop_event is not None:

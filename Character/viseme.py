@@ -108,7 +108,7 @@ class Viseme():
         self.face.generate_face(
             parts_selected=talk_sequence, 
             stop_event=stop_event, 
-            stop_condition="face", 
+            stop_condition=None, 
             delay=self.speech.sample_rate,
             start_time=start_time - self.sync_offset
         )

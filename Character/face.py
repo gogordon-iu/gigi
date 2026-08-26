@@ -622,7 +622,7 @@ class Face():
                 cursor_x = margin_x
                 cursor_y += line_spacing
                 
-            if idx == self.reading_current_word_idx:
+            if self.reading_current_word_idx is not None and 0 <= self.reading_current_word_idx < len(self.reading_passage_words) and idx == self.reading_current_word_idx:
                 # Karaoke Highlight box
                 pad = 6
                 cv2.rectangle(canvas, 
@@ -637,9 +637,8 @@ class Face():
                     cv2.putText(canvas, word, (cursor_x, cursor_y), font_word, font_scale, color, thickness, cv2.LINE_AA)
                     cv2.line(canvas, (cursor_x, cursor_y + 8), (cursor_x + word_w, cursor_y + 8), color, 2, cv2.LINE_AA)
                 elif state == 'wrong':
-                    color = (70, 70, 255) # Red BGR
+                    color = (80, 80, 255) # Red BGR
                     cv2.putText(canvas, word, (cursor_x, cursor_y), font_word, font_scale, color, thickness, cv2.LINE_AA)
-                    cv2.line(canvas, (cursor_x, cursor_y - word_h // 2), (cursor_x + word_w, cursor_y - word_h // 2), color, 2, cv2.LINE_AA)
                 else:
                     color = (220, 220, 220)
                     cv2.putText(canvas, word, (cursor_x, cursor_y), font_word, font_scale, color, thickness, cv2.LINE_AA)
@@ -727,7 +726,7 @@ class Face():
                 cursor_x = margin_x
                 cursor_y += line_spacing
                 
-            if idx == self.reading_current_word_idx:
+            if self.reading_current_word_idx is not None and 0 <= self.reading_current_word_idx < len(self.reading_passage_words) and idx == self.reading_current_word_idx:
                 pad = 4
                 rect = pygame.Rect(cursor_x - pad, cursor_y - pad, word_w + 2*pad, word_h + 2*pad)
                 pygame.draw.rect(canvas, (255, 215, 0), rect, border_radius=4)
@@ -740,10 +739,9 @@ class Face():
                     canvas.blit(word_surf, (cursor_x, cursor_y))
                     pygame.draw.line(canvas, color, (cursor_x, cursor_y + word_h + 2), (cursor_x + word_w, cursor_y + word_h + 2), 2)
                 elif state == 'wrong':
-                    color = (255, 70, 70)
+                    color = (255, 80, 80)
                     word_surf = current_font.render(word, True, color)
                     canvas.blit(word_surf, (cursor_x, cursor_y))
-                    pygame.draw.line(canvas, color, (cursor_x, cursor_y + word_h // 2), (cursor_x + word_w, cursor_y + word_h // 2), 2)
                 else:
                     color = (200, 200, 200)
                     word_surf = current_font.render(word, True, color)

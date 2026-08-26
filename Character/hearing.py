@@ -264,6 +264,7 @@ class Hearing():
         self.citrinet_gop = None
         self.use_citrinet_gop = USE_NPU_PRONUNCIATION
         self.pronunciation_engine = 'vosk'
+        self.silence_duration = SILENCE_DURATION
         self.stream_lock = threading.Lock()
 
         if HEARING_OPTION == "sr":
@@ -672,7 +673,7 @@ class Hearing():
                         if (
                             self.last_vad_speech_time is not None
                             and len(text.split()) >= 1
-                            and time.time() - self.last_vad_speech_time > SILENCE_DURATION
+                            and time.time() - self.last_vad_speech_time > self.silence_duration
                         ):
                             print("Silence detected. Stopping transcription.")
                             break
@@ -867,11 +868,16 @@ class Hearing():
                         
         return threading.Thread(target=safe_listen, args=[stop_event])
 
-    def listen_fluid(self, stop_event=None, check_callback=None, n_transcripts=1):
+    def listen_fluid(self, stop_event=None, check_callback=None, n_transcripts=1, silence_duration=5.0):
         """
         Similar to listen, but periodically calls check_callback(text) every n_transcripts chunks.
         If the callback returns True, listening stops early.
+        Exits after silence_duration (default 5.0s) of pure silence or silence after speech.
         """
+        self.silence_duration = silence_duration
+        if getattr(self, 'pronunciation_mode', False):
+            self._raw_buf_duration = 0.4  # Low-latency chunks for real-time traveling highlight
+            
         if getattr(self, 'face', None):
             self.face.feedback_state = "listening"
             if hasattr(self.face, 'set_reading_status'):
@@ -887,6 +893,7 @@ class Hearing():
         if HEARING_OPTION == "whisper":
             self.audio_queue = queue.Queue()
             self.last_vad_speech_time = None
+            start_listen_time = time.time()
             text = ""
             chunk_count = 0
 
@@ -899,7 +906,7 @@ class Hearing():
                 return
 
             with stream:
-                print("Fluid Listening... Speak into the microphone.")
+                print(f"Fluid Listening (silence_duration={self.silence_duration}s)... Speak into the microphone.")
 
                 while True:
                     if stop_event and stop_event.is_set():
@@ -908,15 +915,16 @@ class Hearing():
                     try:
                         if getattr(self, 'face', None) and hasattr(self.face, 'set_reading_status'):
                             self.face.set_reading_status("listening")
-                        audio_float = self.audio_queue.get(timeout=1.0) # GOREN changed to 1.0, it was 0.3
+                        audio_float = self.audio_queue.get(timeout=0.5)
                     except queue.Empty:
-                        if (
-                            self.last_vad_speech_time is not None
-                            and len(text.split()) >= 1
-                            and time.time() - self.last_vad_speech_time > SILENCE_DURATION
-                        ):
-                            print("Silence detected. Stopping transcription.")
-                            break
+                        if self.last_vad_speech_time is not None:
+                            if time.time() - self.last_vad_speech_time > self.silence_duration:
+                                print(f"Silence detected after speech ({self.silence_duration}s). Stopping transcription.")
+                                break
+                        else:
+                            if time.time() - start_listen_time > self.silence_duration:
+                                print(f"Pure silence detected ({self.silence_duration}s). Stopping transcription.")
+                                break
                         continue
 
                     if getattr(self, 'face', None) and hasattr(self.face, 'set_reading_status'):
@@ -940,7 +948,7 @@ class Hearing():
                                 chunk_count = 0
 
                     if self.verbose:
-                        vad_age = time.time() - self.last_vad_speech_time if self.last_vad_speech_time else 0
+                        vad_age = time.time() - self.last_vad_speech_time if self.last_vad_speech_time else (time.time() - start_listen_time)
                         print(f"words: {len(text.split())}, silence: {vad_age:.1f}s")
 
                 if text.strip():
