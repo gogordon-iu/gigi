@@ -961,7 +961,7 @@ class Hearing():
             if hasattr(self.face, 'set_reading_status'):
                 self.face.set_reading_status("idle")
 
-    def hearing_fluid_thread(self, stop_event=None, check_callback=None, n_transcripts=1):
+    def hearing_fluid_thread(self, stop_event=None, check_callback=None, n_transcripts=1, silence_duration=5.0):
         if stop_event is None:
             stop_event = threading.Event()
             
@@ -977,7 +977,7 @@ class Hearing():
                     if hasattr(self.face, 'set_reading_status'):
                         self.face.set_reading_status("idle")
                         
-        return threading.Thread(target=safe_listen_fluid, args=[stop_event, check_callback, n_transcripts])
+        return threading.Thread(target=safe_listen_fluid, args=[stop_event, check_callback, n_transcripts, silence_duration])
 
     def run_hearing(self):
         self.clear_audio_buffer()

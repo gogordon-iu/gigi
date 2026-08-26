@@ -549,7 +549,7 @@ class Character():
                     if hasattr(self, 'logger'):
                         self.logger.log_conversation(self.current_speaker or "User", final_text)
 
-    def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None, run_speaker_recognition=True, show_camera_feed=True):
+    def listen_fluid(self, timeout=30, n_transcripts=2, check_callback=None, run_speaker_recognition=True, show_camera_feed=True, silence_duration=5.0):
         if self.hearing and self.face:
             self.speaker_gaze_target = None
             self.current_speaker = None
@@ -586,7 +586,8 @@ class Character():
             hearing_thread = self.hearing.hearing_fluid_thread(
                 stop_event=stop_event, 
                 check_callback=cb, 
-                n_transcripts=n_transcripts
+                n_transcripts=n_transcripts,
+                silence_duration=silence_duration
             )
             hearing_thread.start()
             

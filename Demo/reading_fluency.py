@@ -666,7 +666,7 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                     if gigi.face:
                         gigi.face.set_reading_status("listening")
 
-                    gigi.listen_fluid(timeout=30, n_transcripts=1, check_callback=check_fluency, run_speaker_recognition=False, show_camera_feed=False)
+                    gigi.listen_fluid(timeout=30, n_transcripts=1, check_callback=check_fluency, run_speaker_recognition=False, show_camera_feed=False, silence_duration=5.0)
                     
                     t_listen_end = time.time()
                     listen_duration = t_listen_end - t_listen_start
