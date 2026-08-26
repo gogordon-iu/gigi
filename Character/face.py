@@ -341,6 +341,10 @@ class Face():
                 print(f"[Face] Warning: Error during pygame display update: {e}")
             
         elif IMAGE_OPTION == "cv":
+            import threading
+            if threading.current_thread() is not threading.main_thread():
+                self.face_update_counter += 1
+                return
             try:
                 W, H = self.screen_size
                 image_resized = cv2.resize(image_, self.screen_size, interpolation=cv2.INTER_LINEAR)

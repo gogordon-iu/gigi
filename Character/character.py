@@ -513,9 +513,9 @@ class Character():
                                 self._main_thread_render()
                                 with self.face.lock:
                                     cv2.waitKey(1)
-                                time.sleep(0.05)
+                                time.sleep(0.02)
                             except Exception as e:
-                                time.sleep(0.05)
+                                time.sleep(0.02)
                         else:
                             # Render text page overlays (ear icon or camera feed) if either is active
                             if (getattr(self.face, 'show_camera_feed', False) or getattr(self.face, 'feedback_state', None) is not None) and getattr(self.face, 'last_face_image', None) is not None:
@@ -635,9 +635,9 @@ class Character():
                                 self._main_thread_render()
                                 with self.face.lock:
                                     cv2.waitKey(1)
-                                time.sleep(0.05)
+                                time.sleep(0.02)
                             except Exception as e:
-                                time.sleep(0.05)
+                                time.sleep(0.02)
                         else:
                             # Render text page overlays (ear icon or camera feed) if either is active
                             if (getattr(self.face, 'show_camera_feed', False) or getattr(self.face, 'feedback_state', None) is not None) and getattr(self.face, 'last_face_image', None) is not None:
