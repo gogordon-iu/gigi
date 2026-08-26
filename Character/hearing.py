@@ -518,6 +518,7 @@ class Hearing():
                     rec.AcceptWaveform(audio_int16.tobytes())
                     result_json = json.loads(rec.FinalResult())
                     text = result_json.get("text", "")
+                    text = " ".join([w for w in text.split() if w.lower() not in ("[unk]", "unk")])
                     
                     if self.verbose:
                         print(f"[Vosk Pronunciation] Grammar: {grammar_json} -> Result: '{text}'")
