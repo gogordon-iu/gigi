@@ -447,6 +447,10 @@ class Hearing():
         """
         if not current_words:
             return []
+        import re
+        current_words = [w for w in current_words if w and w.lower() not in ("[unk]", "unk", "<unk>") and not re.match(r'^<.*?>$', w)]
+        if not current_words:
+            return []
 
         if self.last_segment_words:
             overlap_length = 0

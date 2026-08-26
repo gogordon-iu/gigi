@@ -475,17 +475,8 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                     listen_start_word_idx = current_word_idx
                     listen_start_word_states = list(word_states)
                     
-                    # Enable pronunciation verification mode for the active sentence
-                    gigi.hearing.pronunciation_mode = True
-                    gigi.hearing.pronunciation_engine = 'citrinet'
-                    # Set pronunciation grammar to the entire active sentence so Vosk can recognize any word in it
-                    grammar_words = []
-                    for w in active_words:
-                        grammar_words.append(w)
-                        norm = normalize_word_str(w)
-                        if norm != w:
-                            grammar_words.append(norm)
-                    gigi.hearing.pronunciation_grammar = grammar_words
+                    # Use native neural SenseVoice / Whisper for continuous fluid reading
+                    gigi.hearing.pronunciation_mode = False
 
                     if show_karaoke and gigi.face:
                         local_display_states = word_states + ['unread'] + ['unread'] * len(preview_words) if preview_words else word_states
@@ -501,8 +492,10 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                     def check_fluency(text):
                         nonlocal current_word_idx, word_states, sentence_mistakes
                         log_reading_event(f"[Fluid ASR Callback] Heard text snippet: '{text}'")
-                        words_heard = [w.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation)) for w in text.split()]
-                        words_heard = [w for w in words_heard if w]
+                        # Strip special ASR tokens like [unk], <unk>, timestamps, etc.
+                        cleaned_text = re.sub(r'\[.*?\]|<.*?>', ' ', text)
+                        words_heard = [w.lower().replace("’", "'").translate(str.maketrans('', '', string.punctuation)) for w in cleaned_text.split()]
+                        words_heard = [w for w in words_heard if w and w not in ("[unk]", "unk")]
                         if not words_heard:
                             return False
                             
@@ -759,10 +752,8 @@ def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, 
                                 last_wrong_heard=None
                             )
                         
-                        # Switch to pronunciation verification mode for this specific word
-                        gigi.hearing.pronunciation_mode = True
-                        gigi.hearing.pronunciation_engine = 'citrinet'
-                        gigi.hearing.pronunciation_grammar = [selected_word]
+                        # Use native neural SenseVoice / Whisper for word check
+                        gigi.hearing.pronunciation_mode = False
                         
                         review_prompts = [
                             "Can you try saying the highlighted word one more time?",

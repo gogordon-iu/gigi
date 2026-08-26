@@ -109,26 +109,31 @@ def generate_test_wav(gigi, text, filename):
     os.makedirs(test_audio_dir, exist_ok=True)
     out_path = os.path.join(test_audio_dir, filename)
     
-    print(f"[Test Helper] Rendering NixTTS for '{text}' -> {out_path}")
+    print(f"[Test Helper] Rendering TTS for '{text}' -> {out_path}")
     
-    # Render NixTTS
-    if getattr(gigi.speech, 'model', None) is not None:
-        c, c_length, _ = gigi.speech.model.tokenizer([text])
-        wav = gigi.speech.model.vocalize(c, c_length)[0, 0].astype(np.float32)
-    else:
-        print("[Test Helper] Warning: Nix model not found. Generating dummy audio.")
+    try:
+        gen_file = gigi.speech.generate_speech_text(text=text)
+        wav, orig_sr = sf.read(gen_file)
+        if len(wav.shape) > 1:
+            wav = wav[:, 0]
+        wav = wav.astype(np.float32)
+    except Exception as e:
+        print(f"[Test Helper] Warning: TTS generation failed: {e}. Using dummy audio.")
         wav = np.zeros(INPUT_SAMPLE_RATE * 2, dtype=np.float32)
+        orig_sr = INPUT_SAMPLE_RATE
         
     # Resample to INPUT_SAMPLE_RATE for callback compatibility
-    orig_sr = 22050
     target_sr = INPUT_SAMPLE_RATE
-    duration = len(wav) / orig_sr
-    num_samples = int(duration * target_sr)
-    wav_16k = np.interp(
-        np.linspace(0, len(wav), num_samples, endpoint=False),
-        np.arange(len(wav)),
-        wav
-    )
+    if orig_sr != target_sr:
+        duration = len(wav) / orig_sr
+        num_samples = int(duration * target_sr)
+        wav_16k = np.interp(
+            np.linspace(0, len(wav), num_samples, endpoint=False),
+            np.arange(len(wav)),
+            wav
+        )
+    else:
+        wav_16k = wav
     
     # Ensure minimum duration of 2.0s to allow ASR buffer processing
     min_samples = int(2.0 * target_sr)
