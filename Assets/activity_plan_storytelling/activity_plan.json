@@ -1,0 +1,129 @@
+{
+  "activity_title": "Imaginative Storytelling Adventure",
+  "approximate_duration": "5 minutes",
+  "number_of_students": "2 students",
+  "steps": [
+    {
+      "image_filename": "temp_b5ffbc08.png",
+      "image_prompt": "A high-quality, vibrant 3D digital illustration of a magical forest with a sparkling river, whimsical animals, and mysterious glowing objects scattered among the trees. The scene evokes curiosity and invites imaginative storytelling, focusing on the environment as a prompt for story creation.",
+      "image_url": "/static/temp_images/temp_b5ffbc08.png",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "Welcome to our storytelling adventure! Today, we\u2019re going to create an amazing story together.",
+          "facial": "[smile]",
+          "movement": "[wave]"
+        },
+        {
+          "text": "Let\u2019s look at this magical forest scene for inspiration. You can use anything you see in the picture as part of your story.",
+          "facial": "[curious face]",
+          "movement": "[gesture to screen]"
+        },
+        {
+          "text": "Are you ready to imagine and share your ideas?",
+          "facial": "[smile]",
+          "movement": "[nod]"
+        }
+      ],
+      "image_path": "images/temp_b5ffbc08.png"
+    },
+    {
+      "closing_condition": "After each student shares at least one idea for the story",
+      "goal": "Encourage students to brainstorm story ideas inspired by the magical forest scene.",
+      "image_prompt": "",
+      "step_type": "open",
+      "suggested_topics": [
+        "Animals in the forest",
+        "Magical objects",
+        "Unexpected adventures"
+      ]
+    },
+    {
+      "image_prompt": "",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "Those are fantastic ideas! I love how creative you are.",
+          "facial": "[clap]",
+          "movement": "[smile]"
+        },
+        {
+          "text": "Now, let\u2019s start telling our story. I\u2019ll begin with a sentence, and then each of you can add on.",
+          "facial": "[smile]",
+          "movement": "[wave hands]"
+        },
+        {
+          "text": "Once upon a time, in a magical forest, a curious bunny discovered a glowing river. What happens next?",
+          "facial": "[curious face]",
+          "movement": "[gesture to students]"
+        }
+      ]
+    },
+    {
+      "closing_condition": "After each student adds at least one sentence to the story",
+      "goal": "Students take turns building the story, each adding a sentence or idea.",
+      "image_prompt": "",
+      "step_type": "open",
+      "suggested_topics": [
+        "What did the bunny find?",
+        "Who else lives in the forest?",
+        "What magical event could happen?"
+      ]
+    },
+    {
+      "image_prompt": "",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "Wow, our story is really coming alive! I wonder what surprises might happen next.",
+          "facial": "[surprised face]",
+          "movement": "[nod]"
+        },
+        {
+          "text": "Let\u2019s finish our story with a creative ending. What do you think happens to the bunny and the glowing river?",
+          "facial": "[curious face]",
+          "movement": "[gesture to students]"
+        }
+      ]
+    },
+    {
+      "closing_condition": "After both students suggest a possible ending",
+      "goal": "Invite students to share their ideas for the story\u2019s ending.",
+      "image_prompt": "",
+      "step_type": "open",
+      "suggested_topics": [
+        "Happy ending",
+        "A magical transformation",
+        "A new adventure begins"
+      ]
+    },
+    {
+      "image_prompt": "",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "You did such a wonderful job telling our story! I loved hearing your ideas and seeing your imagination at work.",
+          "facial": "[smile]",
+          "movement": "[clap]"
+        },
+        {
+          "text": "Can you tell me which part of the story you enjoyed making the most?",
+          "facial": "[smile]",
+          "movement": "[nod]"
+        }
+      ]
+    },
+    {
+      "closing_condition": "After both students share their favorite part",
+      "goal": "Encourage students to reflect and share which part of the storytelling they liked best.",
+      "image_prompt": "",
+      "step_type": "open",
+      "suggested_topics": [
+        "Favorite sentence",
+        "Favorite character",
+        "Most exciting event"
+      ]
+    }
+  ],
+  "target_audience": "Grade 3 (8-9 years old)"
+}

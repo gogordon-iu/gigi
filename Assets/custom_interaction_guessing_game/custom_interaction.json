@@ -1,0 +1,64 @@
+{
+  "interaction_title": "Secret Number Challenge",
+  "description": "Interactive guessing game where Gigi thinks of a number between 1 and 10 and guides the student.",
+  "initial_state": "intro",
+  "variables": {
+    "secret": 7,
+    "guess": 0
+  },
+  "states": {
+    "intro": {
+      "actions": [
+        {
+          "type": "say",
+          "text": "I am thinking of a number between 1 and 10. Can you guess what it is?",
+          "movement": "nod",
+          "facial": "curious face"
+        },
+        {
+          "type": "listen",
+          "variable": "guess"
+        }
+      ],
+      "transitions": [
+        {
+          "condition": "'7' in str(guess) or 'seven' in str(guess).lower()",
+          "target": "win"
+        },
+        {
+          "target": "try_again"
+        }
+      ]
+    },
+    "win": {
+      "actions": [
+        {
+          "type": "say",
+          "text": "You got it! 7 was my secret number! You are super smart!",
+          "movement": "cheer",
+          "facial": "smile"
+        }
+      ],
+      "transitions": [
+        {
+          "target": "exit"
+        }
+      ]
+    },
+    "try_again": {
+      "actions": [
+        {
+          "type": "say",
+          "text": "Good guess, but not quite! My secret number was 7. Nice try!",
+          "movement": "tilt_head",
+          "facial": "smile"
+        }
+      ],
+      "transitions": [
+        {
+          "target": "exit"
+        }
+      ]
+    }
+  }
+}

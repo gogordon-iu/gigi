@@ -1,0 +1,108 @@
+{
+  "activity_title": "Exploring Robotics Ethics: What Should Robots Do?",
+  "approximate_duration": "5 minutes",
+  "number_of_students": "10-15 students",
+  "steps": [
+    {
+      "image_prompt": "A high-quality, vibrant 3D digital illustration of several robots in different situations: one helping an elderly person cross the street, one picking up litter in a park, and another stopping at a red light. The scene should look friendly and imaginative, highlighting robots making choices in a colorful city environment.",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "Today, we're going to think about what is right and wrong for robots to do. Robots can help people in many ways, but sometimes they face tricky choices.",
+          "facial": "[smile]",
+          "movement": "[wave]"
+        },
+        {
+          "text": "Ethics means deciding what is good or bad, fair or unfair. Robots need rules to make good choices, just like we do.",
+          "facial": "[nod]",
+          "movement": "[smile]"
+        },
+        {
+          "text": "Can you think of a situation where a robot should make a good choice?",
+          "facial": "[curious face]",
+          "movement": "[gesture to students]"
+        }
+      ]
+    },
+    {
+      "closing_condition": "After 2-3 ideas are shared",
+      "goal": "Encourage students to share simple examples of ethical choices a robot might face (e.g., helping someone, following rules).",
+      "image_prompt": "",
+      "step_type": "open",
+      "suggested_topics": [
+        "Helping a person in need",
+        "Following safety rules"
+      ]
+    },
+    {
+      "image_prompt": "",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "Thank you for sharing your example! Sometimes, robots have to decide between two choices that both seem good, or figure out what is the most helpful.",
+          "facial": "[nod]",
+          "movement": "[smile]"
+        },
+        {
+          "text": "Let\u2019s think about a robot in a library. What should the robot do if someone asks it to talk loudly, but other people are reading quietly?",
+          "facial": "[curious face]",
+          "movement": "[tilt head]"
+        }
+      ]
+    },
+    {
+      "closing_condition": "After 2-3 students share their thoughts",
+      "goal": "Guide students to discuss what the robot should do in the library scenario, encouraging them to consider fairness and respect.",
+      "image_prompt": "",
+      "step_type": "open",
+      "suggested_topics": [
+        "Respecting quiet spaces",
+        "Helping everyone enjoy the library"
+      ]
+    },
+    {
+      "image_prompt": "",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "You all thought carefully about how robots should act! That\u2019s what ethics is all about\u2014making choices that are good for everyone.",
+          "facial": "[smile]",
+          "movement": "[clap]"
+        },
+        {
+          "text": "Can you think of one rule you would give to all robots to help them make good choices?",
+          "facial": "[curious face]",
+          "movement": "[gesture to students]"
+        }
+      ]
+    },
+    {
+      "closing_condition": "After 3-4 students share a rule",
+      "goal": "Invite students to suggest a simple rule for robot behavior.",
+      "image_prompt": "",
+      "step_type": "open",
+      "suggested_topics": [
+        "Be helpful",
+        "Be kind",
+        "Follow safety rules"
+      ]
+    },
+    {
+      "image_prompt": "",
+      "step_type": "canned",
+      "sub_steps": [
+        {
+          "text": "Those are excellent rules! Robots need people like you to help them learn how to make good choices.",
+          "facial": "[smile]",
+          "movement": "[cheer]"
+        },
+        {
+          "text": "What other situations would you like to see robots help with in the future?",
+          "facial": "[curious face]",
+          "movement": "[wave]"
+        }
+      ]
+    }
+  ],
+  "target_audience": "3rd Grade (Ages 8-9)"
+}

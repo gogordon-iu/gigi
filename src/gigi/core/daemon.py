@@ -845,7 +845,11 @@ def process_command_line(line):
         from gigi.hardware.calibration import is_motor_calibrated
         activities_dir = os.path.join(str(PROJECT_ROOT), "src", "gigi", "activities")
         categorized_activities = []
+        seen_filenames = set()
         for info in sorted(demos.values(), key=lambda x: x["stem"]):
+            if info["filename"] in seen_filenames:
+                continue
+            seen_filenames.add(info["filename"])
             stem = info["stem"]
             rel_dir = os.path.relpath(info["dir"], activities_dir).replace("\\", "/")
             subcat = rel_dir.split("/")[0] if rel_dir != "." else "general"
@@ -858,9 +862,9 @@ def process_command_line(line):
             })
         send_to_active_client({
             "status": "list",
-            "available_demos": sorted([info["filename"] for info in demos.values()]),
-            "available_scripts": sorted([info["filename"] for info in scripts.values()]),
-            "available_zhennan": sorted([info["filename"] for info in zhennan.values()]),
+            "available_demos": sorted(list(set([info["filename"] for info in demos.values()]))),
+            "available_scripts": sorted(list(set([info["filename"] for info in scripts.values()]))),
+            "available_zhennan": sorted(list(set([info["filename"] for info in zhennan.values()]))),
             "available_activity_plans": plans,
             "available_custom_interactions": interactions,
             "categorized_activities": categorized_activities,

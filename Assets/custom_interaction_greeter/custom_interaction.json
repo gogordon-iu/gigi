@@ -1,0 +1,69 @@
+{
+  "interaction_title": "Classroom Morning Greeter",
+  "description": "Gigi welcomes students to the classroom, asks how their day is going, and responds with empathetic gestures.",
+  "initial_state": "welcome",
+  "variables": {
+    "student_mood": "great"
+  },
+  "states": {
+    "welcome": {
+      "actions": [
+        {
+          "type": "say",
+          "text": "Good morning everyone! Welcome to class!",
+          "movement": "wave_hello",
+          "facial": "smile"
+        },
+        {
+          "type": "say",
+          "text": "How is everyone feeling today? Are you ready to learn?",
+          "movement": "home",
+          "facial": "curious face"
+        },
+        {
+          "type": "listen",
+          "variable": "student_mood"
+        }
+      ],
+      "transitions": [
+        {
+          "condition": "'good' in str(student_mood).lower() or 'ready' in str(student_mood).lower() or 'yes' in str(student_mood).lower()",
+          "target": "excited"
+        },
+        {
+          "target": "encouraging"
+        }
+      ]
+    },
+    "excited": {
+      "actions": [
+        {
+          "type": "say",
+          "text": "Fantastic! I am thrilled to explore new ideas with you today!",
+          "movement": "cheer",
+          "facial": "smile"
+        }
+      ],
+      "transitions": [
+        {
+          "target": "exit"
+        }
+      ]
+    },
+    "encouraging": {
+      "actions": [
+        {
+          "type": "say",
+          "text": "I understand! Let's take it one step at a time. It's going to be a great day!",
+          "movement": "nod",
+          "facial": "smile"
+        }
+      ],
+      "transitions": [
+        {
+          "target": "exit"
+        }
+      ]
+    }
+  }
+}
