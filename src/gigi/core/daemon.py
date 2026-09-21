@@ -503,6 +503,12 @@ class ExecutionManager:
                 else:
                     sub_env["PYTHONPATH"] = src_dir
 
+                # Ensure X11 display authorization works on robot
+                if "DISPLAY" not in sub_env:
+                    sub_env["DISPLAY"] = ":0"
+                if not os.path.exists(sub_env.get("XAUTHORITY", "")) and os.path.exists("/home/orangepi/.Xauthority"):
+                    sub_env["XAUTHORITY"] = "/home/orangepi/.Xauthority"
+
                 self.process = subprocess.Popen(
                     cmd,
                     cwd=script_info["dir"],

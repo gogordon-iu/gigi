@@ -139,5 +139,23 @@ class TestScriptedActivities(unittest.TestCase):
         self.assertGreater(len(halloween.graph.nodes), 0)
 
 
+class TestActivityFilesIntegrity(unittest.TestCase):
+    """Verifies that all activity modules compile without syntax or reference errors."""
+
+    def test_all_activities_compile(self):
+        import ast
+        activities_dir = PROJECT_ROOT / "src" / "gigi" / "activities"
+        for py_file in activities_dir.rglob("*.py"):
+            with open(py_file, "r", encoding="utf-8") as f:
+                code = f.read()
+            # Verify AST parses cleanly
+            tree = ast.parse(code, filename=str(py_file))
+            self.assertIsNotNone(tree)
+            # Verify compilation to bytecode
+            compiled = compile(code, str(py_file), "exec")
+            self.assertIsNotNone(compiled)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

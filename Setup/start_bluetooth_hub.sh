@@ -6,7 +6,11 @@ BASE_DIR="$( dirname "$SCRIPT_DIR" )"
 
 # Export X11 display variables so child processes can render GUI windows on the screen
 export DISPLAY=:0
-export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+if [ -f "/home/orangepi/.Xauthority" ]; then
+  export XAUTHORITY="/home/orangepi/.Xauthority"
+else
+  export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+fi
 
 # Make sure log directory exists
 LOG_DIR="$BASE_DIR/Logs"

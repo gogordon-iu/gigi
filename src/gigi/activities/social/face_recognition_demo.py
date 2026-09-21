@@ -37,7 +37,7 @@ def main():
     start_time = time.time()
     
     # Set up log file
-    log_dir = os.path.abspath(os.path.join(parent_dir, "logs"))
+    log_dir = os.path.abspath(os.path.join(str(config.PROJECT_ROOT), "logs"))
     os.makedirs(log_dir, exist_ok=True)
     timestamp_str = time.strftime("%Y%m%d_%H%M%S")
     log_file_path = os.path.join(log_dir, f"face_rec_log_{timestamp_str}.csv")
