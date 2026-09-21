@@ -255,7 +255,7 @@ def play_mastermind():
                     )
                 else:
                     # Import dynamically to avoid circular dependencies
-                    from Demo.make_friends import register_new_friend
+                    from gigi.activities.social.make_friends import register_new_friend
                     print(f"[Mastermind] Detected unknown face (ID: {fid}). Registering new friend...")
                     success = register_new_friend(gigi, fid)
                     if success:

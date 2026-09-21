@@ -12,6 +12,8 @@ from gigi.core.robot import GigiRobot, Character
 from gigi.core.config import (
     IS_ROBOT,
     CHARACTER_FOLDER,
+    PROJECT_ROOT,
+    LOGS_DIR,
     DEFAULT_RFCOMM_CHANNEL as RFCOMM_CHANNEL,
     DEFAULT_TCP_PORT as TCP_PORT,
 )
@@ -164,7 +166,7 @@ def execute_script_by_name(script_name):
             scriptGraph_instance = getattr(scriptGraph_package, script_info['class_name'])()
             scriptGraph_instance.init_graph()
             
-            from script import Script
+            from gigi.activities.scripted.engine import Script
             script_instance = Script(graph=scriptGraph_instance, character=gigi)
             script_instance.generateAllSpeech()
             script_instance.check_assets()
@@ -173,23 +175,24 @@ def execute_script_by_name(script_name):
         except Exception as e:
             print(f"[WakeUp] In-process execution error: {e}. Falling back to subprocess...")
             
-    # Subprocess fallback
-    scripts_folder = os.path.abspath(os.path.join(CHARACTER_FOLDER, "../Scripts"))
-    demo_folder = os.path.abspath(os.path.join(CHARACTER_FOLDER, "../Demo"))
+    # Subprocess fallback: search activities directory
+    activities_dir = PROJECT_ROOT / "src" / "gigi" / "activities"
     file_path = None
     
-    # Check in Scripts first
-    if os.path.exists(scripts_folder):
-        for f in os.listdir(scripts_folder):
-            if f.endswith(".py") and os.path.splitext(f)[0].lower() == script_name.lower():
-                file_path = os.path.join(scripts_folder, f)
-                break
-            
-    # If not found, check in Demo
-    if not file_path and os.path.exists(demo_folder):
-        for f in os.listdir(demo_folder):
-            if f.endswith(".py") and os.path.splitext(f)[0].lower() == script_name.lower():
-                file_path = os.path.join(demo_folder, f)
+    clean_target = script_name.strip()
+    if clean_target.lower().endswith(".py"):
+        clean_target = clean_target[:-3]
+    target_lower = clean_target.lower()
+
+    if activities_dir.exists():
+        for root, dirs, files in os.walk(activities_dir):
+            for f in files:
+                if f.endswith(".py") and f != "__init__.py":
+                    stem = os.path.splitext(f)[0]
+                    if stem.lower() == target_lower:
+                        file_path = os.path.join(root, f)
+                        break
+            if file_path:
                 break
             
     if file_path and os.path.exists(file_path):
@@ -199,9 +202,17 @@ def execute_script_by_name(script_name):
             gigi.stop_character()
             time.sleep(1.0)
             
+            sub_env = dict(os.environ)
+            src_dir = str(PROJECT_ROOT / "src")
+            if "PYTHONPATH" in sub_env:
+                sub_env["PYTHONPATH"] = f"{src_dir}{os.pathsep}{sub_env['PYTHONPATH']}"
+            else:
+                sub_env["PYTHONPATH"] = src_dir
+
             result = subprocess.run(
                 [sys.executable, file_path],
                 cwd=os.path.dirname(file_path),
+                env=sub_env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,

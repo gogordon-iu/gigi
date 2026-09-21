@@ -7,6 +7,7 @@ import datetime
 import random
 import threading
 from gigi.core.robot import GigiRobot, Character
+from gigi.core.config import ASSETS_DIR, PROJECT_ROOT
 from gigi.interaction.llm.client import LLMClient
 from gigi.interaction.strategies import StrategyCatalog
 from gigi.interaction.manager import InteractionManager
@@ -158,10 +159,7 @@ def greet_and_register():
         
         # If there are any unknown faces, register them!
         if unknown_ids:
-            try:
-                from Demo.make_friends import register_new_friend
-            except ImportError:
-                from make_friends import register_new_friend
+            from gigi.activities.social.make_friends import register_new_friend
                 
             for face_id in unknown_ids:
                 log("SYSTEM", f"Registering unknown face ID: {face_id}")
@@ -223,11 +221,32 @@ manager    = InteractionManager(gigi.conversation, catalog)
 # Load plan
 # ------------------------------------------------------------------
 plan_file = "activity_plan_new.json"
+if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
+    target = sys.argv[1]
+    activity_dir = os.path.join(str(ASSETS_DIR), target) if not os.path.isabs(target) else target
+    if os.path.isdir(activity_dir):
+        json_files = [f for f in os.listdir(activity_dir) if f.endswith('.json')]
+        if json_files:
+            plan_file = os.path.join(activity_dir, json_files[0])
+        else:
+            print(f"No .json plan file found in '{activity_dir}'.")
+            sys.exit(1)
+    elif os.path.isfile(target):
+        plan_file = target
+    else:
+        # Check in Assets directly
+        assets_file = os.path.join(str(ASSETS_DIR), target)
+        if os.path.isfile(assets_file):
+            plan_file = assets_file
+        else:
+            print(f"Plan file or folder '{target}' not found.")
+            sys.exit(1)
+
 if not os.path.exists(plan_file):
     print(f"'{plan_file}' not found.")
     sys.exit(1)
 
-with open(plan_file) as f:
+with open(plan_file, "r", encoding="utf-8") as f:
     plan = json.load(f)
 
 log("SYSTEM", f"Loaded: {plan.get('activity_title', '?')}")
@@ -264,7 +283,7 @@ try:
                             plan_dir = os.path.dirname(os.path.abspath(plan_file))
                             image = find_file_in_dir(plan_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
                             if not image:
-                                image = find_file_in_dir(os.path.join(gigi_dir, "Assets"), image_ref, extensions=['.png', '.jpg', '.jpeg'])
+                                image = find_file_in_dir(str(ASSETS_DIR), image_ref, extensions=['.png', '.jpg', '.jpeg'])
                     if text:
                         robot_speak(text, image)
                         history.append({"role": "assistant", "content": text})
@@ -276,7 +295,7 @@ try:
                     plan_dir = os.path.dirname(os.path.abspath(plan_file))
                     image = find_file_in_dir(plan_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
                     if not image:
-                        image = find_file_in_dir(os.path.join(gigi_dir, "Assets"), image_ref, extensions=['.png', '.jpg', '.jpeg'])
+                        image = find_file_in_dir(str(ASSETS_DIR), image_ref, extensions=['.png', '.jpg', '.jpeg'])
                 if script:
                     robot_speak(script, image)
                     history.append({"role": "assistant", "content": script})
@@ -293,7 +312,7 @@ try:
                 plan_dir = os.path.dirname(os.path.abspath(plan_file))
                 image = find_file_in_dir(plan_dir, image_ref, extensions=['.png', '.jpg', '.jpeg'])
                 if not image:
-                    image = find_file_in_dir(os.path.join(gigi_dir, "Assets"), image_ref, extensions=['.png', '.jpg', '.jpeg'])
+                    image = find_file_in_dir(str(ASSETS_DIR), image_ref, extensions=['.png', '.jpg', '.jpeg'])
             if script:
                 robot_speak(script, image)
                 history.append({"role": "assistant", "content": script})

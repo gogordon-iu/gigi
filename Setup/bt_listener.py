@@ -195,68 +195,98 @@ def scan_activity_plans():
 
 def scan_files():
     """
-    Scans the Demo/, Scripts/, and Zhennan/ directories for executable Python files.
+    Scans src/gigi/activities/ and src/gigi/interaction/ for executable activities and scripts.
     Returns:
         demos (dict): lowercase stem -> file info dict
         scripts (dict): lowercase stem -> file info dict
         zhennan (dict): lowercase stem -> file info dict
     """
     base_dir = get_base_dir()
-    demo_dir = os.path.join(base_dir, "Demo")
-    scripts_dir = os.path.join(base_dir, "Scripts")
-    zhennan_dir = os.path.join(base_dir, "Zhennan")
+    activities_dir = os.path.join(base_dir, "src", "gigi", "activities")
+    interaction_dir = os.path.join(base_dir, "src", "gigi", "interaction")
     
     demos = {}
     scripts = {}
     zhennan = {}
     
-    if os.path.isdir(demo_dir):
-        for f in os.listdir(demo_dir):
-            if f.endswith(".py") and f != "__init__.py":
-                stem = os.path.splitext(f)[0]
-                demos[stem.lower()] = {
-                    "filename": f,
-                    "stem": stem,
-                    "path": os.path.abspath(os.path.join(demo_dir, f)),
-                    "dir": os.path.abspath(demo_dir),
-                    "type": "demo"
-                }
-                
-    if os.path.isdir(scripts_dir):
-        for f in os.listdir(scripts_dir):
-            if f.endswith(".py") and f != "__init__.py":
-                stem = os.path.splitext(f)[0]
-                scripts[stem.lower()] = {
-                    "filename": f,
-                    "stem": stem,
-                    "path": os.path.abspath(os.path.join(scripts_dir, f)),
-                    "dir": os.path.abspath(scripts_dir),
-                    "type": "script"
-                }
+    # 1. Scan activities in src/gigi/activities/
+    if os.path.isdir(activities_dir):
+        for root, dirs, files in os.walk(activities_dir):
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d != "__pycache__" and d != "common"]
+            for f in files:
+                if f.endswith(".py") and f != "__init__.py" and f != "base.py" and not f.startswith("test_"):
+                    stem = os.path.splitext(f)[0]
+                    is_scripted = "scripted" in root
+                    # Only include actual lesson scripts from scripted
+                    if is_scripted and stem not in ["ferris", "halloween", "lego"]:
+                        continue
+                        
+                    file_type = "script" if is_scripted else "demo"
+                    info = {
+                        "filename": f,
+                        "stem": stem,
+                        "path": os.path.abspath(os.path.join(root, f)),
+                        "dir": os.path.abspath(root),
+                        "type": file_type
+                    }
+                    demos[stem.lower()] = info
+                    if is_scripted:
+                        scripts[stem.lower()] = info
 
-    if os.path.isdir(zhennan_dir):
-        for f in os.listdir(zhennan_dir):
-            if f.endswith(".py") and f != "__init__.py":
-                stem = os.path.splitext(f)[0]
-                zhennan[stem.lower()] = {
-                    "filename": f,
-                    "stem": stem,
-                    "path": os.path.abspath(os.path.join(zhennan_dir, f)),
-                    "dir": os.path.abspath(zhennan_dir),
-                    "type": "zhennan"
-                }
-                
+    # 2. Add interaction runners for backward-compatibility with tablet routing
+    runner_path = os.path.join(interaction_dir, "runner.py")
+    if os.path.isfile(runner_path):
+        runner_info = {
+            "filename": "runner.py",
+            "stem": "runner",
+            "path": os.path.abspath(runner_path),
+            "dir": os.path.abspath(interaction_dir),
+            "type": "script"
+        }
+        zhennan["run_activity_teacherdemo"] = dict(runner_info, filename="run_activity_teacherdemo.py", stem="run_activity_teacherdemo")
+        zhennan["runner"] = runner_info
+        
+    custom_runner_path = os.path.join(interaction_dir, "custom_runner.py")
+    if os.path.isfile(custom_runner_path):
+        custom_info = {
+            "filename": "custom_runner.py",
+            "stem": "custom_runner",
+            "path": os.path.abspath(custom_runner_path),
+            "dir": os.path.abspath(interaction_dir),
+            "type": "script"
+        }
+        zhennan["run_custom_interaction"] = dict(custom_info, filename="run_custom_interaction.py", stem="run_custom_interaction")
+        zhennan["custom_runner"] = custom_info
+
+    # 3. Add aliases for common historical / tablet names
+    aliases = {
+        "readingfluencydemo": "reading_fluency",
+        "readingfluency": "reading_fluency",
+        "reading_fluency_demo": "reading_fluency",
+        "mastermind_game": "mastermind",
+        "mathquest": "math_quest",
+        "storyquest": "story_game",
+        "make_friends_demo": "make_friends",
+        "makefriends": "make_friends",
+        "alivemode": "alive_mode",
+        "alive_mode_demo": "alive_mode",
+        "face_demo": "face_recognition_demo",
+    }
+    for alias, target in aliases.items():
+        if target in demos and alias not in demos:
+            demos[alias] = demos[target]
+
     return demos, scripts, zhennan
 
 def find_script(target_name):
     """
-    Looks up a script, demo, or zhennan script by its name or filename.
+    Looks up an activity, script, demo, or interaction runner by its name or filename.
     Returns:
         (script_info, error_details)
     """
     demos, scripts, zhennan = scan_files()
     
-    # Route activity plan executions to run_activity_teacherdemo
+    # Route activity plan executions to interaction runner
     if target_name.startswith("activity_plan_"):
         teacher_script_key = "run_activity_teacherdemo"
         if teacher_script_key in zhennan:
@@ -279,7 +309,7 @@ def find_script(target_name):
     if clean_name.lower().endswith(".py"):
         clean_name = clean_name[:-3]
         
-    key = clean_name.lower()
+    key = clean_name.lower().replace("-", "_").replace(" ", "_")
     
     if key in demos:
         return demos[key], None
@@ -293,15 +323,15 @@ def find_script(target_name):
     available_scripts = [info["filename"] for info in scripts.values()]
     available_zhennan = [info["filename"] for info in zhennan.values()]
     
-    err_msg = f"Script, demo, or zhennan script '{target_name}' not found."
+    err_msg = f"Script, activity, or demo '{target_name}' not found."
     error_details = {
         "status": "error",
         "error": "not_found",
         "message": err_msg,
         "requested": target_name,
-        "available_demos": sorted(available_demos),
-        "available_scripts": sorted(available_scripts),
-        "available_zhennan": sorted(available_zhennan)
+        "available_demos": sorted(list(set(available_demos))),
+        "available_scripts": sorted(list(set(available_scripts))),
+        "available_zhennan": sorted(list(set(available_zhennan)))
     }
     return None, error_details
 
@@ -457,10 +487,19 @@ class ExecutionManager:
                 cmd = [sys.executable, "-u", script_info["path"]]
                 if "args" in script_info:
                     cmd.extend(script_info["args"])
-                # Run subprocess using system Python executable
+                # Run subprocess with PYTHONPATH pointing to src
+                base_dir = get_base_dir()
+                src_dir = os.path.join(base_dir, "src")
+                sub_env = dict(os.environ)
+                if "PYTHONPATH" in sub_env:
+                    sub_env["PYTHONPATH"] = f"{src_dir}{os.pathsep}{sub_env['PYTHONPATH']}"
+                else:
+                    sub_env["PYTHONPATH"] = src_dir
+
                 self.process = subprocess.Popen(
                     cmd,
                     cwd=script_info["dir"],
+                    env=sub_env,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -712,11 +751,11 @@ def pregenerate_activity_speech(plan_data, activity_folder):
         import os
         import re
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        char_dir = os.path.join(base_dir, "Character")
-        if char_dir not in sys.path:
-            sys.path.insert(0, char_dir)
+        src_dir = os.path.join(base_dir, "src")
+        if src_dir not in sys.path:
+            sys.path.insert(0, src_dir)
             
-        from speech import Speech
+        from gigi.expression.speech import Speech
         
         # Initialize Speech for this specific activity
         # This will create the activity's speech directory automatically
@@ -812,11 +851,21 @@ def process_command_line(line):
         success, msg = execution_manager.stop_current()
         try:
             base_dir = get_base_dir()
-            movement_script = os.path.join(base_dir, "Character", "movement.py")
-            subprocess.Popen([sys.executable, movement_script, "release"], cwd=os.path.dirname(movement_script))
-            print("[BluetoothListener] Dispatched movement.py release subprocess to return home and release motors.")
+            src_dir = os.path.join(base_dir, "src")
+            sub_env = dict(os.environ)
+            if "PYTHONPATH" in sub_env:
+                sub_env["PYTHONPATH"] = f"{src_dir}{os.pathsep}{sub_env['PYTHONPATH']}"
+            else:
+                sub_env["PYTHONPATH"] = src_dir
+
+            subprocess.Popen(
+                [sys.executable, "-m", "gigi.expression.movement", "release"],
+                cwd=base_dir,
+                env=sub_env
+            )
+            print("[BluetoothListener] Dispatched gigi.expression.movement release subprocess to return home and release motors.")
         except Exception as e:
-            print(f"[BluetoothListener] Error dispatching movement.py: {e}")
+            print(f"[BluetoothListener] Error dispatching movement release: {e}")
             
         send_to_active_client({
             "status": "stopped" if success else "error",

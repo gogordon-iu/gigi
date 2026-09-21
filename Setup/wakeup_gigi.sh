@@ -5,29 +5,31 @@ export XAUTHORITY=/home/orangepi/.Xauthority
 
 # Prevent screen blanking
 
-gsettings set org.gnome.desktop.session idle-delay 0
-gsettings set org.gnome.desktop.screensaver lock-enabled false
+gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
+gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
 
-echo "xset s off && xset s noblank && xset -dpms" >> ~/.bashrc
+xset s off 2>/dev/null || true
+xset -dpms 2>/dev/null || true
+xset s noblank 2>/dev/null || true
 
-xset s off
-xset -dpms
-xset s noblank
-
-SOURCE="/home/orangepi/Code/gigi/Character/motorData_calibrated_local.json"
-DEST="/home/orangepi/Code/gigi/Character/motorData_calibrated.json"
+SOURCE="/home/orangepi/Code/gigi/motorData_calibrated_local.json"
+DEST="/home/orangepi/Code/gigi/motorData_calibrated.json"
 
 if [ -f "$SOURCE" ]; then
     cp "$SOURCE" "$DEST"
     echo "File copied to $DEST"
-else
-    echo "Source file does not exist: $SOURCE"
 fi
 
-
 cd /home/orangepi/Code/gigi
-source venv/bin/activate
-source activate_environment.sh
 
-cd Character
-python wakeUp.py        # exec keeps service alive
+if [ -f "venv/bin/activate" ]; then
+    source venv/bin/activate
+elif [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+fi
+
+if [ -f "activate_environment.sh" ]; then
+    source activate_environment.sh
+fi
+
+exec python3 -m gigi.core.daemon

@@ -257,3 +257,18 @@ class Movement:
         """Releases all PWM signals to prevent motor heating."""
         for v in self.motor_map.values():
             self.motors.set_pwm(v["channel"], 0, 4096)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1].lower() in ["release", "stop"]:
+        m = Movement()
+        m.home_position()
+        m.release()
+        print("[Movement CLI] Motors returned home and released.")
+    elif len(sys.argv) > 1 and sys.argv[1].lower() in ["home"]:
+        m = Movement()
+        m.home_position()
+        print("[Movement CLI] Motors returned home.")
+    else:
+        print("Usage: python -m gigi.expression.movement [home|release]")
+
