@@ -72,7 +72,13 @@ sleep 1
 
 # 3. Register Serial Port Profile (SPP) in BlueZ
 echo "[*] Registering Bluetooth Serial Port Profile (SPP)..."
-sdptool add SP > /dev/null 2>&1 || true
+for i in {1..10}; do
+  if sdptool add SP > /dev/null 2>&1; then
+    echo "    -> Serial Port Profile (SPP) registered successfully!"
+    break
+  fi
+  sleep 1
+done
 
 # 4. Start the Auto-Pairing Agent
 PIN_DISPLAY="${GIGI_BT_PIN:-198420}"
