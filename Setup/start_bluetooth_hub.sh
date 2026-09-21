@@ -72,9 +72,12 @@ sleep 1
 
 # 3. Register Serial Port Profile (SPP) in BlueZ
 echo "[*] Registering Bluetooth Serial Port Profile (SPP)..."
+hciconfig hci0 piscan || true
+[ -S /var/run/sdp ] && chmod 777 /var/run/sdp || true
 for i in {1..10}; do
   if sdptool add SP > /dev/null 2>&1; then
     echo "    -> Serial Port Profile (SPP) registered successfully!"
+    [ -S /var/run/sdp ] && chmod 777 /var/run/sdp || true
     break
   fi
   sleep 1
