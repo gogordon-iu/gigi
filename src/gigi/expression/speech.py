@@ -99,9 +99,8 @@ else:
     ESPEAK_LIBRARY  = None
 
 if TTS_MODEL == "nix":
-    _speech_dir = os.path.dirname(os.path.abspath(__file__))
-    _gigi_dir = os.path.dirname(_speech_dir)
-    _resources_dir = os.path.join(_gigi_dir, 'Resources')
+    from gigi.core.config import RESOURCES_DIR
+    _resources_dir = str(RESOURCES_DIR)
     if _resources_dir not in sys.path:
         sys.path.insert(0, _resources_dir)
 
@@ -175,9 +174,8 @@ class Speech():
                     language=self.languages[0],
                     speaker=lanugage_speakers[self.languages[0]][0])
             elif TTS_MODEL == "nix":
-                _speech_dir = os.path.dirname(os.path.abspath(__file__))
-                _gigi_dir = os.path.dirname(_speech_dir)
-                _model_dir = os.path.join(_gigi_dir, 'Resources', 'nix', 'models')
+                from gigi.core.config import RESOURCES_DIR
+                _model_dir = str(RESOURCES_DIR / 'nix' / 'models')
                 self.model = NixTTSInference(model_dir=_model_dir)
             else:
                 self.model = None

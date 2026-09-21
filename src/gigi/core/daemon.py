@@ -976,9 +976,11 @@ def handle_client_connection(client_wrapper):
         active_client = client_wrapper
 
     print("[Daemon] Active client connection established.")
+    from gigi.hardware.calibration import is_motor_calibrated
     send_to_active_client({
         "status": "ready",
         "message": "Connected to Gigi daemon. Ready for commands.",
+        "calibrated": is_motor_calibrated(),
     })
 
     buffer = ""
