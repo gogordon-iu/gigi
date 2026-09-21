@@ -1,0 +1,57 @@
+Conversion Process:
+
+Have a linux system with enough ram, preferably 16gb+
+Create a venv with 3.9+ and git clone rkn-llm 
+
+cd /rknn-llm/rkllm-toolkit/packages and install the python wheel file suited to your python env.
+
+git clone the hf model of your preference 
+
+run this python script with the path pointing to hf model repo and copy the output rkllm file to orangepi.
+
+#####################################
+from rkllm.api import RKLLM
+
+# Update this to your local path from step 1
+model_path = "<path to your model's git repo>"
+
+llm = RKLLM()
+
+print("--> Loading HuggingFace model")
+# trust_remote_code=True is often needed for Qwen architectures
+ret = llm.load_huggingface(model=model_path)
+if ret != 0:
+    print("Load model failed!"); exit(ret)
+
+print("--> Building RKLLM (this will take a few minutes)")
+# RK3588 is a 3-core NPU; we optimize for all 3
+ret = llm.build(do_quantization=True,
+                optimization_level=1,
+                quantized_dtype='w8a8',
+                target_platform='rk3588')
+if ret != 0:
+    print("Build model failed!"); exit(ret)
+
+print("--> Exporting...")
+ret = llm.export_rkllm("<path to your output model>.rkllm")
+if ret != 0:
+    print("Export failed!"); exit(ret)
+
+print("Success! Your NPU model is ready.")
+##################################################
+
+
+
+Running on orangepi:
+
+
+source activate_environment.sh
+edit the ./llm_server.sh file to point to your rkllm file.
+source ./llm_server.sh
+
+Your server is ready. Open another terminal
+cd verification/
+python npu_debug.py
+if it returns an llm output, congrats your model is working!
+
+

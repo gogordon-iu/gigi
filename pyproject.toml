@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gigi"
+version = "0.2.0"
+description = "An open-source, expressive social robot platform for child-robot interaction and educational robotics."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Gigi Robotics Team", email = "gogordon@iu.edu"}
+]
+dependencies = [
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "opencv-python>=4.8.0",
+    "pygame>=2.5.0",
+    "pillow>=10.0.0",
+    "screeninfo>=0.8.1",
+    "pyaudio>=0.2.13",
+    "SpeechRecognition>=3.10.0",
+    "vosk>=0.3.45",
+    "webrtcvad>=2.0.10",
+    "faster-whisper>=1.0.0",
+    "librosa>=0.10.0",
+    "ffmpeg-python>=0.2.0",
+    "psutil>=5.9.0",
+    "python-dotenv>=1.0.0",
+    "openai>=1.0.0",
+    "requests>=2.31.0",
+    "flask>=3.0.0",
+    "flask-cors>=4.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+robot = [
+    "smbus2>=0.4.3",
+    "gpiod>=2.1.0",
+]
+perception = [
+    "mediapipe>=0.10.0",
+    "face_recognition>=1.3.0",
+    "deepface>=0.0.79",
+]
+dev = [
+    "pytest>=7.4.0",
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+]
+
+[project.scripts]
+gigi = "gigi.cli:main"
+gigi-verify = "gigi.verification.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

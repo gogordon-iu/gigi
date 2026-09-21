@@ -1,0 +1,10 @@
+crontab -e               # edit the current user’s crontab
+
+SHELL=/bin/bash
+PATH=/home/orangepi/Code/gigi/venv/bin:/usr/local/bin:/usr/bin:/bin
+DISPLAY=:0
+XAUTHORITY=/home/orangepi/.Xauthority
+xset s off
+xset -dpms
+xset s noblank
+@reboot /home/orangepi/wakeup_gigi.sh >> /home/orangepi/wakeup_gigi.log 2>&1

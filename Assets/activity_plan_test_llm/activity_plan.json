@@ -1,0 +1,12 @@
+{
+  "activity_title": "LLM Verification Test",
+  "approximate_duration": "1 minute",
+  "number_of_students": "1 students",
+  "steps": [
+    {
+      "step_type": "open",
+      "robot_script": "What is your favorite animal, and why do you like it?"
+    }
+  ],
+  "target_audience": "Grade 3 (8-9 years old)"
+}
