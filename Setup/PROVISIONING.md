@@ -31,6 +31,25 @@ The PCA9685 PWM servo driver communicates over an I2C bus. On Rockchip systems r
    i2cdetect -y 2   # or 5 depending on the active overlay
    ```
 
+### 1.2 Robot-Local Motor Calibration (`motorData_calibrated.json`)
+
+Each physical robot has unique servo horn alignments, channel wirings, and joint limits (`neck`, `torso`, `left_shoulder`, `right_shoulder`, `left_elbow`, `right_elbow`).
+
+> [!IMPORTANT]
+> **Git Protection**: `motorData_calibrated.json` is listed in `.gitignore` and is strictly local to each physical robot. Running `git pull` or updating software will **never** overwrite or modify the robot's local calibration. A version-controlled template `motorData_calibrated.example.json` provides baseline defaults on fresh installations.
+
+#### Running the Interactive Motor Calibration Wizard
+To calibrate a physical robot:
+```bash
+gigi calibrate
+# or directly via module:
+python3 -m gigi.verification.hardware.calibrate_motors
+```
+This interactive wizard:
+1. Steps through PWM channels to identify joint-to-channel mappings.
+2. Guides the user visually and auditorily to determine mechanical `min`, `max`, and neutral `center` limits.
+3. Automatically persists the verified parameters directly to `motorData_calibrated.json` on the robot.
+
 ---
 
 ## 2. System Dependencies & User Permissions

@@ -47,7 +47,7 @@ HAS_MOVEMENT: bool = IS_ROBOT
 HAS_CONVERSATION: bool = True
 
 # Daemon & networking settings
-DEFAULT_ROBOT_IP = os.environ.get("ROBOT_IP", "10.0.0.223")
+DEFAULT_ROBOT_IP = os.environ.get("ROBOT_IP", "127.0.0.1")
 DEFAULT_TCP_PORT = int(os.environ.get("TCP_PORT", "5005"))
 DEFAULT_RFCOMM_CHANNEL = int(os.environ.get("RFCOMM_CHANNEL", "1"))
 

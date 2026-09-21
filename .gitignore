@@ -237,6 +237,7 @@ data/
 *.log
 pip_dlib_log.txt
 motorData_calibrated_local.json
+motorData_calibrated.json
 temp/
 
 

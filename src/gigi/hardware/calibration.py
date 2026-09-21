@@ -1,10 +1,14 @@
 """
 Calibration utilities and profile loader for Gigi robot hardware.
 Handles servo limits, neutral positions, and gaze/lookat mapping.
+
+motorData_calibrated.json is strictly robot-local and untracked by Git to protect
+each physical robot's custom motor calibration during software updates and git pulls.
 """
 
 import os
 import json
+import shutil
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -66,18 +70,51 @@ DEFAULT_MOTOR_MAP: Dict[str, Dict[str, Any]] = {
 
 
 def get_motor_calibration_paths():
-    """Returns candidate paths for motor calibration data in order of priority."""
+    """
+    Returns candidate paths for motor calibration data in order of priority:
+    1. Local override backup (motorData_calibrated_local.json)
+    2. Local robot calibration (motorData_calibrated.json - git-ignored)
+    3. Versioned template (motorData_calibrated.example.json)
+    4. Base hardware mapping (motorData.json)
+    """
     return [
         PROJECT_ROOT / "motorData_calibrated_local.json",
         PROJECT_ROOT / "motorData_calibrated.json",
+        PROJECT_ROOT / "motorData_calibrated.example.json",
         PROJECT_ROOT / "motorData.json",
-        PROJECT_ROOT / "Character" / "motorData_calibrated.json",
-        PROJECT_ROOT / "Character" / "motorData.json",
     ]
 
 
-def load_motor_calibration() -> Dict[str, Dict[str, Any]]:
+def init_local_motor_calibration(force: bool = False) -> Path:
+    """
+    Initializes the local robot calibration file (motorData_calibrated.json)
+    from the template if it does not yet exist.
+    """
+    target = PROJECT_ROOT / "motorData_calibrated.json"
+    if target.exists() and not force:
+        return target
+
+    example = PROJECT_ROOT / "motorData_calibrated.example.json"
+    if example.exists():
+        shutil.copyfile(example, target)
+        logger.info(f"Initialized local robot calibration file at {target} from template.")
+    else:
+        save_motor_calibration(DEFAULT_MOTOR_MAP, custom_path=target)
+    return target
+
+
+def load_motor_calibration(auto_init: bool = True) -> Dict[str, Dict[str, Any]]:
     """Loads motor calibration parameters from disk, falling back to safe defaults."""
+    local_file = PROJECT_ROOT / "motorData_calibrated.json"
+    local_backup = PROJECT_ROOT / "motorData_calibrated_local.json"
+
+    # Auto-initialize local file on first run if missing
+    if auto_init and not local_file.exists() and not local_backup.exists():
+        try:
+            init_local_motor_calibration()
+        except Exception as e:
+            logger.warning(f"Could not auto-initialize local calibration: {e}")
+
     for path in get_motor_calibration_paths():
         if path.exists():
             try:
@@ -93,7 +130,10 @@ def load_motor_calibration() -> Dict[str, Dict[str, Any]]:
 
 
 def save_motor_calibration(data: Dict[str, Dict[str, Any]], custom_path: Optional[Path] = None) -> Path:
-    """Saves motor calibration profile to disk."""
+    """
+    Saves motor calibration profile to disk.
+    Always targets the robot-local, untracked motorData_calibrated.json by default.
+    """
     target_path = custom_path or (PROJECT_ROOT / "motorData_calibrated.json")
     with open(target_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
@@ -105,7 +145,6 @@ def load_lookat_calibration() -> Dict[str, Any]:
     """Loads lookat gaze calibration interpolation points."""
     candidate_paths = [
         PROJECT_ROOT / "lookat_calibrated.json",
-        PROJECT_ROOT / "Character" / "lookat_calibrated.json",
     ]
     for path in candidate_paths:
         if path.exists():

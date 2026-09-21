@@ -18,13 +18,17 @@ xset s off 2>/dev/null || true
 xset -dpms 2>/dev/null || true
 xset s noblank 2>/dev/null || true
 
-# Copy local calibrated motor configuration if present
-SOURCE="$PROJECT_ROOT/motorData_calibrated_local.json"
-DEST="$PROJECT_ROOT/motorData_calibrated.json"
+# Ensure local robot motor calibration exists (untracked by git)
+LOCAL_CALIB="$PROJECT_ROOT/motorData_calibrated.json"
+LOCAL_BACKUP="$PROJECT_ROOT/motorData_calibrated_local.json"
+EXAMPLE_CALIB="$PROJECT_ROOT/motorData_calibrated.example.json"
 
-if [ -f "$SOURCE" ]; then
-    cp "$SOURCE" "$DEST"
-    echo "[Wakeup] Applied local motor calibration from $SOURCE"
+if [ -f "$LOCAL_BACKUP" ]; then
+    cp "$LOCAL_BACKUP" "$LOCAL_CALIB"
+    echo "[Wakeup] Restored local motor calibration from $LOCAL_BACKUP"
+elif [ ! -f "$LOCAL_CALIB" ] && [ -f "$EXAMPLE_CALIB" ]; then
+    cp "$EXAMPLE_CALIB" "$LOCAL_CALIB"
+    echo "[Wakeup] Initialized local motor calibration from $EXAMPLE_CALIB"
 fi
 
 cd "$PROJECT_ROOT"

@@ -75,6 +75,34 @@ class TestHardwareSubsystems(unittest.TestCase):
             if temp_path.exists():
                 temp_path.unlink()
 
+    def test_motor_calibration_example_template(self):
+        from gigi.core.config import PROJECT_ROOT
+        example_template = PROJECT_ROOT / "motorData_calibrated.example.json"
+        self.assertTrue(example_template.exists(), "motorData_calibrated.example.json must exist as tracked template")
+        with open(example_template, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        for joint in ["neck", "torso", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow"]:
+            self.assertIn(joint, data)
+            self.assertIn("channel", data[joint])
+            self.assertIn("min", data[joint])
+            self.assertIn("max", data[joint])
+            self.assertIn("center", data[joint])
+
+    def test_motor_calibration_init_fallback(self):
+        from gigi.hardware.calibration import init_local_motor_calibration
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as td:
+            fake_root = Path(td)
+            example = fake_root / "motorData_calibrated.example.json"
+            with open(example, "w", encoding="utf-8") as f:
+                json.dump({"neck": {"channel": 0, "min": 200, "max": 400, "center": 300, "calibrated": True}}, f)
+            with patch("gigi.hardware.calibration.PROJECT_ROOT", fake_root):
+                created = init_local_motor_calibration()
+                self.assertTrue(created.exists())
+                with open(created, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                self.assertIn("neck", loaded)
+
     def test_motor_controller_simulation(self):
         from gigi.hardware.motors import PCA9685Controller
 
