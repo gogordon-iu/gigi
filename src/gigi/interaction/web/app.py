@@ -19,6 +19,20 @@ planner = ActivityPlanner(llm_client, catalog)
 def index():
     return render_template('index.html')
 
+@app.route('/api/strategies', methods=['GET'])
+def get_strategies():
+    return jsonify([
+        {
+            "id": s.id,
+            "name": s.name,
+            "trigger": s.trigger,
+            "target_soft_skills": s.target_soft_skills,
+            "robot_actions": s.robot_actions,
+            "example_behaviors": s.example_behaviors,
+        }
+        for s in catalog.get_all_strategies()
+    ])
+
 @app.route('/api/generate', methods=['POST'])
 def generate_plan():
     data = request.json

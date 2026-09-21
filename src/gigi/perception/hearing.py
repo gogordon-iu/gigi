@@ -22,6 +22,20 @@ REPETITION_PENALTY = 1.3
 BEAM_SIZE = 2
 BEST_OF = 2
 
+def resample_audio(audio_data: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+    """Resamples audio from orig_sr to target_sr."""
+    if orig_sr == target_sr:
+        return audio_data
+    num_samples = int(len(audio_data) * target_sr / orig_sr)
+    try:
+        from scipy import signal
+        resampled = signal.resample(audio_data, num_samples)
+        return resampled.astype(np.int16)
+    except Exception:
+        indices = np.linspace(0, len(audio_data) - 1, num_samples)
+        return np.interp(indices, np.arange(len(audio_data)), audio_data).astype(np.int16)
+
+
 try:
     import jax
 except ImportError:
@@ -804,7 +818,6 @@ class Hearing():
                 self._raw_buffer = []
                 
                 # Resample native 48 kHz chunk to target 16 kHz
-                from whisper_helper import resample_audio
                 audio_int16_native = (audio_chunk_native * 32768.0).astype(np.int16)
                 audio_int16_resampled = resample_audio(audio_int16_native, INPUT_SAMPLE_RATE, TARGET_SAMPLE_RATE)
                 audio_chunk_resampled = audio_int16_resampled.astype(np.float32) / 32768.0

@@ -4,6 +4,7 @@ import argparse
 import shutil
 from gigi.core.robot import GigiRobot as Character
 from gigi.core.config import CHARACTER_FOLDER
+from gigi.expression.face_definitions import basic_sequences
 from gigi.activities.scripted.engine import Script
 from gigi.activities.scripted.script_graph import ScriptGraph
 
