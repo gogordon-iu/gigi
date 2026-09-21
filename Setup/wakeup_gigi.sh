@@ -1,10 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ==============================================================================
+# Gigi Robot Platform - System Wakeup / Startup Script
+# ==============================================================================
+
+# Locate project root dynamically relative to script location
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$( dirname "$SCRIPT_DIR" )"
 
 export DISPLAY=:0
-export XAUTHORITY=/home/orangepi/.Xauthority
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
 
-# Prevent screen blanking
-
+# Prevent screen blanking and kiosk sleep
 gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
 gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
 
@@ -12,16 +18,18 @@ xset s off 2>/dev/null || true
 xset -dpms 2>/dev/null || true
 xset s noblank 2>/dev/null || true
 
-SOURCE="/home/orangepi/Code/gigi/motorData_calibrated_local.json"
-DEST="/home/orangepi/Code/gigi/motorData_calibrated.json"
+# Copy local calibrated motor configuration if present
+SOURCE="$PROJECT_ROOT/motorData_calibrated_local.json"
+DEST="$PROJECT_ROOT/motorData_calibrated.json"
 
 if [ -f "$SOURCE" ]; then
     cp "$SOURCE" "$DEST"
-    echo "File copied to $DEST"
+    echo "[Wakeup] Applied local motor calibration from $SOURCE"
 fi
 
-cd /home/orangepi/Code/gigi
+cd "$PROJECT_ROOT"
 
+# Activate Python Virtual Environment
 if [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
 elif [ -f ".venv/bin/activate" ]; then

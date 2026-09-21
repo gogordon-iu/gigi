@@ -5,7 +5,7 @@ import subprocess
 import threading
 import time
 
-PIN_CODE = "198420"
+PIN_CODE = os.environ.get("GIGI_BT_PIN", "198420")
 
 def read_output(process):
     print(f"[*] Started bluetoothctl monitor thread. Auto-confirm PIN is: {PIN_CODE}")

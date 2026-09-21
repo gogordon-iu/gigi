@@ -6,7 +6,7 @@ BASE_DIR="$( dirname "$SCRIPT_DIR" )"
 
 # Export X11 display variables so child processes can render GUI windows on the screen
 export DISPLAY=:0
-export XAUTHORITY=/home/orangepi/.Xauthority
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
 
 # Make sure log directory exists
 LOG_DIR="$BASE_DIR/Logs"
@@ -28,7 +28,6 @@ if [ -f "$BASE_DIR/venv/bin/python" ]; then
 elif [ -f "$BASE_DIR/.venv/bin/python" ]; then
   PYTHON_EXEC="$BASE_DIR/.venv/bin/python"
 fi
-
 
 echo "============================================================"
 echo "          Starting Gigi Robotics Bluetooth Hub"
@@ -72,7 +71,8 @@ echo "[*] Registering Bluetooth Serial Port Profile (SPP)..."
 sdptool add SP > /dev/null 2>&1 || true
 
 # 4. Start the Auto-Pairing Agent
-echo "[*] Starting Bluetooth Auto-Pairing Agent (PIN: 198420)..."
+PIN_DISPLAY="${GIGI_BT_PIN:-198420}"
+echo "[*] Starting Bluetooth Auto-Pairing Agent (PIN: $PIN_DISPLAY)..."
 "$PYTHON_EXEC" -u "$SCRIPT_DIR/bt_agent.py" > "$LOG_DIR/bt_agent.log" 2>&1 &
 AGENT_PID=$!
 echo "    -> Agent started in background (PID: $AGENT_PID). Logs: $LOG_DIR/bt_agent.log"
@@ -89,13 +89,19 @@ echo "[*] Starting Bluetooth Command Listener..."
 LISTENER_PID=$!
 echo "    -> Listener started in background (PID: $LISTENER_PID). Logs: $LOG_DIR/bt_listener.log"
 
-# 7. Set NPU/CPU frequencies and start NPU LLM Server
-echo "[*] Setting NPU and CPU frequencies to maximum performance..."
-bash /home/orangepi/Code/gigi/Resources/rknn-llm/examples/rkllm_server_demo/rkllm_server/fix_freq_rk3588.sh || true
+# 7. Set NPU/CPU frequencies and start NPU LLM Server if present
+FREQ_SCRIPT="$BASE_DIR/Resources/rknn-llm/examples/rkllm_server_demo/rkllm_server/fix_freq_rk3588.sh"
+if [ -f "$FREQ_SCRIPT" ]; then
+  echo "[*] Setting NPU and CPU frequencies to maximum performance..."
+  bash "$FREQ_SCRIPT" || true
+fi
 
-echo "[*] Starting NPU LLM Server..."
-su - orangepi -c "nohup /home/orangepi/Code/gigi/llm_server.sh > /home/orangepi/Code/gigi/llm_server.log 2>&1 &"
-echo "    -> LLM Server started in background. Logs: /home/orangepi/Code/gigi/llm_server.log"
+LLM_SCRIPT="$BASE_DIR/llm_server.sh"
+if [ -f "$LLM_SCRIPT" ]; then
+  echo "[*] Starting NPU LLM Server..."
+  nohup bash "$LLM_SCRIPT" > "$LOG_DIR/llm_server.log" 2>&1 &
+  echo "    -> LLM Server started in background. Logs: $LOG_DIR/llm_server.log"
+fi
 
 echo "============================================================"
 echo "  All services started successfully in background!"

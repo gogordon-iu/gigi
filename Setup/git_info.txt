@@ -1,1 +1,0 @@
-sudo git clone https://your_username:your_pat_here@github.com/your_username/your_repo.git
