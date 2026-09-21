@@ -206,6 +206,11 @@ Resources/*.onnx
 
 # Ignore generated speech/viseme cache files
 Assets/**/*.npy
+Assets/wakeup/speech/
+Assets/recorded_speech/*.wav
+Assets/ReadingFluency/speech/
+Assets/ReadingFluency/test_audio/
+Assets/**/sample_passage.txt
 
 # Ignore dynamic databases and logs
 Character/egocentric_locations.json

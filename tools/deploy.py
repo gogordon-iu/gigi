@@ -10,11 +10,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DEFAULT_ROBOT_IP = os.getenv("ROBOT_IP", "10.0.0.223")
+DEFAULT_ROBOT_IP = os.getenv("ROBOT_IP")
 ROBOT_IP = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_ROBOT_IP
 ROBOT_USER = os.getenv("ROBOT_USER", "orangepi")
 PASSWORD = os.getenv("ROBOT_PASSWORD", "orangepi")
 REMOTE_PATH = os.getenv("ROBOT_REMOTE_PATH", "/home/orangepi/Code/gigi")
+
+if not ROBOT_IP:
+    print("[Deploy] Error: ROBOT_IP is not set. Specify ROBOT_IP in your .env or pass as argument:")
+    print("         python tools/deploy.py <ROBOT_IP>")
+    sys.exit(1)
 
 
 def run_cmd(cmd: str) -> bool:

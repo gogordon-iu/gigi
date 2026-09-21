@@ -1,540 +1,1155 @@
-import json
-import sys
+#!/usr/bin/env python3
+"""
+Gigi Background Daemon Service.
+Provides multi-transport connectivity (WebSocket, TCP socket, Bluetooth RFCOMM, and Serial SPP)
+for the Gigi Mobile & Web apps, managing activity lifecycles, script execution, speech pregeneration,
+and motor calibration safety lockouts.
+"""
+
 import os
+import sys
+import json
 import time
 import socket
 import threading
 import subprocess
-import random
-import re
+import argparse
+import hashlib
+import base64
+import struct
+import logging
 
-from gigi.core.robot import GigiRobot, Character
 from gigi.core.config import (
-    IS_ROBOT,
-    CHARACTER_FOLDER,
     PROJECT_ROOT,
-    LOGS_DIR,
-    DEFAULT_RFCOMM_CHANNEL as RFCOMM_CHANNEL,
-    DEFAULT_TCP_PORT as TCP_PORT,
+    ASSETS_DIR,
+    DEFAULT_TCP_PORT,
+    DEFAULT_RFCOMM_CHANNEL,
 )
-from gigi.expression.face_definitions import basic_sequences, global_parts
 
-try:
-    from gigi.activities.scripted.script_assets import get_scripts
-except ImportError:
-    def get_scripts():
-        return {}
+logger = logging.getLogger("gigi.daemon")
+
+# Global state
+execution_manager = None
+active_client = None
+active_client_lock = threading.Lock()
 
 
-# Global character instance and state
-gigi = None
-alive_thread = None
-alive_stop_event = threading.Event()
+# --- WebSocket Protocol Helpers ---
 
-def alive_loop(gigi_inst, stop_event):
-    """
-    Background loop that keeps the robot looking at faces (if detected) and blinking (if idle).
-    """
-    print("[WakeUp] Alive loop started.")
-    import numpy as np
-    
-    # Noise-minimizing tracking thresholds and state
-    last_torso_move_time = 0.0
-    last_neck_move_time = 0.0
-    torso_cooldown = 2.5
-    neck_cooldown = 1.0
-    lost_face_start = None
-    home_returned = False
-    
-    # Ensure vision is active
-    if gigi_inst.vision and not gigi_inst.vision.running:
-        gigi_inst.vision.run_vision()
-        
-    while not stop_event.is_set():
-        face_detected = False
-        if gigi_inst.vision and gigi_inst.vision.running:
-            last_data = gigi_inst.vision.get_last_data()
-            if len(last_data) > 0:
-                face_detected = True
-                gigi_inst.update_egocentric_locations()
-                lost_face_start = None
-                home_returned = False
-                
-                # Fetch tracking offset
-                face_info = next(iter(last_data.values()))
-                offset_x = face_info.get('offset', [0.0, 0.0])[0]
-                norm_offset = offset_x * 2.0
-                
-                T_c = gigi_inst.movement.calc_normalized_angle(motor="torso") if gigi_inst.movement else 0.0
-                N_c = gigi_inst.movement.calc_normalized_angle(motor="neck") if gigi_inst.movement else 0.0
-                error_head = norm_offset - N_c
-                
-                # Eye update
-                if gigi_inst.face:
-                    if error_head > 0.12:
-                        eye_seq = basic_sequences.get("look_left", basic_sequences["idle"])
-                    elif error_head < -0.12:
-                        eye_seq = basic_sequences.get("look_right", basic_sequences["idle"])
-                    else:
-                        eye_seq = basic_sequences["idle"]
-                    
-                    face_state = {}
-                    for part in global_parts:
-                        if part in eye_seq:
-                            part_data = eye_seq[part]
-                            face_state[part] = (part_data[0], part_data[1][0])
-                        else:
-                            face_state[part] = ("idle", "1")
-                    
-                    face_image = gigi_inst.face.set_face(face_state)
-                    gigi_inst.face.display_face(face_image)
-                
-                # Torso update
-                T_new = T_c
-                if abs(norm_offset) > 0.25:
-                    if time.time() - last_torso_move_time > torso_cooldown:
-                        delta_T = norm_offset * 0.7
-                        T_new = np.clip(T_c + delta_T, -0.9, 0.9)
-                        last_torso_move_time = time.time()
-                
-                # Neck update
-                N_target = norm_offset - (T_new - T_c)
-                N_new = N_c
-                if abs(N_target - N_c) > 0.12:
-                    if time.time() - last_neck_move_time > neck_cooldown:
-                        N_new = np.clip(N_c + (N_target - N_c) * 0.5, -0.9, 0.9)
-                        last_neck_move_time = time.time()
-                
-                if (T_new != T_c or N_new != N_c) and gigi_inst.movement:
-                    gigi_inst.movement.move_motors({"torso": T_new, "neck": N_new})
-                    
-        if not face_detected:
-            if gigi_inst.face:
-                # Blink
-                blink_stop = threading.Event()
-                gigi_inst.face.generate_face(parts_selected=basic_sequences["blink"], stop_event=blink_stop)
-                
-                # Cooldown to check home position
-                if lost_face_start is None:
-                    lost_face_start = time.time()
-                elif time.time() - lost_face_start > 5.0 and not home_returned:
-                    if gigi_inst.movement:
-                        gigi_inst.movement.move_motors({"torso": 0.0, "neck": 0.0})
-                    home_returned = True
-            else:
-                time.sleep(0.1)
-        else:
-            time.sleep(0.05)
-            
-    print("[WakeUp] Alive loop stopped.")
-
-def start_alive_loop():
-    global alive_thread, alive_stop_event
-    alive_stop_event.clear()
-    alive_thread = threading.Thread(target=alive_loop, args=(gigi, alive_stop_event), daemon=True)
-    alive_thread.start()
-
-def stop_alive_loop():
-    global alive_thread, alive_stop_event
-    if alive_thread and alive_thread.is_alive():
-        alive_stop_event.set()
-        alive_thread.join(timeout=2.0)
-
-def execute_script_by_name(script_name):
-    """
-    Executes a script dynamically. First tries in-process importing, then falls back to subprocess execution.
-    """
-    global gigi
-    # Reset log
-    gigi.activity_log = []
-    
-    list_of_scripts = get_scripts()
-    script_info = None
-    for name, info in list_of_scripts.items():
-        if name.lower() == script_name.lower() or info['package_name'].lower() == script_name.lower():
-            script_info = info
+def parse_websocket_handshake(headers_str):
+    key = None
+    for line in headers_str.split("\r\n"):
+        if line.lower().startswith("sec-websocket-key:"):
+            key = line.split(":", 1)[1].strip()
             break
-            
-    if script_info:
-        try:
-            print(f"[WakeUp] Importing and executing script '{script_name}' in-process...")
-            pkg_name = script_info['package_name']
-            if pkg_name in sys.modules:
-                del sys.modules[pkg_name]
-                
-            scriptGraph_package = __import__(pkg_name)
-            scriptGraph_instance = getattr(scriptGraph_package, script_info['class_name'])()
-            scriptGraph_instance.init_graph()
-            
-            from gigi.activities.scripted.engine import Script
-            script_instance = Script(graph=scriptGraph_instance, character=gigi)
-            script_instance.generateAllSpeech()
-            script_instance.check_assets()
-            script_instance.run()
-            return True, gigi.activity_log
-        except Exception as e:
-            print(f"[WakeUp] In-process execution error: {e}. Falling back to subprocess...")
-            
-    # Subprocess fallback: search activities directory
-    activities_dir = PROJECT_ROOT / "src" / "gigi" / "activities"
-    file_path = None
-    
-    clean_target = script_name.strip()
-    if clean_target.lower().endswith(".py"):
-        clean_target = clean_target[:-3]
-    target_lower = clean_target.lower()
+    if not key:
+        return None
+    guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+    accept_key = base64.b64encode(hashlib.sha1((key + guid).encode('utf-8')).digest()).decode('utf-8')
+    response = (
+        "HTTP/1.1 101 Switching Protocols\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        f"Sec-WebSocket-Accept: {accept_key}\r\n\r\n"
+    )
+    return response.encode('utf-8')
 
-    if activities_dir.exists():
-        for root, dirs, files in os.walk(activities_dir):
-            for f in files:
-                if f.endswith(".py") and f != "__init__.py":
-                    stem = os.path.splitext(f)[0]
-                    if stem.lower() == target_lower:
-                        file_path = os.path.join(root, f)
+
+def get_websocket_frame_length(data):
+    if len(data) < 2:
+        return 0
+    byte2 = data[1]
+    payload_len = byte2 & 0x7f
+    offset = 2
+    if payload_len == 126:
+        offset = 4
+    elif payload_len == 127:
+        offset = 10
+
+    masked = (byte2 & 0x80) != 0
+    if masked:
+        offset += 4
+
+    if payload_len == 126:
+        if len(data) < 4:
+            return 0
+        actual_len = struct.unpack("!H", data[2:4])[0]
+    elif payload_len == 127:
+        if len(data) < 10:
+            return 0
+        actual_len = struct.unpack("!Q", data[2:10])[0]
+    else:
+        actual_len = payload_len
+
+    return offset + actual_len
+
+
+def decode_websocket_frame(data):
+    if len(data) < 2:
+        return None, b""
+
+    byte1 = data[0]
+    opcode = byte1 & 0x0f
+
+    if opcode == 0x8:
+        return "close", b""
+
+    byte2 = data[1]
+    masked = (byte2 & 0x80) != 0
+    payload_len = byte2 & 0x7f
+
+    offset = 2
+    if payload_len == 126:
+        if len(data) < 4:
+            return None, b""
+        payload_len = struct.unpack("!H", data[2:4])[0]
+        offset = 4
+    elif payload_len == 127:
+        if len(data) < 10:
+            return None, b""
+        payload_len = struct.unpack("!Q", data[2:10])[0]
+        offset = 10
+
+    if masked:
+        if len(data) < offset + 4:
+            return None, b""
+        mask_key = data[offset:offset + 4]
+        offset += 4
+    else:
+        mask_key = None
+
+    if len(data) < offset + payload_len:
+        return None, b""
+
+    payload = data[offset:offset + payload_len]
+
+    if masked:
+        decoded = bytearray(payload_len)
+        for i in range(payload_len):
+            decoded[i] = payload[i] ^ mask_key[i % 4]
+        payload = bytes(decoded)
+
+    msg_type = "text" if opcode == 0x1 else "binary"
+    return msg_type, payload
+
+
+def encode_websocket_frame(text):
+    payload = text.encode('utf-8')
+    payload_len = len(payload)
+
+    header = bytearray([0x81])
+    if payload_len < 126:
+        header.append(payload_len)
+    elif payload_len < 65536:
+        header.append(126)
+        header.extend(struct.pack("!H", payload_len))
+    else:
+        header.append(127)
+        header.extend(struct.pack("!Q", payload_len))
+
+    return bytes(header + payload)
+
+
+# --- File and Activity Scanners ---
+
+def scan_custom_interactions():
+    """
+    Scans the Assets/ directory for subdirectories starting with 'custom_interaction_'.
+    Returns a list of dicts: [{"folder": folder_name, "title": interaction_title}]
+    """
+    assets_dir = str(ASSETS_DIR)
+    interactions = []
+    if os.path.isdir(assets_dir):
+        for entry in os.listdir(assets_dir):
+            entry_path = os.path.join(assets_dir, entry)
+            if os.path.isdir(entry_path) and entry.startswith("custom_interaction_"):
+                title = entry
+                for f in os.listdir(entry_path):
+                    if f.endswith(".json"):
+                        json_path = os.path.join(entry_path, f)
+                        try:
+                            with open(json_path, "r", encoding="utf-8") as jf:
+                                data = json.load(jf)
+                                title = data.get("interaction_title") or data.get("title") or entry
+                        except Exception as e:
+                            print(f"[scan_custom_interactions] Error reading {json_path}: {e}")
                         break
-            if file_path:
-                break
-            
-    if file_path and os.path.exists(file_path):
+                interactions.append({"folder": entry, "title": title})
+    return interactions
+
+
+def scan_activity_plans():
+    """
+    Scans the Assets/ directory for subdirectories starting with 'activity_plan_'.
+    Returns a list of dicts: [{"folder": folder_name, "title": activity_title}]
+    """
+    assets_dir = str(ASSETS_DIR)
+    plans = []
+    if os.path.isdir(assets_dir):
+        for entry in os.listdir(assets_dir):
+            entry_path = os.path.join(assets_dir, entry)
+            if os.path.isdir(entry_path) and entry.startswith("activity_plan_"):
+                title = entry
+                for f in os.listdir(entry_path):
+                    if f.endswith(".json"):
+                        json_path = os.path.join(entry_path, f)
+                        try:
+                            with open(json_path, "r", encoding="utf-8") as jf:
+                                data = json.load(jf)
+                                title = data.get("activity_title") or data.get("title") or entry
+                        except Exception as e:
+                            print(f"[scan_activity_plans] Error reading {json_path}: {e}")
+                        break
+                plans.append({"folder": entry, "title": title})
+    return plans
+
+
+def scan_files():
+    """
+    Scans src/gigi/activities/ and src/gigi/interaction/ for executable activities and scripts.
+    """
+    base_dir = str(PROJECT_ROOT)
+    activities_dir = os.path.join(base_dir, "src", "gigi", "activities")
+    interaction_dir = os.path.join(base_dir, "src", "gigi", "interaction")
+
+    demos = {}
+    scripts = {}
+    zhennan = {}
+
+    # 1. Scan activities in src/gigi/activities/
+    if os.path.isdir(activities_dir):
+        for root, dirs, files in os.walk(activities_dir):
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d != "__pycache__" and d != "common"]
+            for f in files:
+                if f.endswith(".py") and f != "__init__.py" and f != "base.py" and not f.startswith("test_"):
+                    stem = os.path.splitext(f)[0]
+                    is_scripted = "scripted" in root
+                    if is_scripted and stem not in ["ferris", "halloween", "lego"]:
+                        continue
+
+                    file_type = "script" if is_scripted else "demo"
+                    info = {
+                        "filename": f,
+                        "stem": stem,
+                        "path": os.path.abspath(os.path.join(root, f)),
+                        "dir": os.path.abspath(root),
+                        "type": file_type,
+                    }
+                    demos[stem.lower()] = info
+                    if is_scripted:
+                        scripts[stem.lower()] = info
+
+    # 2. Add interaction runners
+    runner_path = os.path.join(interaction_dir, "runner.py")
+    if os.path.isfile(runner_path):
+        runner_info = {
+            "filename": "runner.py",
+            "stem": "runner",
+            "path": os.path.abspath(runner_path),
+            "dir": os.path.abspath(interaction_dir),
+            "type": "script",
+        }
+        zhennan["run_activity_teacherdemo"] = dict(
+            runner_info, filename="run_activity_teacherdemo.py", stem="run_activity_teacherdemo"
+        )
+        zhennan["runner"] = runner_info
+
+    custom_runner_path = os.path.join(interaction_dir, "custom_runner.py")
+    if os.path.isfile(custom_runner_path):
+        custom_info = {
+            "filename": "custom_runner.py",
+            "stem": "custom_runner",
+            "path": os.path.abspath(custom_runner_path),
+            "dir": os.path.abspath(interaction_dir),
+            "type": "script",
+        }
+        zhennan["run_custom_interaction"] = dict(
+            custom_info, filename="run_custom_interaction.py", stem="run_custom_interaction"
+        )
+        zhennan["custom_runner"] = custom_info
+
+    # 3. Add motor calibration wizard
+    calib_path = os.path.join(base_dir, "src", "gigi", "verification", "hardware", "calibrate_motors.py")
+    if os.path.isfile(calib_path):
+        calib_info = {
+            "filename": "calibrate_motors.py",
+            "stem": "calibrate_motors",
+            "path": os.path.abspath(calib_path),
+            "dir": os.path.abspath(os.path.dirname(calib_path)),
+            "type": "demo",
+        }
+        demos["calibrate_motors"] = calib_info
+        demos["calibrate"] = calib_info
+        demos["motor_calibration"] = calib_info
+
+    # 4. Add aliases for common historical names
+    aliases = {
+        "readingfluencydemo": "reading_fluency",
+        "readingfluency": "reading_fluency",
+        "reading_fluency_demo": "reading_fluency",
+        "mastermind_game": "mastermind",
+        "mathquest": "math_quest",
+        "storyquest": "story_game",
+        "make_friends_demo": "make_friends",
+        "makefriends": "make_friends",
+        "alivemode": "alive_mode",
+        "alive_mode_demo": "alive_mode",
+        "face_demo": "face_recognition_demo",
+        "calibrate": "calibrate_motors",
+        "calibrate_motors": "calibrate_motors",
+        "motor_calibration": "calibrate_motors",
+    }
+    for alias, target in aliases.items():
+        if target in demos and alias not in demos:
+            demos[alias] = demos[target]
+
+    return demos, scripts, zhennan
+
+
+def find_script(target_name):
+    """
+    Looks up an activity, script, demo, or interaction runner by its name or filename.
+    """
+    demos, scripts, zhennan = scan_files()
+
+    if target_name.startswith("activity_plan_"):
+        teacher_script_key = "run_activity_teacherdemo"
+        if teacher_script_key in zhennan:
+            info = dict(zhennan[teacher_script_key])
+            info["args"] = [target_name]
+            info["filename"] = f"{info['filename']} ({target_name})"
+            return info, None
+
+    if target_name.startswith("custom_interaction_"):
+        custom_script_key = "run_custom_interaction"
+        if custom_script_key in zhennan:
+            info = dict(zhennan[custom_script_key])
+            info["args"] = [target_name]
+            info["filename"] = f"{info['filename']} ({target_name})"
+            return info, None
+
+    clean_name = target_name.strip()
+    if clean_name.lower().endswith(".py"):
+        clean_name = clean_name[:-3]
+
+    key = clean_name.lower().replace("-", "_").replace(" ", "_")
+
+    if key in demos:
+        return demos[key], None
+    if key in scripts:
+        return scripts[key], None
+    if key in zhennan:
+        return zhennan[key], None
+
+    available_demos = [info["filename"] for info in demos.values()]
+    available_scripts = [info["filename"] for info in scripts.values()]
+    available_zhennan = [info["filename"] for info in zhennan.values()]
+
+    err_msg = f"Script, activity, or demo '{target_name}' not found."
+    error_details = {
+        "status": "error",
+        "error": "not_found",
+        "message": err_msg,
+        "requested": target_name,
+        "available_demos": sorted(list(set(available_demos))),
+        "available_scripts": sorted(list(set(available_scripts))),
+        "available_zhennan": sorted(list(set(available_zhennan))),
+    }
+    return None, error_details
+
+
+class ConnectionWrapper:
+    """
+    Unifies socket, serial, and websocket interfaces for bidirectional streaming.
+    """
+
+    def __init__(self, conn_obj, is_serial=False, port_name=None, is_websocket=False):
+        self.conn = conn_obj
+        self.is_serial = is_serial
+        self.port_name = port_name
+        self.is_websocket = is_websocket
+        self.closed = False
+        self.handshake_done = False
+        self.websocket_buffer = b""
+
+    def recv(self, limit=4096):
+        if self.closed:
+            return b""
         try:
-            print(f"[WakeUp] Executing script '{file_path}' via subprocess...")
-            # Release hardware resources
-            gigi.stop_character()
-            time.sleep(1.0)
-            
+            if self.is_serial:
+                while not self.closed:
+                    data = self.conn.read(limit)
+                    if data:
+                        return data
+                    if self.port_name and "rfcomm" in self.port_name:
+                        if not is_rfcomm_connected(self.port_name):
+                            self.closed = True
+                            break
+                    time.sleep(0.05)
+                return b""
+            elif self.is_websocket:
+                if not self.handshake_done:
+                    data = self.conn.recv(limit)
+                    if not data:
+                        self.closed = True
+                        return b""
+                    request_str = data.decode('utf-8', errors='ignore')
+                    if "Upgrade: websocket" in request_str or "upgrade: websocket" in request_str:
+                        handshake_resp = parse_websocket_handshake(request_str)
+                        if handshake_resp:
+                            self.conn.sendall(handshake_resp)
+                            self.handshake_done = True
+                            return b""
+                        else:
+                            self.closed = True
+                            return b""
+                    else:
+                        self.closed = True
+                        return b""
+
+                data = self.conn.recv(limit)
+                if not data:
+                    self.closed = True
+                    return b""
+                self.websocket_buffer += data
+
+                msg_type, payload = decode_websocket_frame(self.websocket_buffer)
+                if msg_type == "close":
+                    self.closed = True
+                    return b""
+                elif msg_type is None:
+                    return b""
+
+                frame_len = get_websocket_frame_length(self.websocket_buffer)
+                if frame_len > 0:
+                    self.websocket_buffer = self.websocket_buffer[frame_len:]
+                return payload
+            else:
+                data = self.conn.recv(limit)
+                return data
+        except Exception as e:
+            print(f"[ConnectionWrapper] Recv error: {e}")
+            self.closed = True
+            return b""
+
+    def sendall(self, data):
+        if self.closed:
+            return
+        try:
+            if self.is_serial:
+                self.conn.write(data)
+                self.conn.flush()
+            elif self.is_websocket:
+                text_msg = data.decode('utf-8', errors='ignore')
+                frame = encode_websocket_frame(text_msg)
+                self.conn.sendall(frame)
+            else:
+                self.conn.sendall(data)
+        except Exception as e:
+            print(f"[ConnectionWrapper] Send error: {e}")
+            self.closed = True
+
+    def close(self):
+        self.closed = True
+        try:
+            self.conn.close()
+        except Exception:
+            pass
+
+
+class ExecutionManager:
+    """
+    Manages the lifecycle of the running demo or script subprocess.
+    Ensures single process execution, background monitoring, and clean termination.
+    """
+
+    def __init__(self):
+        self.process = None
+        self.process_name = None
+        self.process_type = None
+        self.lock = threading.Lock()
+        self.monitor_thread = None
+        self.on_completion_callback = None
+
+    def start_script(self, script_info, callback=None):
+        with self.lock:
+            if self.process and self.process.poll() is None:
+                print(f"[ExecutionManager] Terminating running script: {self.process_name}")
+                try:
+                    self.process.terminate()
+                    for _ in range(20):
+                        if self.process.poll() is not None:
+                            break
+                        time.sleep(0.1)
+                    if self.process.poll() is None:
+                        self.process.kill()
+                except Exception as e:
+                    print(f"[ExecutionManager] Error terminating: {e}")
+
+            self.process_name = script_info["filename"]
+            self.process_type = script_info["type"]
+            self.on_completion_callback = callback
+
+            print(f"[ExecutionManager] Executing script '{self.process_name}' via subprocess...")
+            try:
+                cmd = [sys.executable, "-u", script_info["path"]]
+                if "args" in script_info:
+                    cmd.extend(script_info["args"])
+                base_dir = str(PROJECT_ROOT)
+                src_dir = os.path.join(base_dir, "src")
+                sub_env = dict(os.environ)
+                if "PYTHONPATH" in sub_env:
+                    sub_env["PYTHONPATH"] = f"{src_dir}{os.pathsep}{sub_env['PYTHONPATH']}"
+                else:
+                    sub_env["PYTHONPATH"] = src_dir
+
+                self.process = subprocess.Popen(
+                    cmd,
+                    cwd=script_info["dir"],
+                    env=sub_env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding='utf-8',
+                    bufsize=1,
+                )
+            except Exception as e:
+                return False, f"Failed to launch script: {e}"
+
+            self.monitor_thread = threading.Thread(
+                target=self._monitor_lifecycle,
+                args=(self.process, self.process_name, self.process_type),
+                daemon=True,
+            )
+            self.monitor_thread.start()
+            return True, {
+                "pid": self.process.pid,
+                "name": self.process_name,
+                "type": self.process_type,
+            }
+
+    def stop_current(self):
+        with self.lock:
+            if self.process and self.process.poll() is None:
+                name = self.process_name
+                print(f"[ExecutionManager] Terminating script '{name}' (PID {self.process.pid})...")
+                try:
+                    self.process.terminate()
+                    for _ in range(20):
+                        if self.process.poll() is not None:
+                            break
+                        time.sleep(0.1)
+                    if self.process.poll() is None:
+                        self.process.kill()
+                    return True, f"Script '{name}' was stopped."
+                except Exception as e:
+                    return False, f"Failed to stop script '{name}': {e}"
+            return False, "No script is currently running."
+
+    def get_status(self):
+        with self.lock:
+            if self.process and self.process.poll() is None:
+                return {
+                    "running": True,
+                    "name": self.process_name,
+                    "type": self.process_type,
+                    "pid": self.process.pid,
+                }
+            return {
+                "running": False,
+                "name": None,
+                "type": None,
+                "pid": None,
+            }
+
+    def _monitor_lifecycle(self, proc, name, ptype):
+        def stream_logger(stream, label):
+            try:
+                for line in stream:
+                    print(f"[{label}] {line.rstrip()}")
+            except Exception:
+                pass
+
+        stdout_t = threading.Thread(target=stream_logger, args=(proc.stdout, f"Subproc OUT: {name}"), daemon=True)
+        stderr_t = threading.Thread(target=stream_logger, args=(proc.stderr, f"Subproc ERR: {name}"), daemon=True)
+        stdout_t.start()
+        stderr_t.start()
+
+        return_code = proc.wait()
+        stdout_t.join(timeout=0.5)
+        stderr_t.join(timeout=0.5)
+
+        print(f"[ExecutionManager] Script '{name}' exited with return code {return_code}")
+        if self.on_completion_callback:
+            try:
+                self.on_completion_callback(name, ptype, return_code)
+            except Exception as e:
+                print(f"[ExecutionManager] Callback error: {e}")
+
+
+execution_manager = ExecutionManager()
+
+
+def send_to_active_client(msg_dict):
+    global active_client
+    with active_client_lock:
+        if active_client:
+            try:
+                payload = (json.dumps(msg_dict) + "\n").encode('utf-8')
+                active_client.sendall(payload)
+            except Exception as e:
+                print(f"[Daemon] Error sending to active client: {e}")
+                try:
+                    active_client.close()
+                except Exception:
+                    pass
+                active_client = None
+
+
+def handle_completion_callback(name, ptype, return_code):
+    status = "success" if return_code == 0 else "failed"
+    send_to_active_client({
+        "status": status,
+        "event": "completed",
+        "name": name,
+        "type": ptype,
+        "returncode": return_code,
+        "message": f"Script '{name}' finished with return code {return_code}",
+    })
+
+
+def save_plan_images(plan, plan_dir, images_dict):
+    import re
+    images_dir = os.path.join(plan_dir, "images")
+    os.makedirs(images_dir, exist_ok=True)
+    if not images_dict:
+        images_dict = {}
+
+    for step in plan.get("steps", []):
+        img_filename = step.get("image_filename")
+        if img_filename and img_filename in images_dict:
+            filename = os.path.basename(img_filename)
+            local_path = os.path.join(images_dir, filename)
+            try:
+                img_data = base64.b64decode(images_dict[img_filename])
+                with open(local_path, "wb") as f:
+                    f.write(img_data)
+                step["image_path"] = f"images/{filename}"
+                step["image_filename"] = filename
+            except Exception as e:
+                print(f"[Daemon] Error saving step image: {e}")
+
+        if "image_url" in step and isinstance(step["image_url"], str) and step["image_url"].startswith("data:"):
+            step["image_url"] = step.get("image_path", step.get("image_filename", ""))
+
+        for sub_step in step.get("sub_steps", []):
+            facial = sub_step.get("facial", "")
+            img_sub = sub_step.get("image_filename")
+            if not img_sub and "[image:" in facial:
+                match = re.search(r"\[image:(.+?)\]", facial)
+                if match:
+                    img_sub = match.group(1)
+
+            if img_sub and img_sub in images_dict:
+                filename = os.path.basename(img_sub)
+                local_path = os.path.join(images_dir, filename)
+                try:
+                    img_data = base64.b64decode(images_dict[img_sub])
+                    with open(local_path, "wb") as f:
+                        f.write(img_data)
+                    sub_step["image_filename"] = filename
+                    sub_step["image_path"] = f"images/{filename}"
+                except Exception as e:
+                    print(f"[Daemon] Error saving sub-step image: {e}")
+
+            if "image_url" in sub_step and isinstance(sub_step["image_url"], str) and sub_step["image_url"].startswith("data:"):
+                sub_step["image_url"] = sub_step.get("image_path", sub_step.get("image_filename", ""))
+
+
+def pregenerate_activity_speech(plan_data, activity_folder):
+    try:
+        print(f"[SpeechPregen] Extracting text to pregenerate for activity '{activity_folder}'...")
+        texts_to_generate = []
+        steps = plan_data.get("steps", plan_data.get("phases", []))
+        for step in steps:
+            sub_steps = step.get("sub_steps", [])
+            for sub in sub_steps:
+                if isinstance(sub, dict) and "text" in sub:
+                    txt = sub["text"].strip()
+                    if txt:
+                        texts_to_generate.append(txt)
+            if "text" in step and isinstance(step["text"], str):
+                txt = step["text"].strip()
+                if txt:
+                    texts_to_generate.append(txt)
+
+        if not texts_to_generate:
+            return
+
+        import re
+        from gigi.expression.speech import Speech
+
+        speech_engine = Speech(activity=activity_folder)
+        for txt in texts_to_generate:
+            try:
+                clean_txt = re.sub(r'\[.*?\]', '', txt).strip()
+                clean_txt = re.sub(r'\s+', ' ', clean_txt)
+                sentences = re.split(r'(?<=[.!?])\s+', clean_txt)
+                for sentence in sentences:
+                    sentence = sentence.strip()
+                    if sentence:
+                        speech_engine.update_audio_objects(text=sentence)
+            except Exception as gen_err:
+                print(f"[SpeechPregen] Error generating speech: {gen_err}")
+
+        del speech_engine
+        import gc
+        gc.collect()
+        print("[SpeechPregen] Speech pregeneration complete.")
+    except Exception as e:
+        print(f"[SpeechPregen] Failed to pregenerate speech: {e}")
+
+
+def process_command_line(line):
+    command = None
+    target_name = None
+    msg = None
+
+    try:
+        msg = json.loads(line)
+        if isinstance(msg, dict):
+            command = msg.get("command")
+            target_name = msg.get("name")
+    except json.JSONDecodeError:
+        pass
+
+    if command is None:
+        parts = line.split(None, 1)
+        if len(parts) > 0:
+            first_word = parts[0].lower()
+            if first_word in ["run", "stop", "status", "list", "exit", "calibrate"]:
+                command = first_word
+                if len(parts) > 1:
+                    target_name = parts[1].strip()
+            else:
+                command = "run"
+                target_name = line.strip()
+        else:
+            return
+
+    command = command.lower()
+    print(f"[Daemon] Processing command '{command}' with arg '{target_name}'")
+
+    if command == "run":
+        if not target_name:
+            send_to_active_client({
+                "status": "error",
+                "message": "Missing script name. Usage: run <script_name>",
+            })
+            return
+
+        from gigi.hardware.calibration import is_motor_calibrated
+        is_calib_target = target_name.lower().replace(".py", "").replace("_", "").replace(" ", "") in [
+            "calibrate", "calibratemotors", "motorcalibration"
+        ]
+        if not is_motor_calibrated() and not is_calib_target:
+            send_to_active_client({
+                "status": "error",
+                "error": "uncalibrated",
+                "message": "Physical motors are UNCALIBRATED! Movement is locked for safety. Please run motor calibration first.",
+                "requires_calibration": True,
+            })
+            return
+
+        script_info, error_details = find_script(target_name)
+        if error_details:
+            send_to_active_client(error_details)
+            return
+
+        success, res = execution_manager.start_script(script_info, handle_completion_callback)
+        if success:
+            send_to_active_client({
+                "status": "starting",
+                "message": f"Successfully started '{script_info['filename']}'",
+                "name": script_info["filename"],
+                "type": script_info["type"],
+                "pid": res["pid"],
+            })
+        else:
+            send_to_active_client({
+                "status": "error",
+                "message": res,
+            })
+
+    elif command == "calibrate":
+        script_info, error_details = find_script("calibrate_motors")
+        if error_details:
+            send_to_active_client(error_details)
+            return
+
+        success, res = execution_manager.start_script(script_info, handle_completion_callback)
+        if success:
+            send_to_active_client({
+                "status": "starting",
+                "message": "Starting interactive motor calibration wizard...",
+                "name": script_info["filename"],
+                "type": script_info["type"],
+                "pid": res["pid"],
+            })
+        else:
+            send_to_active_client({
+                "status": "error",
+                "message": res,
+            })
+
+    elif command == "stop":
+        success, msg = execution_manager.stop_current()
+        try:
+            base_dir = str(PROJECT_ROOT)
+            src_dir = os.path.join(base_dir, "src")
             sub_env = dict(os.environ)
-            src_dir = str(PROJECT_ROOT / "src")
             if "PYTHONPATH" in sub_env:
                 sub_env["PYTHONPATH"] = f"{src_dir}{os.pathsep}{sub_env['PYTHONPATH']}"
             else:
                 sub_env["PYTHONPATH"] = src_dir
 
-            result = subprocess.run(
-                [sys.executable, file_path],
-                cwd=os.path.dirname(file_path),
+            subprocess.Popen(
+                [sys.executable, "-m", "gigi.expression.movement", "release"],
+                cwd=base_dir,
                 env=sub_env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding='utf-8'
             )
-            print("[WakeUp] Subprocess complete. Restoring character resources...")
-            
-            # Restore resources
-            new_gigi = Character(wakeup=True)
-            gigi.face = new_gigi.face
-            gigi.vision = new_gigi.vision
-            gigi.movement = new_gigi.movement
-            gigi.speech = new_gigi.speech
-            gigi.viseme = new_gigi.viseme
-            gigi.conversation = new_gigi.conversation
-            gigi.conversation.character = gigi
-            gigi.conv = gigi.conversation
-            
-            # Read latest logs from logs directory if available
-            log_records = []
-            log_dirs = [LOGS_DIR / "interaction", LOGS_DIR, PROJECT_ROOT / "logs"]
-            for ldir in log_dirs:
-                if ldir.exists():
-                    log_files = [str(ldir / f) for f in os.listdir(ldir) if f.startswith("activity_") and f.endswith(".txt")]
-                    if log_files:
-                        latest_log = max(log_files, key=os.path.getmtime)
-                        if time.time() - os.path.getmtime(latest_log) < 120:
-                            with open(latest_log, "r", encoding="utf-8") as lf:
-                                for line in lf:
-                                    match = re.match(r"\[([^\]]+)\]\s+\[([^\]]+)\]\s+(.*)", line)
-                                    if match:
-                                        time_str, speaker, text = match.groups()
-                                        log_records.append({
-                                            "speaker": speaker,
-                                            "text": text,
-                                            "timestamp": time.time()
-                                        })
-                            break
-            
-            if not log_records:
-                log_records.append({
-                    "speaker": "System",
-                    "text": f"Subprocess finished. Output:\n{result.stdout}",
-                    "timestamp": time.time()
-                })
-                if result.stderr:
-                    log_records.append({
-                        "speaker": "Error",
-                        "text": result.stderr,
-                        "timestamp": time.time()
-                    })
-                    
-            return result.returncode == 0, log_records
         except Exception as e:
-            print(f"[WakeUp] Subprocess execution error: {e}")
-            return False, [{"speaker": "Error", "text": str(e), "timestamp": time.time()}]
-            
-    return False, [{"speaker": "Error", "text": "Script not found", "timestamp": time.time()}]
+            print(f"[Daemon] Error dispatching movement release: {e}")
 
-def execute_activity_json(activity_json):
-    """
-    Executes an interaction activity plan JSON dynamically in-process using the global gigi instance.
-    """
-    global gigi
-    gigi.activity_log = []
-    
-    try:
-        print("[WakeUp] Executing activity plan in-process...")
-        from gigi.interaction import LLMClient, StrategyCatalog, InteractionManager, check_behavior
-        
-        gigi.set_activity(activity_name="educational_activity")
-        if gigi.conversation:
-            gigi.conversation.use_rag = True
-            
-        llm_client = LLMClient()
-        catalog = StrategyCatalog()
-        manager = InteractionManager(gigi.conversation, catalog)
-        
-        movement_options = ["look_from_side_to_side", "look_left", "look_right"]
-        
-        def robot_speak(text, image=None):
-            if not text or not text.strip():
-                return
-            clean = re.sub(r"\[([^\]]+)\]", "", text).strip()
-            clean = re.sub(r" {2,}", " ", clean).strip()
-            if not clean:
-                return
-            sentences = re.split(r'(?<=[.!?])\s+', clean)
-            for i, sentence in enumerate(sentences):
-                viseme_data = {'text': sentence, 'file': None}
-                if image:
-                    image_data = {'filename': image, 'duration': 6.0} if i == 0 else None
-                    movement_data = "home"
-                    restore_face = (i == len(sentences) - 1)
-                else:
-                    image_data = None
-                    movement_data = random.choice(movement_options)
-                    restore_face = True
-                gigi.run_character(
-                    viseme_data=viseme_data,
-                    movement_data=movement_data,
-                    image_data=image_data,
-                    restore_face=restore_face
-                )
-                
-        def robot_listen():
-            gigi.hearing.texts = []
-            gigi.run_character(movement_data="home")
-            gigi.listen_backchannel(show_camera_feed=False)
-            if gigi.hearing.texts:
-                return gigi.hearing.texts[-1]
-            return "[no response]"
-            
-        history = []
-        steps = activity_json.get("steps", activity_json.get("phases", []))
-        
-        for i, step in enumerate(steps):
-            step_type = step.get("step_type", step.get("phase_type", "unknown"))
-            print(f"[WakeUp] Activity Step {i+1}: {step_type.upper()}")
-            
-            if step_type in ("canned", "introduction", "core_content", "conclusion"):
-                sub_steps = step.get("sub_steps", [])
-                if sub_steps:
-                    script = " ".join(s["text"] for s in sub_steps if s.get("text"))
-                else:
-                    script = step.get("robot_script", "")
-                image = step.get("image_path", step.get("image", None))
-                if script:
-                    robot_speak(script, image)
-                    history.append({"role": "assistant", "content": script})
-                time.sleep(2)
-                
-            elif step_type in ("open", "open_conversation"):
-                script = step.get("robot_script", "")
-                image = step.get("image_path", step.get("image", None))
-                if script:
-                    robot_speak(script, image)
-                    history.append({"role": "assistant", "content": script})
-                    
-                while True:
-                    user_input = robot_listen()
-                    if user_input.strip().lower() == "/next":
-                        break
-                        
-                    bad_behavior_response = check_behavior(user_input)
-                    if bad_behavior_response:
-                        robot_speak(bad_behavior_response)
-                        continue
-                        
-                    history.append({"role": "user", "content": user_input})
-                    
-                    action = {"response": None}
-                    def process_input():
-                        action["response"] = manager.generate_turn(history, step)
-                        
-                    t_process = threading.Thread(target=process_input)
-                    t_process.start()
-                    
-                    if gigi.conversation:
-                        robot_speak(random.choice(gigi.conversation.waiting_options))
-                        
-                    t_process.join()
-                    
-                    robot_response = action["response"]
-                    if robot_response:
-                        next_step_match = re.search(r"\[NEXT[ _]STEP\]", robot_response, re.IGNORECASE)
-                        if next_step_match:
-                            clean_text = robot_response[:next_step_match.start()].strip()
-                            if clean_text:
-                                robot_speak(clean_text)
-                                history.append({"role": "assistant", "content": clean_text})
-                            break
-                        else:
-                            robot_speak(robot_response)
-                            history.append({"role": "assistant", "content": robot_response})
-                            
-        print("[WakeUp] Activity finished.")
-        return True, gigi.activity_log
-    except Exception as e:
-        print(f"[WakeUp] In-process activity execution error: {e}")
-        import traceback
-        traceback.print_exc()
-        return False, [{"speaker": "Error", "text": str(e), "timestamp": time.time()}]
+        send_to_active_client({
+            "status": "stopped" if success else "error",
+            "message": msg,
+        })
 
-def start_server():
-    server_sock = None
-    is_bluetooth = False
-    
-    # Try RFCOMM first
-    if False:  # Disabled to avoid collision with dedicated gigi-bluetooth service
+    elif command == "status":
+        status_info = execution_manager.get_status()
+        from gigi.hardware.calibration import is_motor_calibrated
+        send_to_active_client({
+            "status": "status",
+            "running": status_info["running"],
+            "name": status_info["name"],
+            "type": status_info["type"],
+            "pid": status_info["pid"],
+            "calibrated": is_motor_calibrated(),
+        })
+
+    elif command == "list":
+        demos, scripts, zhennan = scan_files()
+        plans = scan_activity_plans()
+        interactions = scan_custom_interactions()
+        from gigi.hardware.calibration import is_motor_calibrated
+        send_to_active_client({
+            "status": "list",
+            "available_demos": sorted([info["filename"] for info in demos.values()]),
+            "available_scripts": sorted([info["filename"] for info in scripts.values()]),
+            "available_zhennan": sorted([info["filename"] for info in zhennan.values()]),
+            "available_activity_plans": plans,
+            "available_custom_interactions": interactions,
+            "calibrated": is_motor_calibrated(),
+        })
+
+    elif command == "save_plan":
+        if not target_name:
+            send_to_active_client({
+                "status": "error",
+                "message": "Missing plan folder name.",
+            })
+            return
+
+        plan_data = msg.get("plan") if isinstance(msg, dict) else None
+        images_dict = msg.get("images") if isinstance(msg, dict) else None
+
+        if not plan_data:
+            send_to_active_client({
+                "status": "error",
+                "message": "Missing plan content.",
+            })
+            return
+
         try:
-            print("[WakeUp] Binding classical Bluetooth RFCOMM socket...")
-            server_sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-            server_sock.bind(("", RFCOMM_CHANNEL))
-            server_sock.listen(1)
-            is_bluetooth = True
-            print(f"[WakeUp] Bluetooth RFCOMM server listening on channel {RFCOMM_CHANNEL}")
-        except Exception as e:
-            print(f"[WakeUp] RFCOMM bind failed: {e}. Falling back to TCP port {TCP_PORT}...")
-            if server_sock:
-                server_sock.close()
-            server_sock = None
-            
-    # Fallback to TCP
-    if server_sock is None:
-        server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_sock.bind(("0.0.0.0", TCP_PORT))
-        server_sock.listen(1)
-        print(f"[WakeUp] TCP Fallback server listening on 0.0.0.0:{TCP_PORT}")
-        
-    return server_sock, is_bluetooth
+            folder_name = os.path.basename(target_name)
+            if not folder_name.startswith("activity_plan_"):
+                folder_name = "activity_plan_" + folder_name
 
-def main():
-    global gigi
-    print("====================================================")
-    print("             GIGI Social Robot WakeUp               ")
-    print("====================================================")
-    
-    # Wake up the robot
-    gigi = Character(wakeup=True, activity="wakeup")
-    
-    # Start background alive tracking & blinking
-    start_alive_loop()
-    
-    # Establish connection listener
-    server_sock, is_bluetooth = start_server()
-    
+            plan_dir = os.path.join(str(ASSETS_DIR), folder_name)
+            os.makedirs(plan_dir, exist_ok=True)
+            plan_file = os.path.join(plan_dir, "activity_plan.json")
+
+            try:
+                save_plan_images(plan_data, plan_dir, images_dict)
+            except Exception as save_err:
+                print(f"[Daemon] Image save warning: {save_err}")
+
+            with open(plan_file, "w", encoding="utf-8") as f:
+                json.dump(plan_data, f, indent=2)
+
+            threading.Thread(
+                target=pregenerate_activity_speech,
+                args=(plan_data, folder_name),
+                daemon=True,
+            ).start()
+
+            send_to_active_client({
+                "status": "success",
+                "message": f"Successfully saved activity plan to '{folder_name}'",
+                "folder": folder_name,
+            })
+        except Exception as e:
+            send_to_active_client({
+                "status": "error",
+                "message": f"Failed to save plan: {str(e)}",
+            })
+
+    elif command == "save_custom_interaction":
+        if not target_name:
+            send_to_active_client({
+                "status": "error",
+                "message": "Missing interaction folder name.",
+            })
+            return
+
+        interaction_data = msg.get("interaction") if isinstance(msg, dict) else None
+        images_dict = msg.get("images") if isinstance(msg, dict) else None
+
+        if not interaction_data:
+            send_to_active_client({
+                "status": "error",
+                "message": "Missing interaction content.",
+            })
+            return
+
+        try:
+            folder_name = os.path.basename(target_name)
+            if not folder_name.startswith("custom_interaction_"):
+                folder_name = "custom_interaction_" + folder_name
+
+            interaction_dir = os.path.join(str(ASSETS_DIR), folder_name)
+            os.makedirs(interaction_dir, exist_ok=True)
+            interaction_file = os.path.join(interaction_dir, "custom_interaction.json")
+
+            if images_dict:
+                save_plan_images(interaction_data, interaction_dir, images_dict)
+
+            with open(interaction_file, "w", encoding="utf-8") as f:
+                json.dump(interaction_data, f, indent=2)
+
+            send_to_active_client({
+                "status": "success",
+                "message": f"Successfully saved custom interaction to '{folder_name}'",
+                "folder": folder_name,
+            })
+        except Exception as e:
+            send_to_active_client({
+                "status": "error",
+                "message": f"Failed to save custom interaction: {str(e)}",
+            })
+
+    elif command == "exit":
+        send_to_active_client({"status": "exiting", "message": "Goodbye!"})
+        global active_client
+        with active_client_lock:
+            if active_client:
+                active_client.close()
+
+    else:
+        send_to_active_client({"status": "error", "message": f"Unknown command: {command}"})
+
+
+def handle_client_connection(client_wrapper):
+    global active_client
+    with active_client_lock:
+        if active_client is not None:
+            try:
+                client_wrapper.sendall(json.dumps({
+                    "status": "busy",
+                    "message": "Another client is already connected to Gigi daemon.",
+                }).encode('utf-8') + b"\n")
+                client_wrapper.close()
+            except Exception:
+                pass
+            return
+        active_client = client_wrapper
+
+    print("[Daemon] Active client connection established.")
+    send_to_active_client({
+        "status": "ready",
+        "message": "Connected to Gigi daemon. Ready for commands.",
+    })
+
+    buffer = ""
+    try:
+        while not client_wrapper.closed:
+            data = client_wrapper.recv(4096)
+            if not data:
+                break
+            buffer += data.decode('utf-8', errors='ignore')
+            while "\n" in buffer:
+                line, buffer = buffer.split("\n", 1)
+                line = line.strip()
+                if line:
+                    process_command_line(line)
+    except Exception as e:
+        print(f"[Daemon] Client connection handler error: {e}")
+    finally:
+        with active_client_lock:
+            if active_client == client_wrapper:
+                active_client = None
+        client_wrapper.close()
+        print("[Daemon] Client connection closed.")
+
+
+def tcp_listener_loop(port):
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        server_sock.bind(("0.0.0.0", port))
+        server_sock.listen(5)
+        print(f"[Daemon] TCP server listening on 0.0.0.0:{port}")
+    except Exception as e:
+        print(f"[Daemon] Failed to start TCP server: {e}")
+        return
+
     while True:
         try:
-            print("[WakeUp] Waiting for a connection...")
-            client_sock, client_info = server_sock.accept()
-            print(f"[WakeUp] Connection established from {client_info}")
-            
-            # Read instructions in a loop
-            buffer = ""
-            while True:
-                data = client_sock.recv(4096)
-                if not data:
-                    break
-                    
-                buffer += data.decode('utf-8')
-                while "\n" in buffer:
-                    line, buffer = buffer.split("\n", 1)
-                    if not line.strip():
-                        continue
-                        
-                    try:
-                        msg = json.loads(line)
-                        command = msg.get("command")
-                        print(f"[WakeUp] Received command: {command}")
-                        
-                        if command == "run_script":
-                            script_name = msg.get("script_name")
-                            
-                            # Pause alive loop tracking
-                            stop_alive_loop()
-                            
-                            # Run script
-                            success, log_records = execute_script_by_name(script_name)
-                            
-                            # Upload report
-                            report = {
-                                "status": "success" if success else "failed",
-                                "script": script_name,
-                                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-                                "log": log_records
-                            }
-                            client_sock.sendall((json.dumps(report) + "\n").encode('utf-8'))
-                            print("[WakeUp] Sent activity report.")
-                            
-                            # Restart alive loop
-                            start_alive_loop()
-                            
-                        elif command == "run_activity":
-                            activity_json = msg.get("activity_json")
-                            
-                            # Pause alive loop tracking
-                            stop_alive_loop()
-                            
-                            # Run activity
-                            success, log_records = execute_activity_json(activity_json)
-                            
-                            # Upload report
-                            report = {
-                                "status": "success" if success else "failed",
-                                "activity": activity_json.get("activity_title", "Unknown"),
-                                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-                                "log": log_records
-                            }
-                            client_sock.sendall((json.dumps(report) + "\n").encode('utf-8'))
-                            print("[WakeUp] Sent activity report.")
-                            
-                            # Restart alive loop
-                            start_alive_loop()
-                            
-                        elif command == "exit":
-                            print("[WakeUp] Exiting connection listener.")
-                            client_sock.sendall((json.dumps({"status": "exiting"}) + "\n").encode('utf-8'))
-                            break
-                            
-                    except json.JSONDecodeError:
-                        print("[WakeUp] Invalid JSON string received.")
-                        client_sock.sendall(json.dumps({"error": "Invalid JSON"}).encode('utf-8'))
-                    except Exception as e:
-                        print(f"[WakeUp] Error: {e}")
-                        client_sock.sendall((json.dumps({"error": str(e)}) + "\n").encode('utf-8'))
-                        
-            client_sock.close()
-            print("[WakeUp] Connection closed.")
-        except KeyboardInterrupt:
-            print("[WakeUp] KeyboardInterrupt received. Shutting down...")
-            break
+            conn, addr = server_sock.accept()
+            print(f"[Daemon] TCP connection accepted from {addr}")
+            wrapper = ConnectionWrapper(conn, is_serial=False)
+            threading.Thread(target=handle_client_connection, args=(wrapper,), daemon=True).start()
         except Exception as e:
-            print(f"[WakeUp] Connection handler error: {e}")
+            print(f"[Daemon] TCP accept error: {e}")
             time.sleep(1.0)
-            
-    # Cleanup
-    stop_alive_loop()
-    server_sock.close()
-    if gigi:
-        gigi.stop_character()
+
+
+def websocket_listener_loop(port):
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        server_sock.bind(("0.0.0.0", port))
+        server_sock.listen(5)
+        print(f"[Daemon] WebSocket server listening on ws://0.0.0.0:{port}")
+    except Exception as e:
+        print(f"[Daemon] Failed to start WebSocket server: {e}")
+        return
+
+    while True:
+        try:
+            conn, addr = server_sock.accept()
+            print(f"[Daemon] WebSocket connection accepted from {addr}")
+            wrapper = ConnectionWrapper(conn, is_serial=False, is_websocket=True)
+            threading.Thread(target=handle_client_connection, args=(wrapper,), daemon=True).start()
+        except Exception as e:
+            print(f"[Daemon] WebSocket accept error: {e}")
+            time.sleep(1.0)
+
+
+def bluetooth_rfcomm_listener_loop(channel):
+    if not hasattr(socket, 'AF_BLUETOOTH'):
+        print("[Daemon] AF_BLUETOOTH not supported on this platform.")
+        return
+
+    server_sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+    try:
+        server_sock.bind(("", channel))
+        server_sock.listen(1)
+        print(f"[Daemon] Classical Bluetooth RFCOMM listening on channel {channel}")
+    except Exception as e:
+        print(f"[Daemon] Failed to bind Bluetooth RFCOMM socket: {e}")
+        server_sock.close()
+        return
+
+    while True:
+        try:
+            conn, addr = server_sock.accept()
+            print(f"[Daemon] Bluetooth RFCOMM accepted from {addr}")
+            wrapper = ConnectionWrapper(conn, is_serial=False)
+            threading.Thread(target=handle_client_connection, args=(wrapper,), daemon=True).start()
+        except Exception as e:
+            print(f"[Daemon] Bluetooth RFCOMM accept error: {e}")
+            time.sleep(1.0)
+
+
+def is_rfcomm_connected(port_name):
+    base_name = os.path.basename(port_name)
+    try:
+        res = subprocess.run(["rfcomm", "-a"], capture_output=True, text=True)
+        if res.returncode == 0:
+            for line in res.stdout.splitlines():
+                if base_name in line and "connected" in line.lower():
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+def serial_listener_loop(port_name):
+    try:
+        import serial
+    except ImportError:
+        print("[Daemon] pyserial not installed. Skipping serial listener.")
+        return
+
+    print(f"[Daemon] Starting Serial listener on port {port_name}...")
+    is_rfcomm = "rfcomm" in port_name and sys.platform.startswith("linux")
+
+    while True:
+        try:
+            if is_rfcomm and not is_rfcomm_connected(port_name):
+                time.sleep(1.0)
+                continue
+
+            with serial.Serial(port_name, baudrate=115200, timeout=1) as ser:
+                print(f"[Daemon] Serial port {port_name} opened. Waiting for connection...")
+                wrapper = ConnectionWrapper(ser, is_serial=True, port_name=port_name)
+                handle_client_connection(wrapper)
+            time.sleep(2.0)
+        except Exception:
+            time.sleep(2.0)
+
+
+def main():
+    global execution_manager
+    parser = argparse.ArgumentParser(description="Gigi Robot Background Daemon Service")
+    parser.add_argument("--tcp-port", type=int, default=DEFAULT_TCP_PORT, help="Port for TCP socket listener")
+    parser.add_argument("--ws-port", type=int, default=5007, help="Port for WebSocket listener")
+    parser.add_argument("--rfcomm-channel", type=int, default=DEFAULT_RFCOMM_CHANNEL, help="RFCOMM channel for Bluetooth socket")
+    parser.add_argument("--serial-port", type=str, default=None, help="Serial/COM port name for SPP")
+    args = parser.parse_args()
+
+    print("=" * 60)
+    print("      Gigi Social Robot Daemon Service")
+    print("=" * 60)
+
+    execution_manager = ExecutionManager()
+
+    if sys.platform.startswith("linux"):
+        try:
+            subprocess.run(["sudo", "sdptool", "add", "SP"], stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+    # Launch parallel transports
+    threading.Thread(target=tcp_listener_loop, args=(args.tcp_port,), daemon=True).start()
+    threading.Thread(target=websocket_listener_loop, args=(args.ws_port,), daemon=True).start()
+    threading.Thread(target=bluetooth_rfcomm_listener_loop, args=(args.rfcomm_channel,), daemon=True).start()
+
+    serial_port = args.serial_port
+    if not serial_port and sys.platform.startswith("linux"):
+        serial_port = "/dev/rfcomm0"
+
+    if serial_port:
+        threading.Thread(target=serial_listener_loop, args=(serial_port,), daemon=True).start()
+
+    try:
+        while True:
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        print("\n[Daemon] Shutting down...")
+
 
 if __name__ == "__main__":
     main()

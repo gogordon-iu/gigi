@@ -20,7 +20,7 @@ class AzureOpenAILLMClient(BaseLLMClient):
         api_version: Optional[str] = None,
         deployment_name: Optional[str] = None,
     ):
-        self.api_key = api_key or os.getenv("AZURE_OPENAI_API_KEY")
+        self.api_key = api_key or os.getenv("AZURE_OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_KEY")
         self.azure_endpoint = azure_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_version = api_version or os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
         self.deployment_name = deployment_name or os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")

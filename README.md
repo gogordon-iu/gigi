@@ -1,10 +1,12 @@
 # Gigi: Open-Source Social Robot Platform
 
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![CI](https://github.com/gogordon-iu/gigi/actions/workflows/ci.yml/badge.svg)](https://github.com/gogordon-iu/gigi/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10+-brightgreen.svg)](https://www.python.org/)
 [![Hardware: Orange Pi 5 Pro](https://img.shields.io/badge/Hardware-Orange_Pi_5_Pro-orange.svg)](http://www.orangepi.org/)
 [![Platform: Linux / Windows / macOS](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)]()
-[![Tests: 31 Passed](https://img.shields.io/badge/Tests-31%20Passed-success.svg)]()
+[![Git LFS](https://img.shields.io/badge/Git%20LFS-Enabled-blueviolet.svg)](https://git-lfs.github.com)
+[![Mobile App](https://img.shields.io/badge/Mobile%20App-gigi--app-61DAFB.svg)](https://github.com/gogordon-iu/gigi-app)
 
 **Gigi** is an open-source, expressive desktop social robot platform designed for Human-Robot Interaction (HRI), educational tutoring, developmental cognitive studies, and autonomous social presence. 
 
@@ -19,12 +21,16 @@ Powered by an onboard **Orange Pi 5 Pro** (Rockchip RK3588S SoC with 8-core CPU 
 3. [Subsystem Deep Dive](#subsystem-deep-dive)
 4. [Hardware Abstraction & Simulation](#hardware-abstraction--simulation)
 5. [Getting Started (Local Workstation)](#getting-started-local-workstation)
-6. [Interactive Live Demonstration](#interactive-live-demonstration)
-7. [Running Subsystem Tests](#running-subsystem-tests)
-8. [CLI Usage Guide](#cli-usage-guide)
-9. [Deploying to Physical Robot (Orange Pi 5 Pro)](#deploying-to-physical-robot-orange-pi-5-pro)
-10. [Historical Code Archive](#historical-code-archive)
-11. [License & Citation](#license--citation)
+6. [Git LFS Setup for Neural Weights](#git-lfs-setup-for-neural-weights)
+7. [Motor Calibration & Physical Safety Lockout](#motor-calibration--physical-safety-lockout)
+8. [Interactive Live Demonstration](#interactive-live-demonstration)
+9. [Running Subsystem Tests](#running-subsystem-tests)
+10. [CLI Usage Guide](#cli-usage-guide)
+11. [Deploying to Physical Robot (Orange Pi 5 Pro)](#deploying-to-physical-robot-orange-pi-5-pro)
+12. [Mobile & Web Companion App](#mobile--web-companion-app)
+13. [Community, Contributing & Security](#community-contributing--security)
+14. [Historical Code Archive](#historical-code-archive)
+15. [License & Citation](#license--citation)
 
 ---
 
@@ -203,6 +209,47 @@ cp .env.example .env
 
 ---
 
+## Git LFS Setup for Neural Weights
+
+Gigi utilizes pre-trained acoustic models, neural viseme mapping tables, and embedded RKNN NPU binaries. These binary assets are managed under **Git Large File Storage (LFS)**:
+
+```bash
+# Install Git LFS hooks on your machine
+git lfs install
+
+# Pull all model weights and binary assets
+git lfs pull
+```
+
+The tracked binary patterns include `*.onnx`, `*.rknn`, `*.mdl`, `*.fst`, `*.dubm`, `*.ie`, `*.mat`, `*.pt`, and `*.pth`.
+
+---
+
+## Motor Calibration & Physical Safety Lockout
+
+Physical safety of child participants and prevention of servo gear damage are paramount in social robotics.
+
+### Calibration Safety Architecture
+- **Robot-Specific Calibrations**: Servo horn alignments, physical offsets, and mechanical linkage limits vary from unit to unit. The active calibration is stored locally in `motorData_calibrated.json` and is strictly **excluded from Git**.
+- **Template Reference**: Newly flashed robots or fresh checkouts receive `motorData_calibrated.example.json` containing default center points and safe travel bounds.
+- **Hardware Lockout Guard**: When the robot powers on or starts the background daemon, the system verifies whether `motorData_calibrated.json` exists and differs from the uncalibrated template.
+  - If **uncalibrated**, all physical servo movements (gestures, arm swings, neck tilts) are **locked out**. Any attempt to command physical movement returns a safety error: `{"status": "error", "error": "uncalibrated", "requires_calibration": true}`.
+  - Speech, facial animation, and cognitive reasoning remain fully operational.
+
+### Running the Motor Calibration Wizard
+To calibrate a physical robot:
+```bash
+# Run locally on the robot via CLI
+gigi calibrate
+```
+Or trigger calibration remotely from the **Gigi Mobile App** or Bluetooth terminal by sending:
+```
+CALIBRATE
+```
+Once the calibration sequence successfully completes, `motorData_calibrated.json` is updated and the hardware lockout is immediately lifted.
+
+---
+
 ## Interactive Live Demonstration
 
 Experience Gigi's multimodal loop in real time right on your computer screen:
@@ -279,6 +326,23 @@ python tools/deploy.py --host 192.168.0.50 --restart-service
 ```
 
 Deployment excludes local virtual environments (`venv/`), caches (`__pycache__`), and sensitive environment files while ensuring the robot receives the clean `src/` packages.
+
+---
+
+## Mobile & Web Companion App
+
+The **Gigi Classroom Assistant Portal** (`gigi-app`) is the official React Native / Web application for classroom teachers, students, and researchers:
+- **Repository**: [`gogordon-iu/gigi-app`](https://github.com/gogordon-iu/gigi-app)
+- **Features**: Direct Web Serial Bluetooth connection, real-time log monitoring, one-touch activity launching, AI Lesson Planner with Azure OpenAI GPT-4o, automated DALL-E 3 image generation, and dynamic state-machine authoring.
+
+---
+
+## Community, Contributing & Security
+
+We welcome contributions, feature suggestions, and research collaborations!
+- **Contributing Guidelines**: See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup and pull request workflows.
+- **Code of Conduct**: We adhere to the Contributor Covenant v2.1. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+- **Security Policy**: For vulnerability reporting and physical robot safety disclosures, refer to [SECURITY.md](SECURITY.md).
 
 ---
 

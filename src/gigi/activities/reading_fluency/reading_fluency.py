@@ -12,6 +12,7 @@ from PIL import Image
 
 # Append parent dir, Character dir, and Demo dir to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
+from gigi.core.config import PROJECT_ROOT as gigi_dir, ASSETS_DIR
 from gigi.core.robot import GigiRobot as Character
 from gigi.activities.common import extract_name
 
@@ -45,6 +46,23 @@ class BackgroundFaceTracker:
             self.thread.join(timeout=1.5)
             self.thread = None
             print("[Reading Fluency] Background face follow tracker stopped.")
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    """Compute classic Levenshtein edit distance between two strings."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    return previous_row[-1]
 
 def play_reading_fluency(show_karaoke=True, run_hello=True, run_selection=True, story_override=None, run_comprehension=True, force_reread=False):
     print("====================================================")
