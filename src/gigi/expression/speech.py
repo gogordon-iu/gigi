@@ -140,12 +140,15 @@ class Speech():
         self.audio_objects = {}
         self.recorded_audio = {}
         self.keep_record    = True
-        self.set_activity(activity_name=activity)
-
         if os.path.exists(recorded_speech_filename):
-            self.recorded_audio = json.load(open(recorded_speech_filename, "r"))
+            try:
+                self.recorded_audio = json.load(open(recorded_speech_filename, "r"))
+            except Exception:
+                self.recorded_audio = {}
         else:
+            self.recorded_audio = {}
             self.save_recorded_audio()
+        self.set_activity(activity_name=activity)
 
         self.speaker_sample_rate = TTS_SAMPLE_RATE
 
@@ -428,8 +431,9 @@ class Speech():
         env_file = None
         found    = False
 
+        activity_records = self.recorded_audio.get(self.activity, {})
         if text is not None:
-            pre_audio_file = [k for k, v in self.recorded_audio[self.activity].items() if v == text]
+            pre_audio_file = [k for k, v in activity_records.items() if v == text]
             if pre_audio_file:
                 candidate = pre_audio_file[0]
                 if os.path.exists(candidate):
@@ -438,7 +442,7 @@ class Speech():
                     print("Found record: ", file)
                     found = True
         elif file is not None:
-            pre_audio_file = [k for k, v in self.recorded_audio[self.activity].items() if v == file]
+            pre_audio_file = [k for k, v in activity_records.items() if v == file]
             for f in pre_audio_file:
                 if os.path.exists(f):
                     file     = f

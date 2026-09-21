@@ -268,7 +268,7 @@ elif HEARING_OPTION == "vosk":
 class Hearing():
     def __init__(self, languages="en", verbose=False):
         print("Initializing hearing ...")
-        from characterDefinitions import USE_NPU_TRANSCRIPTION, USE_NPU_PRONUNCIATION
+        from gigi.core.config import USE_NPU_TRANSCRIPTION, USE_NPU_PRONUNCIATION
         self.verbose = verbose
         self.recognizer = None
         self.words = None
@@ -309,7 +309,7 @@ class Hearing():
             else:
                 # ── Windows / CPU: faster-whisper ─────────────────────────────
                 from faster_whisper import WhisperModel
-                from whisper_helper import WhisperAudioProcessor
+                from gigi.perception.whisper_helper import WhisperAudioProcessor
                 self.use_rknn = False
                 self.model = WhisperModel("base", device="cpu", compute_type="int8")
 

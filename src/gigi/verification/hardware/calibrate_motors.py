@@ -3,7 +3,7 @@ sys.path.append('../Character')
 import json
 from script import *
 from scriptGraph import ScriptGraph
-from characterDefinitions import CHARACTER_FOLDER
+from gigi.core.config import CHARACTER_FOLDER
 import os
 
 activity_name = "Motor Calibration"
