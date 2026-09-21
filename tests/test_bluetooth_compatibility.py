@@ -147,6 +147,82 @@ class TestBluetoothCompatibility(unittest.TestCase):
         self.assertIsInstance(reloaded["available_activity_plans"], list)
         self.assertIsInstance(reloaded["available_custom_interactions"], list)
 
+    def test_calibrate_script_discovery(self):
+        # calibrate, calibrate_motors, calibrate_motors.py should all be discovered
+        info, err = find_script("calibrate")
+        self.assertIsNone(err)
+        self.assertIsNotNone(info)
+        self.assertEqual(info["filename"], "calibrate_motors.py")
+
+        info_motors, err_motors = find_script("calibrate_motors")
+        self.assertIsNone(err_motors)
+        self.assertEqual(info_motors["filename"], "calibrate_motors.py")
+
+        info_py, err_py = find_script("calibrate_motors.py")
+        self.assertIsNone(err_py)
+        self.assertEqual(info_py["filename"], "calibrate_motors.py")
+
+    def test_list_and_status_payload_calibrated_field(self):
+        from gigi.hardware.calibration import is_motor_calibrated
+        demos, scripts, zhennan = scan_files()
+        plans = scan_activity_plans()
+        interactions = scan_custom_interactions()
+        is_calib = is_motor_calibrated()
+
+        payload = {
+            "status": "list",
+            "calibrated": is_calib,
+            "available_demos": sorted([info["filename"] for info in demos.values()]),
+            "available_scripts": sorted([info["filename"] for info in scripts.values()]),
+            "available_zhennan": sorted([info["filename"] for info in zhennan.values()]),
+            "available_activity_plans": plans,
+            "available_custom_interactions": interactions,
+        }
+        self.assertIn("calibrated", payload)
+        self.assertIsInstance(payload["calibrated"], bool)
+
+    def test_process_command_uncalibrated_lockout(self):
+        from bt_listener import process_command_line
+        from unittest.mock import patch, MagicMock
+
+        mock_client = MagicMock()
+        mock_client.closed = False
+        sent_messages = []
+        def fake_sendall(data):
+            sent_messages.append(json.loads(data.decode("utf-8").strip()))
+        mock_client.sendall = fake_sendall
+
+        with patch("bt_listener.active_client", mock_client), \
+             patch("gigi.hardware.calibration.is_motor_calibrated", return_value=False):
+            # Attempt to run a normal activity while uncalibrated
+            process_command_line("run mastermind")
+            self.assertTrue(len(sent_messages) > 0)
+            err_msg = sent_messages[-1]
+            self.assertEqual(err_msg.get("status"), "error")
+            self.assertEqual(err_msg.get("error"), "uncalibrated")
+            self.assertTrue(err_msg.get("requires_calibration"))
+
+    def test_process_command_calibrate_allowed_when_uncalibrated(self):
+        from bt_listener import process_command_line, execution_manager
+        from unittest.mock import patch, MagicMock
+
+        mock_client = MagicMock()
+        mock_client.closed = False
+        sent_messages = []
+        def fake_sendall(data):
+            sent_messages.append(json.loads(data.decode("utf-8").strip()))
+        mock_client.sendall = fake_sendall
+
+        with patch("bt_listener.active_client", mock_client), \
+             patch("gigi.hardware.calibration.is_motor_calibrated", return_value=False), \
+             patch.object(execution_manager, "start_script", return_value=(True, {"pid": 99999})):
+            # Command 'calibrate' must NOT be blocked by the calibration lockout
+            process_command_line("calibrate")
+            self.assertTrue(len(sent_messages) > 0)
+            start_msg = sent_messages[-1]
+            self.assertEqual(start_msg.get("status"), "starting")
+            self.assertEqual(start_msg.get("name"), "calibrate_motors.py")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -28,11 +28,16 @@ class MotorCalibration(ScriptGraph):
         super().__init__()
 
         self.movement = movement
-        # Load existing motor map or safe defaults
-        if self.movement and hasattr(self.movement, "motor_map"):
-            self.data['motors'] = self.movement.motor_map
+        if not self.movement:
+            try:
+                from gigi.expression.movement import Movement
+                self.movement = Movement(allow_uncalibrated=True)
+                self.data['motors'] = self.movement.motor_map
+            except Exception as e:
+                logger.warning(f"Could not initialize Movement with allow_uncalibrated: {e}")
+                self.data['motors'] = load_motor_calibration()
         else:
-            self.data['motors'] = load_motor_calibration()
+            self.data['motors'] = getattr(self.movement, "motor_map", load_motor_calibration())
 
         self.motor_words = "[" + " ".join(["\"%s\"," % m.replace("_", " ") for m in self.data['motors']]) + "\"[unk]\"]"
         self.number_motors = len(self.data['motors']) + 1
@@ -253,9 +258,16 @@ class MotorCalibration(ScriptGraph):
         return next_node
 
     def done(self):
+        import datetime
         print("\n[MotorCalibration] Calibration routine complete. Persisting parameters:")
-        print(json.dumps(self.data["motors"], indent=4))
-        saved_path = save_motor_calibration(self.data['motors'])
+        save_payload = dict(self.data["motors"])
+        save_payload["system_calibrated"] = True
+        save_payload["calibrated_at"] = datetime.datetime.now().isoformat()
+        for k, v in save_payload.items():
+            if isinstance(v, dict) and "channel" in v:
+                v["calibrated"] = True
+        print(json.dumps(save_payload, indent=4))
+        saved_path = save_motor_calibration(save_payload)
         print(f"[MotorCalibration] SUCCESS: Saved local calibration to: {saved_path}")
 
 

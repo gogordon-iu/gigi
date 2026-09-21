@@ -103,6 +103,55 @@ class TestHardwareSubsystems(unittest.TestCase):
                     loaded = json.load(f)
                 self.assertIn("neck", loaded)
 
+    def test_is_motor_calibrated_detection(self):
+        from gigi.hardware.calibration import is_motor_calibrated, get_calibration_status
+
+        # 1. Uncalibrated dummy data (like template)
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as tf:
+            temp_path = Path(tf.name)
+            json.dump({
+                "system_calibrated": False,
+                "neck": {"channel": 0, "min": 290, "max": 310, "center": 300, "calibrated": False},
+                "torso": {"channel": 1, "min": 290, "max": 310, "center": 300, "calibrated": False},
+                "left_shoulder": {"channel": 2, "min": 290, "max": 310, "center": 300, "calibrated": False},
+                "right_shoulder": {"channel": 3, "min": 290, "max": 310, "center": 300, "calibrated": False},
+                "left_elbow": {"channel": 4, "min": 290, "max": 310, "center": 300, "calibrated": False},
+                "right_elbow": {"channel": 5, "min": 290, "max": 310, "center": 300, "calibrated": False},
+            }, tf)
+
+        try:
+            self.assertFalse(is_motor_calibrated(custom_path=temp_path))
+            status = get_calibration_status(custom_path=temp_path)
+            self.assertFalse(status["calibrated"])
+            self.assertEqual(status["reason"], "system_flag_false")
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+        # 2. Properly calibrated data
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as tf:
+            temp_path = Path(tf.name)
+            json.dump({
+                "system_calibrated": True,
+                "calibrated_at": "2026-09-21T12:00:00Z",
+                "neck": {"channel": 0, "min": 150, "max": 450, "center": 300, "calibrated": True},
+                "torso": {"channel": 1, "min": 140, "max": 460, "center": 300, "calibrated": True},
+                "left_shoulder": {"channel": 2, "min": 160, "max": 440, "center": 300, "calibrated": True},
+                "right_shoulder": {"channel": 3, "min": 160, "max": 440, "center": 300, "calibrated": True},
+                "left_elbow": {"channel": 4, "min": 180, "max": 420, "center": 300, "calibrated": True},
+                "right_elbow": {"channel": 5, "min": 180, "max": 420, "center": 300, "calibrated": True},
+            }, tf)
+
+        try:
+            self.assertTrue(is_motor_calibrated(custom_path=temp_path))
+            status = get_calibration_status(custom_path=temp_path)
+            self.assertTrue(status["calibrated"])
+            self.assertEqual(status["reason"], "ok")
+            self.assertEqual(status["calibrated_at"], "2026-09-21T12:00:00Z")
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
     def test_motor_controller_simulation(self):
         from gigi.hardware.motors import PCA9685Controller
 
@@ -211,6 +260,35 @@ class TestExpressionSubsystems(unittest.TestCase):
         self.assertIn("neck", seq[-1]["motors"])
         # Home position executes safely
         movement.home_position(duration=0.01)
+
+    def test_movement_safety_lockout(self):
+        from gigi.expression.movement import Movement
+        from unittest.mock import patch
+
+        # Force uncalibrated state
+        with patch("gigi.expression.movement.is_motor_calibrated", return_value=False):
+            movement = Movement(allow_uncalibrated=False)
+            self.assertFalse(movement.is_calibrated)
+            # Physical movements must be blocked (move_single_motor returns False)
+            self.assertFalse(movement.move_single_motor("neck", 300))
+            # Other movement methods log safety lockout and return safely without error
+            movement.move_motors({"neck": 300})
+            movement.move_sequence([{"time": 0.05, "motors": {"neck": 300}}])
+            movement.home_position()
+            # Release is safe and executes without error
+            movement.release()
+
+    def test_movement_allow_uncalibrated_override(self):
+        from gigi.expression.movement import Movement
+        from unittest.mock import patch
+
+        with patch("gigi.expression.movement.is_motor_calibrated", return_value=False):
+            # Calibration wizard mode: allow_uncalibrated=True
+            movement = Movement(allow_uncalibrated=True)
+            self.assertTrue(movement.allow_uncalibrated)
+            # Movement calls should not be blocked by lockout in simulation
+            self.assertTrue(movement.move_single_motor("neck", 300))
+            movement.home_position(duration=0.01)
 
 
 class TestInteractionSubsystems(unittest.TestCase):

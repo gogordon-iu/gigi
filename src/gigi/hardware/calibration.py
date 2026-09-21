@@ -18,6 +18,7 @@ from gigi.core.config import PROJECT_ROOT, DATA_DIR
 logger = logging.getLogger(__name__)
 
 DEFAULT_MOTOR_MAP: Dict[str, Dict[str, Any]] = {
+    "system_calibrated": True,
     "neck": {
         "channel": 1,
         "min": 200,
@@ -103,6 +104,102 @@ def init_local_motor_calibration(force: bool = False) -> Path:
     return target
 
 
+def is_motor_calibrated(custom_path: Optional[Path] = None) -> bool:
+    """
+    Determines whether the physical robot motors have been calibrated locally.
+    
+    Returns False if:
+    1. Local calibration file does not exist.
+    2. The profile explicitly defines 'system_calibrated': False.
+    3. Any of the required motors is marked 'calibrated': False.
+    4. All joints still have the default uncalibrated dummy bounds (e.g. min 290, max 310).
+    5. The contents match the basic motorData_calibrated.example.json template.
+    """
+    if custom_path is not None:
+        active_path = Path(custom_path)
+    else:
+        local_file = PROJECT_ROOT / "motorData_calibrated.json"
+        local_backup = PROJECT_ROOT / "motorData_calibrated_local.json"
+        active_path = local_backup if local_backup.exists() else local_file
+
+    if not active_path.exists():
+        return False
+
+    try:
+        with open(active_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        logger.warning(f"Error reading motor calibration file {active_path}: {e}")
+        return False
+
+    # 1. Top-level system_calibrated flag check
+    if data.get("system_calibrated") is False:
+        return False
+
+    # 2. Check if identical to example template
+    example_file = PROJECT_ROOT / "motorData_calibrated.example.json"
+    if example_file.exists() and active_path != example_file:
+        try:
+            with open(example_file, "r", encoding="utf-8") as ef:
+                example_data = json.load(ef)
+            joints = ["neck", "torso", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow"]
+            if all(data.get(j) == example_data.get(j) for j in joints if j in example_data):
+                # Data is completely unchanged from the uncalibrated template
+                return False
+        except Exception:
+            pass
+
+    # 3. Check individual joints for calibration flag and dummy values
+    required_joints = ["neck", "torso", "left_shoulder", "right_shoulder"]
+    has_custom_values = False
+    for joint in required_joints:
+        joint_data = data.get(joint)
+        if not isinstance(joint_data, dict):
+            return False
+        if not joint_data.get("calibrated", False):
+            return False
+        # If any joint has bounds other than the dummy 290..310, it has been calibrated
+        if joint_data.get("min") != 290 or joint_data.get("max") != 310:
+            has_custom_values = True
+
+    return has_custom_values
+
+
+def get_calibration_status(custom_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Returns a dictionary describing the robot's motor calibration state."""
+    calibrated = is_motor_calibrated(custom_path=custom_path)
+    if custom_path is not None:
+        active_path = Path(custom_path)
+    else:
+        local_file = PROJECT_ROOT / "motorData_calibrated.json"
+        local_backup = PROJECT_ROOT / "motorData_calibrated_local.json"
+        active_path = local_backup if local_backup.exists() else (local_file if local_file.exists() else None)
+
+    calibrated_at = None
+    reason = "ok" if calibrated else "uncalibrated"
+    if active_path and active_path.exists():
+        try:
+            with open(active_path, "r", encoding="utf-8") as f:
+                d = json.load(f)
+            calibrated_at = d.get("calibrated_at")
+            if d.get("system_calibrated") is False:
+                reason = "system_flag_false"
+            elif not calibrated:
+                reason = "uncalibrated_joints"
+        except Exception:
+            reason = "read_error"
+    else:
+        reason = "file_not_found"
+
+    return {
+        "calibrated": calibrated,
+        "reason": reason,
+        "local_file_exists": active_path is not None and active_path.exists(),
+        "active_path": str(active_path) if active_path else None,
+        "calibrated_at": calibrated_at,
+    }
+
+
 def load_motor_calibration(auto_init: bool = True) -> Dict[str, Dict[str, Any]]:
     """Loads motor calibration parameters from disk, falling back to safe defaults."""
     local_file = PROJECT_ROOT / "motorData_calibrated.json"
@@ -121,15 +218,16 @@ def load_motor_calibration(auto_init: bool = True) -> Dict[str, Dict[str, Any]]:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 logger.info(f"Loaded motor calibration from {path}")
-                return data
+                # Filter out metadata keys like system_calibrated and calibrated_at when returning motor dict
+                return {k: v for k, v in data.items() if isinstance(v, dict) and "channel" in v}
             except Exception as e:
                 logger.warning(f"Failed to read {path}: {e}")
 
     logger.info("Using built-in default motor calibration profile.")
-    return DEFAULT_MOTOR_MAP.copy()
+    return {k: v for k, v in DEFAULT_MOTOR_MAP.items() if isinstance(v, dict) and "channel" in v}
 
 
-def save_motor_calibration(data: Dict[str, Dict[str, Any]], custom_path: Optional[Path] = None) -> Path:
+def save_motor_calibration(data: Dict[str, Any], custom_path: Optional[Path] = None) -> Path:
     """
     Saves motor calibration profile to disk.
     Always targets the robot-local, untracked motorData_calibrated.json by default.

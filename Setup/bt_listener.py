@@ -258,7 +258,21 @@ def scan_files():
         zhennan["run_custom_interaction"] = dict(custom_info, filename="run_custom_interaction.py", stem="run_custom_interaction")
         zhennan["custom_runner"] = custom_info
 
-    # 3. Add aliases for common historical / tablet names
+    # 3. Add motor calibration wizard
+    calib_path = os.path.join(base_dir, "src", "gigi", "verification", "hardware", "calibrate_motors.py")
+    if os.path.isfile(calib_path):
+        calib_info = {
+            "filename": "calibrate_motors.py",
+            "stem": "calibrate_motors",
+            "path": os.path.abspath(calib_path),
+            "dir": os.path.abspath(os.path.dirname(calib_path)),
+            "type": "demo"
+        }
+        demos["calibrate_motors"] = calib_info
+        demos["calibrate"] = calib_info
+        demos["motor_calibration"] = calib_info
+
+    # 4. Add aliases for common historical / tablet names
     aliases = {
         "readingfluencydemo": "reading_fluency",
         "readingfluency": "reading_fluency",
@@ -271,6 +285,9 @@ def scan_files():
         "alivemode": "alive_mode",
         "alive_mode_demo": "alive_mode",
         "face_demo": "face_recognition_demo",
+        "calibrate": "calibrate_motors",
+        "calibrate_motors": "calibrate_motors",
+        "motor_calibration": "calibrate_motors",
     }
     for alias, target in aliases.items():
         if target in demos and alias not in demos:
@@ -580,6 +597,8 @@ class ExecutionManager:
             except Exception as e:
                 print(f"[ExecutionManager] Callback error: {e}")
 
+execution_manager = ExecutionManager()
+
 def send_to_active_client(msg_dict):
     global active_client
     with active_client_lock:
@@ -804,7 +823,7 @@ def process_command_line(line):
         parts = line.split(None, 1)
         if len(parts) > 0:
             first_word = parts[0].lower()
-            if first_word in ["run", "stop", "status", "list", "exit"]:
+            if first_word in ["run", "stop", "status", "list", "exit", "calibrate"]:
                 command = first_word
                 if len(parts) > 1:
                     target_name = parts[1].strip()
@@ -826,7 +845,21 @@ def process_command_line(line):
                 "message": "Missing script name. Usage: run <script_name>"
             })
             return
-            
+
+        # Check calibration lockout before executing movement activities
+        from gigi.hardware.calibration import is_motor_calibrated
+        is_calib_target = target_name.lower().replace(".py", "").replace("_", "").replace(" ", "") in [
+            "calibrate", "calibratemotors", "motorcalibration"
+        ]
+        if not is_motor_calibrated() and not is_calib_target:
+            send_to_active_client({
+                "status": "error",
+                "error": "uncalibrated",
+                "message": "Physical motors are UNCALIBRATED! Movement is locked for safety. Please run motor calibration first via Bluetooth.",
+                "requires_calibration": True
+            })
+            return
+
         script_info, error_details = find_script(target_name)
         if error_details:
             send_to_active_client(error_details)
@@ -837,6 +870,27 @@ def process_command_line(line):
             send_to_active_client({
                 "status": "starting",
                 "message": f"Successfully started '{script_info['filename']}'",
+                "name": script_info["filename"],
+                "type": script_info["type"],
+                "pid": res["pid"]
+            })
+        else:
+            send_to_active_client({
+                "status": "error",
+                "message": res
+            })
+
+    elif command == "calibrate":
+        script_info, error_details = find_script("calibrate_motors")
+        if error_details:
+            send_to_active_client(error_details)
+            return
+            
+        success, res = execution_manager.start_script(script_info, handle_completion_callback)
+        if success:
+            send_to_active_client({
+                "status": "starting",
+                "message": "Starting interactive motor calibration wizard...",
                 "name": script_info["filename"],
                 "type": script_info["type"],
                 "pid": res["pid"]
@@ -874,25 +928,29 @@ def process_command_line(line):
 
     elif command == "status":
         status_info = execution_manager.get_status()
+        from gigi.hardware.calibration import is_motor_calibrated
         send_to_active_client({
             "status": "status",
             "running": status_info["running"],
             "name": status_info["name"],
             "type": status_info["type"],
-            "pid": status_info["pid"]
+            "pid": status_info["pid"],
+            "calibrated": is_motor_calibrated()
         })
 
     elif command == "list":
         demos, scripts, zhennan = scan_files()
         plans = scan_activity_plans()
         interactions = scan_custom_interactions()
+        from gigi.hardware.calibration import is_motor_calibrated
         send_to_active_client({
             "status": "list",
             "available_demos": sorted([info["filename"] for info in demos.values()]),
             "available_scripts": sorted([info["filename"] for info in scripts.values()]),
             "available_zhennan": sorted([info["filename"] for info in zhennan.values()]),
             "available_activity_plans": plans,
-            "available_custom_interactions": interactions
+            "available_custom_interactions": interactions,
+            "calibrated": is_motor_calibrated()
         })
 
     elif command == "save_plan":

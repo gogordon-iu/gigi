@@ -1,6 +1,11 @@
 """
 Robot kinematics, trajectory smoothing, and motor execution for Gigi.
 Translates normalized motor commands [-1.0, 1.0] into hardware PWM values.
+
+Safety:
+Physical motor movements are strictly locked out if the robot's motors have
+not been calibrated locally, protecting servo horns, mechanical linkages, and
+gears from out-of-bounds strain.
 """
 
 import sys
@@ -12,7 +17,7 @@ from copy import deepcopy
 from typing import Dict, List, Union, Optional, Any
 
 from gigi.hardware.motors import PCA9685Controller
-from gigi.hardware.calibration import load_motor_calibration
+from gigi.hardware.calibration import load_motor_calibration, is_motor_calibrated
 from gigi.expression.gesture_definitions import BASIC_GESTURES
 
 logger = logging.getLogger(__name__)
@@ -21,10 +26,13 @@ logger = logging.getLogger(__name__)
 class Movement:
     """
     Manages motor positioning, trajectory interpolation, and gesture execution.
+    Enforces motor calibration safety lockout.
     """
 
-    def __init__(self, verbose: bool = False):
+    def __init__(self, verbose: bool = False, allow_uncalibrated: bool = False):
         self.verbose = verbose
+        self.allow_uncalibrated = allow_uncalibrated
+        self.is_calibrated = is_motor_calibrated()
         self.motors = PCA9685Controller()
         self.motor_map = load_motor_calibration()
         self.current_positions: Dict[str, int] = {
@@ -32,10 +40,21 @@ class Movement:
             for m in self.motor_map
             if self.motor_map[m].get("calibrated", False)
         }
-        self.home_position()
+
+        if not self.is_calibrated and not self.allow_uncalibrated:
+            logger.warning(
+                "[Movement Lockout] Motors are UNCALIBRATED! Physical movement is LOCKED to protect hardware. "
+                "Please run motor calibration via Bluetooth or 'gigi calibrate' before commanding movement."
+            )
+        else:
+            self.home_position()
 
     def move_single_motor(self, motor: str, angle: Union[int, float]) -> bool:
         """Moves a single motor to target angle."""
+        if not self.is_calibrated and not self.allow_uncalibrated:
+            logger.warning(f"[Movement Lockout] Blocked move_single_motor('{motor}') - robot is uncalibrated.")
+            return False
+
         if motor in self.motor_map:
             channel = self.motor_map[motor]["channel"]
             raw_angle = self.get_angle(angle, motor)
@@ -74,6 +93,10 @@ class Movement:
 
     def move_motors(self, motors_: Dict[Union[str, int], Union[float, int]]) -> None:
         """Sets multiple motors simultaneously."""
+        if not self.is_calibrated and not self.allow_uncalibrated:
+            logger.warning("[Movement Lockout] Blocked move_motors() - robot is uncalibrated.")
+            return
+
         for motor, angle in motors_.items():
             if isinstance(motor, int):
                 self.current_positions[str(motor)] = int(angle)
@@ -198,6 +221,10 @@ class Movement:
 
     def move_sequence(self, motor_seq: List[Dict[str, Any]], stop_event: Optional[threading.Event] = None) -> None:
         """Executes timed motor steps in sequence."""
+        if not self.is_calibrated and not self.allow_uncalibrated:
+            logger.warning("[Movement Lockout] Blocked move_sequence() - robot is uncalibrated.")
+            return
+
         if self.is_sparse_sequence(motor_seq):
             motor_seq = self.interpolate_sequence(motor_seq)
         start_time = time.time()
@@ -227,6 +254,11 @@ class Movement:
         stop_condition: Optional[Any] = None,
     ) -> threading.Thread:
         """Returns a thread that executes the given gesture or trajectory."""
+        if not self.is_calibrated and not self.allow_uncalibrated:
+            logger.warning("[Movement Lockout] Blocked movement_thread() - robot is uncalibrated.")
+            # Return dummy no-op thread
+            return threading.Thread(target=lambda: None, daemon=True)
+
         if isinstance(motor_data, list):
             motor_seq = motor_data
         elif isinstance(motor_data, str):
@@ -247,6 +279,10 @@ class Movement:
 
     def home_position(self, duration: float = 1.5) -> None:
         """Gently moves all calibrated motors to their neutral 0.0 center position."""
+        if not self.is_calibrated and not self.allow_uncalibrated:
+            logger.warning("[Movement Lockout] Blocked home_position() - robot is uncalibrated.")
+            return
+
         home = {m: 0.0 for m in self.motor_map if self.motor_map[m].get("calibrated", False)}
         if not home:
             return
@@ -254,21 +290,19 @@ class Movement:
         self.move_sequence(home_seq)
 
     def release(self) -> None:
-        """Releases all PWM signals to prevent motor heating."""
+        """Releases all PWM signals to prevent motor heating. Always safe to call."""
         for v in self.motor_map.values():
             self.motors.set_pwm(v["channel"], 0, 4096)
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1].lower() in ["release", "stop"]:
-        m = Movement()
-        m.home_position()
+        m = Movement(allow_uncalibrated=True)
         m.release()
-        print("[Movement CLI] Motors returned home and released.")
+        print("[Movement CLI] Motors released.")
     elif len(sys.argv) > 1 and sys.argv[1].lower() in ["home"]:
         m = Movement()
         m.home_position()
         print("[Movement CLI] Motors returned home.")
     else:
         print("Usage: python -m gigi.expression.movement [home|release]")
-
