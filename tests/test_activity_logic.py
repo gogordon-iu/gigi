@@ -6,7 +6,14 @@ Unit tests for activity algorithms and logic:
 - Scripted activity graph structures
 """
 
+import sys
 import unittest
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_DIR = str(PROJECT_ROOT / "src")
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
 
 
 class TestMastermindLogic(unittest.TestCase):

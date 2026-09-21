@@ -1,9 +1,15 @@
 import os
 import platform
-import sounddevice as sd
+try:
+    import sounddevice as sd
+except ImportError:
+    sd = None
 import threading
 import json
-import webrtcvad
+try:
+    import webrtcvad
+except ImportError:
+    webrtcvad = None
 import numpy as np
 
 from gigi.core.config import RESOURCES_DIR

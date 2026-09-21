@@ -78,9 +78,14 @@ if SOUND_OPTION == "pygame":
             os.environ["AUDIODEV"] = "hw:1,0"   # OrangePi HDMI/DP SPDIF
 
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
-    import pygame
-    from pygame import mixer
-    from pygame import time as pygame_time   # avoids shadowing sleep_time
+    try:
+        import pygame
+        from pygame import mixer
+        from pygame import time as pygame_time   # avoids shadowing sleep_time
+    except ImportError:
+        pygame = None
+        mixer = None
+        pygame_time = None
 
 elif SOUND_OPTION == "sounddevice":
     import sounddevice as sd
@@ -113,7 +118,10 @@ if TTS_MODEL == "nix":
     TTS_SAMPLE_RATE = 22050
 
 elif TTS_MODEL == "silero":
-    import torch
+    try:
+        import torch
+    except ImportError:
+        torch = None
     TTS_SAMPLE_RATE = 48000
 
 

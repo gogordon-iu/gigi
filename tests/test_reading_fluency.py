@@ -1,9 +1,16 @@
+import sys
 import unittest
 import os
 import json
 import re
 import string
 import tempfile
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_DIR = str(PROJECT_ROOT / "src")
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
 
 from gigi.core.config import PROJECT_ROOT as gigi_dir
 from gigi.activities.common import extract_name

@@ -1,11 +1,20 @@
 import cv2
 import numpy as np
-import face_recognition
+try:
+    import face_recognition
+except ImportError:
+    face_recognition = None
 import pickle
 import os
-import mediapipe as mp
+try:
+    import mediapipe as mp
+except ImportError:
+    mp = None
 from collections import defaultdict
-from deepface import DeepFace
+try:
+    from deepface import DeepFace
+except ImportError:
+    DeepFace = None
 import time
 import threading
 from queue import Queue, Empty

@@ -843,6 +843,19 @@ def process_command_line(line):
         plans = scan_activity_plans()
         interactions = scan_custom_interactions()
         from gigi.hardware.calibration import is_motor_calibrated
+        activities_dir = os.path.join(str(PROJECT_ROOT), "src", "gigi", "activities")
+        categorized_activities = []
+        for info in sorted(demos.values(), key=lambda x: x["stem"]):
+            stem = info["stem"]
+            rel_dir = os.path.relpath(info["dir"], activities_dir).replace("\\", "/")
+            subcat = rel_dir.split("/")[0] if rel_dir != "." else "general"
+            categorized_activities.append({
+                "name": info["filename"],
+                "stem": stem,
+                "type": "core",
+                "category": subcat,
+                "module": f"gigi.activities.{subcat}.{stem}" if subcat != "general" else f"gigi.activities.{stem}",
+            })
         send_to_active_client({
             "status": "list",
             "available_demos": sorted([info["filename"] for info in demos.values()]),
@@ -850,6 +863,7 @@ def process_command_line(line):
             "available_zhennan": sorted([info["filename"] for info in zhennan.values()]),
             "available_activity_plans": plans,
             "available_custom_interactions": interactions,
+            "categorized_activities": categorized_activities,
             "calibrated": is_motor_calibrated(),
         })
 

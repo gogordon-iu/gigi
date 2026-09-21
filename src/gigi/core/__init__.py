@@ -11,7 +11,13 @@ from gigi.core.config import (
     DATA_DIR,
 )
 from gigi.core.logger import InteractionLogger
-from gigi.core.robot import GigiRobot, Character
+
+
+def __getattr__(name):
+    if name in ("GigiRobot", "Character"):
+        from gigi.core.robot import GigiRobot, Character
+        return GigiRobot if name == "GigiRobot" else Character
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
     "GigiRobot",

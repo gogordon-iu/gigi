@@ -16,7 +16,10 @@ if IMAGE_OPTION == "pygame":
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1" 
     import pygame
 elif IMAGE_OPTION == "cv":
-    from screeninfo import get_monitors
+    try:
+        from screeninfo import get_monitors
+    except ImportError:
+        get_monitors = None
     import cv2
     import numpy as np
     import subprocess
@@ -55,8 +58,14 @@ class Face():
                 self.screen_size = (self.infoObject.current_w/2, self.infoObject.current_h/2)
                 self.screen = pygame.display.set_mode(self.screen_size)
         elif IMAGE_OPTION == "cv":
-            screen = get_monitors()[0]
-            screen_width, screen_height = screen.width, screen.height
+            if get_monitors:
+                try:
+                    screen = get_monitors()[0]
+                    screen_width, screen_height = screen.width, screen.height
+                except Exception:
+                    screen_width, screen_height = 800, 480
+            else:
+                screen_width, screen_height = 800, 480
             self.win_name = "face_window"
             if full_screen:
                 cv2.namedWindow(self.win_name, cv2.WINDOW_NORMAL | cv2.WINDOW_GUI_NORMAL)
