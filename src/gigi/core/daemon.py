@@ -358,6 +358,122 @@ def find_script(target_name):
     return None, error_details
 
 
+def get_wifi_status():
+    """
+    Returns current Wi-Fi connection status, SSID, IPv4 address, and hostname.
+    """
+    ssid = None
+    ip_addr = None
+    hostname = socket.gethostname()
+
+    try:
+        res = subprocess.run(["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"], capture_output=True, text=True, timeout=5)
+        for line in res.stdout.splitlines():
+            if line.startswith("yes:"):
+                parts = line.split(":", 1)
+                if len(parts) > 1 and parts[1].strip():
+                    ssid = parts[1].strip()
+                    break
+    except Exception as e:
+        logger.debug(f"[Daemon] Error reading active SSID: {e}")
+
+    try:
+        res_ip = subprocess.run(["hostname", "-I"], capture_output=True, text=True, timeout=5)
+        ips = [ip for ip in res_ip.stdout.strip().split() if "." in ip and not ip.startswith("127.")]
+        if ips:
+            ip_addr = ips[0]
+    except Exception as e:
+        logger.debug(f"[Daemon] Error reading IPv4: {e}")
+
+    return {
+        "status": "wifi_status",
+        "connected": bool(ssid and ip_addr),
+        "ssid": ssid or "Not connected",
+        "ip": ip_addr or "No IP",
+        "hostname": hostname,
+    }
+
+
+def scan_wifi_networks():
+    """
+    Scans nearby Wi-Fi access points and returns a sorted list of unique networks.
+    """
+    networks = []
+    seen = set()
+    try:
+        res = subprocess.run(
+            ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi", "list", "--rescan", "auto"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        for line in res.stdout.splitlines():
+            parts = line.split(":")
+            if len(parts) >= 3:
+                s_name = parts[0].strip()
+                sig = parts[1].strip()
+                sec = parts[2].strip()
+                if s_name and s_name != "--" and s_name not in seen:
+                    seen.add(s_name)
+                    networks.append({
+                        "ssid": s_name,
+                        "signal": int(sig) if sig.isdigit() else 0,
+                        "security": sec or "Open",
+                    })
+        networks.sort(key=lambda x: x["signal"], reverse=True)
+    except Exception as e:
+        logger.error(f"[Daemon] Error scanning Wi-Fi: {e}")
+
+    return {
+        "status": "wifi_scan",
+        "networks": networks,
+        "count": len(networks),
+    }
+
+
+def connect_wifi(ssid, password=""):
+    """
+    Connects to a specified Wi-Fi network using NetworkManager.
+    """
+    if not ssid:
+        return {
+            "status": "wifi_connect_result",
+            "success": False,
+            "message": "SSID cannot be empty.",
+        }
+
+    try:
+        cmd = ["nmcli", "dev", "wifi", "connect", ssid]
+        if password:
+            cmd.extend(["password", password])
+
+        print(f"[Daemon] Connecting to Wi-Fi SSID '{ssid}'...")
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
+        if res.returncode == 0:
+            time.sleep(2.0)
+            status = get_wifi_status()
+            return {
+                "status": "wifi_connect_result",
+                "success": True,
+                "message": f"Successfully connected to '{ssid}'",
+                "ssid": status["ssid"],
+                "ip": status["ip"],
+            }
+        else:
+            err = res.stderr.strip() or res.stdout.strip()
+            return {
+                "status": "wifi_connect_result",
+                "success": False,
+                "message": f"Failed to connect: {err}",
+            }
+    except Exception as e:
+        return {
+            "status": "wifi_connect_result",
+            "success": False,
+            "message": f"Connection error: {str(e)}",
+        }
+
+
 class ConnectionWrapper:
     """
     Unifies socket, serial, and websocket interfaces for bidirectional streaming.
@@ -459,22 +575,92 @@ class ConnectionWrapper:
 
 class ExecutionManager:
     """
-    Manages the lifecycle of the running demo or script subprocess.
+    Manages the lifecycle of the running demo, script, or ambient alive subprocess.
     Ensures single process execution, background monitoring, and clean termination.
+    Supports ambient 'always-alive' mode yielding to requested activities and resuming after.
     """
 
     def __init__(self):
         self.process = None
         self.process_name = None
         self.process_type = None
+        self.is_ambient = False
+        self.ambient_enabled = os.environ.get("GIGI_AMBIENT_MODE", "1") != "0"
+        self.paused = False
         self.lock = threading.Lock()
         self.monitor_thread = None
         self.on_completion_callback = None
 
+    def start_ambient(self, greeting=True):
+        with self.lock:
+            if not self.ambient_enabled or self.paused:
+                return False, "Ambient mode is disabled or paused."
+
+            if self.process and self.process.poll() is None:
+                # Already running something
+                return False, f"Process '{self.process_name}' already active."
+
+            from gigi.hardware.calibration import is_motor_calibrated
+            if not is_motor_calibrated():
+                print("[ExecutionManager] Motors not calibrated. Skipping ambient alive mode.")
+                return False, "Motors not calibrated."
+
+            script_info, _ = find_script("alive_mode.py")
+            if not script_info:
+                print("[ExecutionManager] alive_mode.py script not found.")
+                return False, "alive_mode.py not found."
+
+            args = []
+            if not greeting:
+                args = ["--no-greeting"]
+
+            print(f"[ExecutionManager] Spawning ambient alive mode (greeting={greeting})...")
+            self.process_name = "alive_mode.py"
+            self.process_type = "ambient"
+            self.is_ambient = True
+
+            try:
+                cmd = [sys.executable, "-u", script_info["path"]] + args
+                base_dir = str(PROJECT_ROOT)
+                src_dir = os.path.join(base_dir, "src")
+                sub_env = dict(os.environ)
+                if "PYTHONPATH" in sub_env:
+                    sub_env["PYTHONPATH"] = f"{src_dir}{os.pathsep}{sub_env['PYTHONPATH']}"
+                else:
+                    sub_env["PYTHONPATH"] = src_dir
+
+                if "DISPLAY" not in sub_env:
+                    sub_env["DISPLAY"] = ":0"
+                if not os.path.exists(sub_env.get("XAUTHORITY", "")) and os.path.exists("/home/orangepi/.Xauthority"):
+                    sub_env["XAUTHORITY"] = "/home/orangepi/.Xauthority"
+
+                self.process = subprocess.Popen(
+                    cmd,
+                    cwd=script_info["dir"],
+                    env=sub_env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding='utf-8',
+                    bufsize=1,
+                )
+            except Exception as e:
+                print(f"[ExecutionManager] Error launching ambient alive mode: {e}")
+                self.is_ambient = False
+                return False, str(e)
+
+            self.monitor_thread = threading.Thread(
+                target=self._monitor_lifecycle,
+                args=(self.process, self.process_name, self.process_type),
+                daemon=True,
+            )
+            self.monitor_thread.start()
+            return True, {"pid": self.process.pid, "name": self.process_name, "type": "ambient"}
+
     def start_script(self, script_info, callback=None):
         with self.lock:
             if self.process and self.process.poll() is None:
-                print(f"[ExecutionManager] Terminating running script: {self.process_name}")
+                print(f"[ExecutionManager] Terminating running script: {self.process_name} (ambient={self.is_ambient})")
                 try:
                     self.process.terminate()
                     for _ in range(20):
@@ -485,7 +671,10 @@ class ExecutionManager:
                         self.process.kill()
                 except Exception as e:
                     print(f"[ExecutionManager] Error terminating: {e}")
+                self.process = None
 
+            self.is_ambient = False
+            self.paused = False
             self.process_name = script_info["filename"]
             self.process_type = script_info["type"]
             self.on_completion_callback = callback
@@ -538,7 +727,8 @@ class ExecutionManager:
         with self.lock:
             if self.process and self.process.poll() is None:
                 name = self.process_name
-                print(f"[ExecutionManager] Terminating script '{name}' (PID {self.process.pid})...")
+                was_amb = self.is_ambient
+                print(f"[ExecutionManager] Terminating script '{name}' (PID {self.process.pid}, ambient={was_amb})...")
                 try:
                     self.process.terminate()
                     for _ in range(20):
@@ -547,6 +737,11 @@ class ExecutionManager:
                         time.sleep(0.1)
                     if self.process.poll() is None:
                         self.process.kill()
+                    self.process = None
+                    self.is_ambient = False
+                    if was_amb:
+                        self.paused = True
+                        return True, "Ambient alive mode paused."
                     return True, f"Script '{name}' was stopped."
                 except Exception as e:
                     return False, f"Failed to stop script '{name}': {e}"
@@ -555,14 +750,24 @@ class ExecutionManager:
     def get_status(self):
         with self.lock:
             if self.process and self.process.poll() is None:
+                if self.is_ambient:
+                    return {
+                        "running": False,
+                        "ambient": True,
+                        "name": self.process_name,
+                        "type": "ambient",
+                        "pid": self.process.pid,
+                    }
                 return {
                     "running": True,
+                    "ambient": False,
                     "name": self.process_name,
                     "type": self.process_type,
                     "pid": self.process.pid,
                 }
             return {
                 "running": False,
+                "ambient": False,
                 "name": None,
                 "type": None,
                 "pid": None,
@@ -585,12 +790,27 @@ class ExecutionManager:
         stdout_t.join(timeout=0.5)
         stderr_t.join(timeout=0.5)
 
-        print(f"[ExecutionManager] Script '{name}' exited with return code {return_code}")
-        if self.on_completion_callback:
+        print(f"[ExecutionManager] Script '{name}' (type={ptype}) exited with return code {return_code}")
+        was_ambient = (ptype == "ambient")
+
+        with self.lock:
+            if self.process == proc:
+                self.process = None
+                self.process_name = None
+                self.process_type = None
+                self.is_ambient = False
+
+        if not was_ambient and self.on_completion_callback:
             try:
                 self.on_completion_callback(name, ptype, return_code)
             except Exception as e:
                 print(f"[ExecutionManager] Callback error: {e}")
+
+        # If a foreground activity just finished and ambient mode is enabled and not paused,
+        # automatically resume ambient alive mode!
+        if not was_ambient and self.ambient_enabled and not self.paused:
+            time.sleep(1.0)
+            self.start_ambient(greeting=False)
 
 
 execution_manager = ExecutionManager()
@@ -733,7 +953,11 @@ def process_command_line(line):
         parts = line.split(None, 1)
         if len(parts) > 0:
             first_word = parts[0].lower()
-            if first_word in ["run", "stop", "status", "list", "exit", "calibrate"]:
+            if first_word in [
+                "run", "stop", "status", "list", "exit", "calibrate",
+                "wifi_scan", "wifi-scan", "wifi_status", "wifi-status",
+                "wifi_connect", "wifi-connect", "sleep", "pause", "wake"
+            ]:
                 command = first_word
                 if len(parts) > 1:
                     target_name = parts[1].strip()
@@ -838,10 +1062,12 @@ def process_command_line(line):
         send_to_active_client({
             "status": "status",
             "running": status_info["running"],
+            "ambient": status_info.get("ambient", False),
             "name": status_info["name"],
             "type": status_info["type"],
             "pid": status_info["pid"],
             "calibrated": is_motor_calibrated(),
+            "wifi": get_wifi_status(),
         })
 
     elif command == "list":
@@ -875,6 +1101,80 @@ def process_command_line(line):
             "available_custom_interactions": interactions,
             "categorized_activities": categorized_activities,
             "calibrated": is_motor_calibrated(),
+            "wifi": get_wifi_status(),
+        })
+
+    elif command in ["wifi_scan", "wifi-scan"]:
+        def _scan_worker():
+            send_to_active_client(scan_wifi_networks())
+        threading.Thread(target=_scan_worker, daemon=True).start()
+
+    elif command in ["wifi_status", "wifi-status"]:
+        send_to_active_client(get_wifi_status())
+
+    elif command in ["wifi_connect", "wifi-connect"]:
+        ssid = None
+        password = ""
+        if isinstance(msg, dict):
+            ssid = msg.get("ssid") or target_name
+            password = msg.get("password", "")
+        elif target_name:
+            parts = target_name.split(None, 1)
+            ssid = parts[0]
+            if len(parts) > 1:
+                password = parts[1]
+
+        if not ssid:
+            send_to_active_client({
+                "status": "wifi_connect_result",
+                "success": False,
+                "message": "Missing Wi-Fi SSID.",
+            })
+            return
+
+        def _connect_worker():
+            send_to_active_client({
+                "status": "wifi_connecting",
+                "ssid": ssid,
+                "message": f"Connecting to Wi-Fi '{ssid}'...",
+            })
+            res = connect_wifi(ssid, password)
+            send_to_active_client(res)
+
+        threading.Thread(target=_connect_worker, daemon=True).start()
+
+    elif command in ["sleep", "pause"]:
+        execution_manager.paused = True
+        execution_manager.stop_current()
+        try:
+            base_dir = str(PROJECT_ROOT)
+            src_dir = os.path.join(base_dir, "src")
+            sub_env = dict(os.environ)
+            if "PYTHONPATH" in sub_env:
+                sub_env["PYTHONPATH"] = f"{src_dir}{os.pathsep}{sub_env['PYTHONPATH']}"
+            else:
+                sub_env["PYTHONPATH"] = src_dir
+
+            subprocess.Popen(
+                [sys.executable, "-m", "gigi.expression.movement", "release"],
+                cwd=base_dir,
+                env=sub_env,
+            )
+        except Exception as e:
+            print(f"[Daemon] Error dispatching movement release on sleep: {e}")
+
+        send_to_active_client({
+            "status": "sleeping",
+            "message": "Gigi is now sleeping and resting motors.",
+        })
+
+    elif command in ["wake"]:
+        execution_manager.paused = False
+        success, res = execution_manager.start_ambient(greeting=False)
+        send_to_active_client({
+            "status": "awake",
+            "message": "Gigi is awake!",
+            "ambient": success,
         })
 
     elif command == "save_plan":
@@ -1005,6 +1305,7 @@ def handle_client_connection(client_wrapper):
         "status": "ready",
         "message": "Connected to Gigi daemon. Ready for commands.",
         "calibrated": is_motor_calibrated(),
+        "wifi": get_wifi_status(),
     })
 
     buffer = ""
@@ -1169,6 +1470,20 @@ def main():
 
     if serial_port:
         threading.Thread(target=serial_listener_loop, args=(serial_port,), daemon=True).start()
+
+    # Start Ambient Alive Mode bootstrap on robot
+    def ambient_bootstrap():
+        time.sleep(4.0)  # Wait for transports, X11, and audio to settle
+        from gigi.core.config import IS_ROBOT
+        if IS_ROBOT and execution_manager.ambient_enabled:
+            from gigi.hardware.calibration import is_motor_calibrated
+            if is_motor_calibrated():
+                print("[Daemon] Starting initial wake-up and ambient alive mode...")
+                execution_manager.start_ambient(greeting=True)
+            else:
+                print("[Daemon] Motors not calibrated. Skipping ambient alive mode for safety.")
+
+    threading.Thread(target=ambient_bootstrap, daemon=True).start()
 
     try:
         while True:

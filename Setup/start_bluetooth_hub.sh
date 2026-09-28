@@ -60,6 +60,8 @@ echo "[*] Ensuring Bluetooth is unblocked and powered on..."
 rfkill unblock bluetooth || true
 bluetoothctl power on || true
 hciconfig hci0 up || true
+hciconfig hci0 class 0x000100 || true
+hciconfig hci0 piscan || true
 sleep 1
 
 # 2. Clean up any existing instances

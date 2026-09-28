@@ -10,6 +10,11 @@ from gigi.core.config import IS_ROBOT
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Gigi Alive Mode")
+    parser.add_argument("--no-greeting", action="store_true", help="Skip initial greeting speech and wave")
+    args, _ = parser.parse_known_args()
+
     print("====================================================")
     print("            GIGI Showcase: Alive Mode               ")
     print("====================================================")
@@ -42,15 +47,19 @@ def main():
             time.sleep(1.0)
             
         # Initial greeting
-        print("[Alive Mode] Playing initial greeting...")
-        gigi.run_character(
-            viseme_data={'text': "Hello everyone! I am Gigi. It is wonderful to meet you today!", 'file': None},
-            movement_data='wave_hello'
-        )
-        
-        # Keep arms down after greeting
-        print("[Alive Mode] Lowering arms...")
-        gigi.run_character(movement_data='arms_down')
+        if not args.no_greeting:
+            print("[Alive Mode] Playing initial greeting...")
+            gigi.run_character(
+                viseme_data={'text': "Hello everyone! I am Gigi. It is wonderful to meet you today!", 'file': None},
+                movement_data='wave_hello'
+            )
+            # Keep arms down after greeting
+            print("[Alive Mode] Lowering arms...")
+            gigi.run_character(movement_data='arms_down')
+        else:
+            print("[Alive Mode] Resuming ambient alive mode (skipping greeting).")
+            if gigi.movement:
+                gigi.movement.home_position()
         
         last_shift_time = time.time()
         last_look_around_time = time.time()

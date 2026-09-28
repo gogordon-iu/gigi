@@ -33,6 +33,7 @@ def main():
 
     # 1. Update Python source files
     copy_file(LOCAL_ROOT / "src" / "gigi" / "core" / "daemon.py", f"{REMOTE_BASE}/src/gigi/core/daemon.py")
+    copy_file(LOCAL_ROOT / "src" / "gigi" / "activities" / "alive_mode" / "alive_mode.py", f"{REMOTE_BASE}/src/gigi/activities/alive_mode/alive_mode.py")
     copy_file(LOCAL_ROOT / "src" / "gigi" / "activities" / "social" / "face_recognition_demo.py", f"{REMOTE_BASE}/src/gigi/activities/social/face_recognition_demo.py")
     copy_file(LOCAL_ROOT / "src" / "gigi" / "expression" / "face_display.py", f"{REMOTE_BASE}/src/gigi/expression/face_display.py")
     copy_file(LOCAL_ROOT / "Setup" / "start_bluetooth_hub.sh", f"{REMOTE_BASE}/Setup/start_bluetooth_hub.sh")
