@@ -37,6 +37,7 @@ def main():
     copy_file(LOCAL_ROOT / "src" / "gigi" / "activities" / "social" / "face_recognition_demo.py", f"{REMOTE_BASE}/src/gigi/activities/social/face_recognition_demo.py")
     copy_file(LOCAL_ROOT / "src" / "gigi" / "expression" / "face_display.py", f"{REMOTE_BASE}/src/gigi/expression/face_display.py")
     copy_file(LOCAL_ROOT / "Setup" / "start_bluetooth_hub.sh", f"{REMOTE_BASE}/Setup/start_bluetooth_hub.sh")
+    copy_file(LOCAL_ROOT / "Setup" / "prepare_factory_image.sh", f"{REMOTE_BASE}/Setup/prepare_factory_image.sh")
 
     # 2. Sync restored and custom activity plans into Assets
     assets_to_sync = [
@@ -57,6 +58,7 @@ def main():
     print("[*] Updating X11 authorization and script permissions on robot...")
     run_remote("echo orangepi | sudo -S cp -f /home/orangepi/.Xauthority /root/.Xauthority")
     run_remote(f"chmod +x {REMOTE_BASE}/Setup/start_bluetooth_hub.sh")
+    run_remote(f"chmod +x {REMOTE_BASE}/Setup/prepare_factory_image.sh")
 
     # 4. Restart gigi-bluetooth.service
     print("[*] Restarting gigi-bluetooth.service on robot...")

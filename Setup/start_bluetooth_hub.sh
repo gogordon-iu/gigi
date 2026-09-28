@@ -64,6 +64,14 @@ hciconfig hci0 class 0x000100 || true
 hciconfig hci0 piscan || true
 sleep 1
 
+# Ensure SSH host keys exist (auto-regenerate on first boot if sanitized for disk cloning)
+if [ ! -f /etc/ssh/ssh_host_rsa_key ] || [ ! -f /etc/ssh/ssh_host_ed25519_key ]; then
+  echo "[*] Generating fresh unique SSH host keys for this robot..."
+  ssh-keygen -A || true
+  systemctl restart ssh || true
+fi
+
+
 # 2. Clean up any existing instances
 echo "[*] Cleaning up old processes..."
 pkill -f "rfcomm watch" || true
