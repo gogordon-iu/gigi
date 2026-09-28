@@ -45,8 +45,16 @@ rm -f /home/orangepi/.ssh/authorized_keys || true
 rm -f /root/.ssh/authorized_keys || true
 rm -f /etc/ssh/ssh_host_* || true
 
-# 5. Scrub System Logs, Application Session Data, and Shell History
-echo "[5/7] Clearing logs, user session data, and shell history..."
+# 5. Scrub Local Motor Calibration (Force uncalibrated safe state for new robot hardware)
+echo "[5/8] Removing robot-specific motor calibrations & old repos..."
+rm -f /home/orangepi/Code/gigi/motorData_calibrated.json || true
+rm -f /home/orangepi/Code/gigi/motorData_calibrated_local.json || true
+rm -f /home/orangepi/Code/gigi/Character/motorData_calibrated.json || true
+rm -f /home/orangepi/Code/gigi/Character/motorData_calibrated_local.json || true
+rm -rf /home/orangepi/repos || true
+
+# 6. Scrub System Logs, Application Session Data, and Shell History
+echo "[6/8] Clearing logs, user session data, and shell history..."
 rm -rf /home/orangepi/Code/gigi/Logs/* || true
 rm -rf /home/orangepi/Code/gigi/data/users/* || true
 find /var/log -type f -exec truncate -s 0 {} + 2>/dev/null || true
@@ -55,15 +63,15 @@ cat /dev/null > /home/orangepi/.bash_history || true
 cat /dev/null > /root/.bash_history || true
 history -c || true
 
-# 6. Purge Package Manager & Runtime Caches
-echo "[6/7] Purging package manager and runtime caches..."
+# 7. Purge Package Manager & Runtime Caches
+echo "[7/8] Purging package manager and runtime caches..."
 apt-get clean || true
 apt-get autoremove -y || true
 rm -rf /tmp/* /var/tmp/* || true
 rm -rf /home/orangepi/.cache/* /root/.cache/* || true
 
-# 7. Discard Unused Blocks (eMMC TRIM for maximum disk image compression)
-echo "[7/7] Zeroing unused filesystem blocks with fstrim..."
+# 8. Discard Unused Blocks (eMMC TRIM for maximum disk image compression)
+echo "[8/8] Zeroing unused filesystem blocks with fstrim..."
 fstrim -av || true
 
 echo "======================================================================"

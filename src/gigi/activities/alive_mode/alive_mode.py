@@ -19,10 +19,13 @@ def main():
     print("            GIGI Showcase: Alive Mode               ")
     print("====================================================")
     
-    # Initialize character with wakeup=True to enable startup look/position
-    gigi = Character(character_name="fuzzy", wakeup=True, activity="Showcase Alive")
+    from gigi.hardware.calibration import is_motor_calibrated
+    calibrated = is_motor_calibrated()
+
+    # Initialize character with wakeup=calibrated to avoid homing uncalibrated motors
+    gigi = Character(character_name="fuzzy", wakeup=calibrated, activity="Showcase Alive")
     gigi.face.overlay_text = None
-    time.sleep(2)  # Allow motors and modules to initialize
+    time.sleep(1)  # Allow modules to initialize
     
     # State tracking variables
     running = True
@@ -42,19 +45,28 @@ def main():
     try:
         # Initial greeting and wave
         if not args.no_greeting:
-            print("[Alive Mode] Playing initial greeting...")
-            gigi.run_character(
-                viseme_data={'text': "Hello everyone! I am Gigi. It is wonderful to meet you today!", 'file': None},
-                movement_data='wave_hello'
-            )
-            print("[Alive Mode] Homing motors and releasing hold currents to save battery...")
-            if gigi.movement:
-                gigi.movement.home_position()
-                gigi.movement.release()
+            if calibrated:
+                print("[Alive Mode] Robot is calibrated. Playing initial greeting with wave...")
+                gigi.run_character(
+                    viseme_data={'text': "Hello everyone! I am Gigi. It is wonderful to meet you today!", 'file': None},
+                    movement_data='wave_hello'
+                )
+                print("[Alive Mode] Homing motors and releasing hold currents to save battery...")
+                if gigi.movement:
+                    gigi.movement.home_position()
+                    gigi.movement.release()
+            else:
+                print("[Alive Mode] Robot is UNCALIBRATED! Greeting vocally without moving motors...")
+                gigi.run_character(
+                    viseme_data={'text': "Hello everyone! I am Gigi. It is wonderful to meet you today!", 'file': None}
+                )
+                if gigi.movement:
+                    gigi.movement.release()
         else:
             print("[Alive Mode] Resuming ambient alive mode (skipping greeting).")
             if gigi.movement:
-                gigi.movement.home_position()
+                if calibrated:
+                    gigi.movement.home_position()
                 gigi.movement.release()
         
         last_look_around_time = time.time()

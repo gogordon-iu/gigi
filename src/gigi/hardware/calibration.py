@@ -200,12 +200,12 @@ def get_calibration_status(custom_path: Optional[Path] = None) -> Dict[str, Any]
     }
 
 
-def load_motor_calibration(auto_init: bool = True) -> Dict[str, Dict[str, Any]]:
+def load_motor_calibration(auto_init: bool = False) -> Dict[str, Dict[str, Any]]:
     """Loads motor calibration parameters from disk, falling back to safe defaults."""
     local_file = PROJECT_ROOT / "motorData_calibrated.json"
     local_backup = PROJECT_ROOT / "motorData_calibrated_local.json"
 
-    # Auto-initialize local file on first run if missing
+    # Auto-initialize local file only if explicitly requested
     if auto_init and not local_file.exists() and not local_backup.exists():
         try:
             init_local_motor_calibration()
@@ -231,11 +231,23 @@ def save_motor_calibration(data: Dict[str, Any], custom_path: Optional[Path] = N
     """
     Saves motor calibration profile to disk.
     Always targets the robot-local, untracked motorData_calibrated.json by default.
+    Keeps motorData_calibrated_local.json in sync if present.
     """
     target_path = custom_path or (PROJECT_ROOT / "motorData_calibrated.json")
     with open(target_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
     logger.info(f"Saved motor calibration to {target_path}")
+
+    # Keep local backup in sync if present
+    local_backup = PROJECT_ROOT / "motorData_calibrated_local.json"
+    if custom_path is None and local_backup.exists() and local_backup != target_path:
+        try:
+            with open(local_backup, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+            logger.info(f"Synced motor calibration to {local_backup}")
+        except Exception as e:
+            logger.warning(f"Could not sync to {local_backup}: {e}")
+
     return target_path
 
 

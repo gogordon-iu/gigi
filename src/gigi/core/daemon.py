@@ -600,11 +600,6 @@ class ExecutionManager:
                 # Already running something
                 return False, f"Process '{self.process_name}' already active."
 
-            from gigi.hardware.calibration import is_motor_calibrated
-            if not is_motor_calibrated():
-                print("[ExecutionManager] Motors not calibrated. Skipping ambient alive mode.")
-                return False, "Motors not calibrated."
-
             script_info, _ = find_script("alive_mode.py")
             if not script_info:
                 print("[ExecutionManager] alive_mode.py script not found.")
@@ -1476,12 +1471,8 @@ def main():
         time.sleep(4.0)  # Wait for transports, X11, and audio to settle
         from gigi.core.config import IS_ROBOT
         if IS_ROBOT and execution_manager.ambient_enabled:
-            from gigi.hardware.calibration import is_motor_calibrated
-            if is_motor_calibrated():
-                print("[Daemon] Starting initial wake-up and ambient alive mode...")
-                execution_manager.start_ambient(greeting=True)
-            else:
-                print("[Daemon] Motors not calibrated. Skipping ambient alive mode for safety.")
+            print("[Daemon] Starting initial wake-up and ambient alive mode...")
+            execution_manager.start_ambient(greeting=True)
 
     threading.Thread(target=ambient_bootstrap, daemon=True).start()
 
