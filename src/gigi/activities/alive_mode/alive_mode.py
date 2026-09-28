@@ -40,87 +40,50 @@ def main():
     signal.signal(signal.SIGTERM, handle_signal)
     
     try:
-        # Start background vision system to track faces
-        if gigi.vision:
-            print("[Alive Mode] Starting background vision system...")
-            gigi.vision.run_vision()
-            time.sleep(1.0)
-            
-        # Initial greeting
+        # Initial greeting and wave
         if not args.no_greeting:
             print("[Alive Mode] Playing initial greeting...")
             gigi.run_character(
                 viseme_data={'text': "Hello everyone! I am Gigi. It is wonderful to meet you today!", 'file': None},
                 movement_data='wave_hello'
             )
-            # Keep arms down after greeting
-            print("[Alive Mode] Lowering arms...")
-            gigi.run_character(movement_data='arms_down')
+            print("[Alive Mode] Homing motors and releasing hold currents to save battery...")
+            if gigi.movement:
+                gigi.movement.home_position()
+                gigi.movement.release()
         else:
             print("[Alive Mode] Resuming ambient alive mode (skipping greeting).")
             if gigi.movement:
                 gigi.movement.home_position()
+                gigi.movement.release()
         
-        last_shift_time = time.time()
         last_look_around_time = time.time()
         next_blink_time = time.time() + random.uniform(3.0, 6.0)
         
-        print("[Alive Mode] Entering main loop. Press Ctrl+C or send stop signal to exit.")
+        print("[Alive Mode] Entering low-power facial ambient loop (screen-only, zero motor power). Press Ctrl+C or send stop signal to exit.")
         while running:
-            # 1. Periodic blinking
+            # 1. Periodic blinking on the display (zero motor movement)
             if time.time() >= next_blink_time:
-                # Run the blink sequence on the face
                 gigi.face.run_sequence("blink")
-                next_blink_time = time.time() + random.uniform(3.0, 6.0)
+                next_blink_time = time.time() + random.uniform(4.0, 8.0)
                 
-            # 2. Periodic subtle body shift/movement (every 15 to 25 seconds) using new smooth sequences
-            if time.time() - last_shift_time > random.uniform(15.0, 25.0):
-                shift_seq = random.choice(["alive_shift", "alive_look_around", "alive_gently_look_left", "alive_gently_look_right"])
-                print(f"[Alive Mode] Executing smooth movement: {shift_seq}")
-                gigi.run_character(movement_data=shift_seq)
-                last_shift_time = time.time()
-                # Push back other timers to avoid overlapping animations
+            # 2. Looking around occasionally on the display with eyes only (zero motor movement)
+            if time.time() - last_look_around_time > random.uniform(7.0, 14.0):
+                eye_seq = random.choice(["look_left", "look_right", "look_up", "look_down"])
+                gigi.face.run_sequence(eye_seq)
+                
+                # Hold gaze for 1.2 to 2.2 seconds
+                look_start = time.time()
+                look_duration = random.uniform(1.2, 2.2)
+                while running and (time.time() - look_start < look_duration):
+                    time.sleep(0.1)
+                
+                # Return eyes to center
+                gigi.face.run_sequence("idle")
                 last_look_around_time = time.time()
-                next_blink_time = time.time() + random.uniform(4.0, 7.0)
+                next_blink_time = time.time() + random.uniform(2.5, 5.0)
                 
-            # 3. Smooth looking around or face tracking (every 8 to 15 seconds)
-            if time.time() - last_look_around_time > random.uniform(8.0, 15.0):
-                face_seen = False
-                if gigi.vision and gigi.vision.running:
-                    last_data = gigi.vision.get_last_data()
-                    # If we have a face detected in the last 2 seconds
-                    face_seen = len(last_data) > 0 and (time.time() - next(iter(last_data.values())).get('last_seen', 0) < 2.0)
-                
-                if face_seen and allow_track:
-                    print("[Alive Mode] Face detected! Following face smoothly...")
-                    # Track face for 5 seconds, then go to panning
-                    gigi.follow_face(timeout=5.0, stop_event=stop_event)
-                    allow_track = False  # Next cycle is forced to pan
-                else:
-                    print("[Alive Mode] Smoothly looking around...")
-                    # Smooth motor pan
-                    target_torso = random.uniform(-0.25, 0.25)
-                    target_neck = random.uniform(-0.15, 0.15)
-                    if gigi.movement:
-                        # Smoothly look around over 2.0s using character movement thread (runs smooth_sequence with S-curve)
-                        gigi.run_character(movement_data={"torso": target_torso, "neck": target_neck, "duration": 2.0})
-                        
-                    # Eye look direction
-                    eye_seq = random.choice(["look_left", "look_right", "look_up", "look_down"])
-                    gigi.face.run_sequence(eye_seq)
-                    
-                    # Pause for a bit while looking in that direction
-                    look_start = time.time()
-                    while running and (time.time() - look_start < 1.5):
-                        time.sleep(0.1)
-                    
-                    # Return eyes to center
-                    gigi.face.run_sequence("idle")
-                    allow_track = True  # Panning finished, allow face-tracking next time
-                    
-                last_look_around_time = time.time()
-                
-            # Sleep a bit to prevent high CPU usage
+            # Sleep to prevent unnecessary CPU usage
             time.sleep(0.1)
             
     except Exception as e:
@@ -131,8 +94,8 @@ def main():
         if gigi.vision:
             gigi.vision.stop_vision()
         if gigi.movement:
-            print("[Alive Mode] Moving motors back to home position...")
-            gigi.movement.home_position()
+            print("[Alive Mode] Ensuring all motor hold currents are released...")
+            gigi.movement.release()
         gigi.stop_character()
         print("[Alive Mode] Gigi has finished cleanly.")
 
