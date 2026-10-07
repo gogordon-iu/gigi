@@ -41,16 +41,37 @@ class InteractionLogger:
 
         self.data_dir = Path(base_dir) if base_dir else DATA_DIR
 
-    def initialize_session(self, user_name: str, script_name: Optional[str] = None) -> None:
+    def close_session(self) -> None:
+        """
+        Closes the current logging session, flushing all remaining buffers.
+        """
+        if self.is_initialized:
+            self._flush_buffers()
+            self.is_initialized = False
+            self.session_dir = None
+            self.user_name = None
+            self.script_name = None
+            self.user_id = None
+            self.last_logged_emotion = None
+            self.last_logged_gesture = None
+
+    def initialize_session(self, user_name: str, script_name: Optional[str] = None, force: bool = False) -> None:
         """
         Initializes a user folder and script session directory.
         Flushes any buffered logs in memory.
         """
-        if self.is_initialized:
-            return
+        clean_name = user_name.strip() if user_name else "Friend"
+        if not clean_name:
+            clean_name = "Friend"
 
-        print(f"[Logger] Initializing logging session for user '{user_name}' and script '{script_name}'...")
-        self.user_name = user_name
+        if self.is_initialized:
+            if not force and self.user_name == clean_name and self.script_name == script_name:
+                return
+            # Close previous session cleanly before starting a new one
+            self.close_session()
+
+        print(f"[Logger] Initializing logging session for user '{clean_name}' and script '{script_name}'...")
+        self.user_name = clean_name
         self.script_name = script_name
 
         users_root = self.data_dir / "users"

@@ -108,9 +108,12 @@ def verify_name_step(gigi, timeout: float = 10.0) -> Optional[str]:
         yes_patterns = ["yes", "yeah", "yep", "correct", "right", "that's me", "uh-huh"]
         no_patterns = ["no", "nope", "incorrect", "wrong", "that's not me", "uh-uh"]
 
-        if any(w in heard for w in yes_patterns):
+        def matches_word(pattern, text):
+            return bool(re.search(r'\b' + re.escape(pattern) + r'\b', text))
+
+        if any(matches_word(w, heard) for w in yes_patterns):
             verbal_result = "yes"
-        elif any(w in heard for w in no_patterns):
+        elif any(matches_word(w, heard) for w in no_patterns):
             verbal_result = "no"
 
     stop_gesture_thread.set()

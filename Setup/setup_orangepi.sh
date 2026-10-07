@@ -37,6 +37,17 @@ sudo apt install -y \
   bluez \
   bluez-tools
 
+# Ensure fresh unique SSH host keys are generated automatically if missing
+sudo mkdir -p /etc/systemd/system/ssh.service.d
+sudo tee /etc/systemd/system/ssh.service.d/override.conf > /dev/null << 'EOF'
+[Service]
+ExecStartPre=
+ExecStartPre=/usr/bin/ssh-keygen -A
+ExecStartPre=/usr/sbin/sshd -t
+EOF
+sudo systemctl daemon-reload || true
+
+
 # 2. Configure GPIO and I2C group permissions
 echo "[*] Configuring device group permissions for '$TARGET_USER'..."
 sudo groupadd -f gpio

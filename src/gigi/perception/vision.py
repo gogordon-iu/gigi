@@ -29,6 +29,7 @@ class Vision:
         self.stop_event = threading.Event()
         self.capture_thread = None
         self.vision_thread = None
+        self.display_thread = None
         self.running = False
 
         self.processing_flags = {'face_detection': 5, 'face_recognition': 5, 'emotion': 5, 'gesture': 5}
@@ -119,7 +120,7 @@ class Vision:
             
             time.sleep(0.001)
                 
-    def run_vision(self, show_window=True):
+    def run_vision(self, show_window=False):
         """
         Start the vision system.
         """
@@ -133,7 +134,8 @@ class Vision:
     
             if not self.is_robot and show_window:
                 time.sleep(0.5)  # Give camera time to initialize
-                self._display_loop()
+                self.display_thread = threading.Thread(target=self._display_loop, daemon=True)
+                self.display_thread.start()
             else:
                 print("Vision running in background (is_robot=True or show_window=False)")
     
@@ -144,6 +146,9 @@ class Vision:
                 self.capture_thread.join(timeout=2.0)
             if self.vision_thread:
                 self.vision_thread.join(timeout=2.0)
+            if getattr(self, 'display_thread', None):
+                self.display_thread.join(timeout=2.0)
+                self.display_thread = None
             self.running = False
     
     def set_processing_flags(self, flags):
@@ -176,7 +181,7 @@ class Vision:
         
         # While searching, continuously overlay the camera feed on Gigi's face screen in real-time
         dt = 0.05
-        from faceDefinitions import global_parts
+        from gigi.expression.face_definitions import global_parts
         import numpy as np
         while not result_container['done']:
             if getattr(self, 'face', None):

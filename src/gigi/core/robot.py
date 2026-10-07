@@ -21,7 +21,7 @@ from gigi.core.config import (
     TORSO_FOLLOW_DURATION,
     NECK_FOLLOW_DURATION,
 )
-from gigi.expression.face_definitions import CHARACTERS, BASIC_SEQUENCES, basic_sequences
+from gigi.expression.face_definitions import CHARACTERS, BASIC_SEQUENCES, basic_sequences, global_parts
 from gigi.expression.face_display import Face
 from gigi.expression.speech import Speech
 from gigi.expression.visemes import Viseme
@@ -157,10 +157,13 @@ class Character():
 
         self.lookat_calibration = None
         if self.face and self.movement and self.vision:
-            if exists(CHARACTER_FOLDER + "lookat_calibrated.json"):
-                self.lookat_calibration = json.load(open(CHARACTER_FOLDER + "lookat_calibrated.json"))
-                # keys = head position (-1.0, 1.0)
-                # values = detected face offset (-1.0, 1.0)
+            try:
+                cal = load_lookat_calibration()
+                if cal:
+                    self.lookat_calibration = cal
+            except Exception as e:
+                print(f"[Robot] Warning: Could not load lookat calibration: {e}")
+                self.lookat_calibration = None
         
         self.set_activity(activity_name=activity)
         
@@ -338,7 +341,8 @@ class Character():
                 if speech_thread:
                     speech_thread.start()
                     if start_time_container is not None:
-                        while start_time_container[0] is None:
+                        wait_start = time.time()
+                        while start_time_container[0] is None and speech_thread.is_alive() and (time.time() - wait_start < 3.0):
                             time.sleep(0.001)
 
                 start_time = start_time_container[0] if start_time_container is not None else None

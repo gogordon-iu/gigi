@@ -276,18 +276,28 @@ class Speech():
 
         if self.child and IS_FFMPEG:
             ffmpeg_path = shutil.which("ffmpeg")
-            (
-                ffmpeg
-                .input(file)
-                .filter('asetrate', '48000*1.3348')
-                .filter('aresample', 48000)
-                .filter('atempo', 1 / 1.3348)
-                .output('../Assets/recorded_speech/child.wav')
-                .overwrite_output()
-                .run(cmd=ffmpeg_path)
-            )
-            os.remove(file)
-            shutil.copy('../Assets/recorded_speech/child.wav', file)
+            target_dir = os.path.dirname(os.path.abspath(file))
+            temp_out = os.path.join(target_dir, f"_child_tmp_{uuid.uuid4().hex[:8]}.wav")
+            try:
+                (
+                    ffmpeg
+                    .input(file)
+                    .filter('asetrate', '48000*1.3348')
+                    .filter('aresample', 48000)
+                    .filter('atempo', 1 / 1.3348)
+                    .output(temp_out)
+                    .overwrite_output()
+                    .run(cmd=ffmpeg_path, quiet=True)
+                )
+                if os.path.exists(temp_out):
+                    shutil.move(temp_out, file)
+            except Exception as e:
+                print(f"[Speech] FFmpeg child pitch conversion failed: {e}")
+                if os.path.exists(temp_out):
+                    try:
+                        os.remove(temp_out)
+                    except Exception:
+                        pass
 
     # ── Device discovery (sounddevice only) ───────────────────────────────────
     def get_usb_speaker(self):

@@ -70,6 +70,7 @@ class Movement:
             return int(angle)
         m_min = self.motor_map[motor]["min"]
         m_max = self.motor_map[motor]["max"]
+        m_center = self.motor_map[motor].get("center", (m_min + m_max) / 2.0)
 
         if isinstance(angle, int) and (angle > 10 or angle < -10):
             # Raw PWM value
@@ -77,19 +78,30 @@ class Movement:
         else:
             # Normalized float in [-1.0, 1.0]
             clamped = max(min(float(angle), 0.95), -0.95)
-            raw = int(((clamped + 1.0) / 2.0) * (m_max - m_min) + m_min)
-            return raw
+            if clamped <= 0.0:
+                raw = int(m_center + clamped * (m_center - m_min))
+            else:
+                raw = int(m_center + clamped * (m_max - m_center))
+            return max(min(raw, m_max), m_min)
 
     def calc_normalized_angle(self, motor: str) -> float:
         """Returns the normalized angle [-1.0, 1.0] of current position."""
         if motor not in self.motor_map:
             return 0.0
-        angle = self.current_positions.get(motor, self.motor_map[motor]["center"])
         m_min = self.motor_map[motor]["min"]
         m_max = self.motor_map[motor]["max"]
+        m_center = self.motor_map[motor].get("center", (m_min + m_max) / 2.0)
+        angle = self.current_positions.get(motor, m_center)
         if m_max == m_min:
             return 0.0
-        return float(2.0 * (angle - m_min) / (m_max - m_min) - 1.0)
+        if angle <= m_center:
+            if m_center > m_min:
+                return float(max(-1.0, min(0.0, (angle - m_center) / (m_center - m_min))))
+            return 0.0
+        else:
+            if m_max > m_center:
+                return float(max(0.0, min(1.0, (angle - m_center) / (m_max - m_center))))
+            return 0.0
 
     def move_motors(self, motors_: Dict[Union[str, int], Union[float, int]]) -> None:
         """Sets multiple motors simultaneously."""

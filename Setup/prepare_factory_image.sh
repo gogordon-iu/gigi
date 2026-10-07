@@ -39,11 +39,22 @@ systemctl restart NetworkManager || true
 echo "[3/7] Clearing paired Bluetooth device cache..."
 rm -rf /var/lib/bluetooth/* || true
 
-# 4. Scrub SSH Keys
+# 4. Scrub SSH Keys and configure auto-regeneration on first boot
 echo "[4/7] Clearing authorized SSH keys and developer host keys..."
 rm -f /home/orangepi/.ssh/authorized_keys || true
 rm -f /root/.ssh/authorized_keys || true
 rm -f /etc/ssh/ssh_host_* || true
+
+# Ensure fresh unique SSH host keys are generated on first boot before sshd checks them
+mkdir -p /etc/systemd/system/ssh.service.d
+cat << 'EOF' > /etc/systemd/system/ssh.service.d/override.conf
+[Service]
+ExecStartPre=
+ExecStartPre=/usr/bin/ssh-keygen -A
+ExecStartPre=/usr/sbin/sshd -t
+EOF
+systemctl daemon-reload || true
+
 
 # 5. Scrub Local Motor Calibration (Force uncalibrated safe state for new robot hardware)
 echo "[5/8] Removing robot-specific motor calibrations & old repos..."

@@ -126,17 +126,20 @@ def parse_game_mode(text, gigi=None):
     gigi_guess_words = ["you", "gigi", "robot", "your turn", "you guess", "you pick", "gigi guess", "gigi pick"]
     child_guess_words = ["i", "me", "my", "my turn", "i guess", "i pick", "me guess", "me pick"]
     
-    gigi_count = sum(word in text_lower for word in gigi_guess_words)
-    child_count = sum(word in text_lower for word in child_guess_words)
+    def matches_pattern(pattern, text):
+        return bool(re.search(r'\b' + re.escape(pattern) + r'\b', text))
+
+    gigi_count = sum(matches_pattern(word, text_lower) for word in gigi_guess_words)
+    child_count = sum(matches_pattern(word, text_lower) for word in child_guess_words)
     
     if gigi_count > child_count:
         return "gigi_guesses"
     elif child_count > gigi_count:
         return "child_guesses"
     else:
-        if "you" in text_lower or "gigi" in text_lower or "robot" in text_lower:
+        if matches_pattern("you", text_lower) or matches_pattern("gigi", text_lower) or matches_pattern("robot", text_lower):
             return "gigi_guesses"
-        if "i" in text_lower or "me" in text_lower or "my" in text_lower:
+        if matches_pattern("i", text_lower) or matches_pattern("me", text_lower) or matches_pattern("my", text_lower):
             return "child_guesses"
         return None
 

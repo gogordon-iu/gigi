@@ -1,0 +1,173 @@
+# =============================================================================
+# Story Game — end-to-end integration flow (sequence diagram)
+#
+# Source traced: src/gigi/activities/story_game/story_game.py  -> play_story_game()
+#
+# Render:
+#   d2 docs/tutorial/story_game_flow.d2 docs/tutorial/story_game_flow.svg
+#
+# Reading guide
+#   - Each column (lifeline) is a file / class.
+#   - Time flows top -> bottom; each arrow is a function call (or data returned).
+#   - Blue arrows   : activity -> Character facade (core/robot.py)
+#   - Orange arrows : activity reaches *directly* into a subsystem (gigi.vision, gigi.conversation ...)
+#   - Purple arrows : Character -> its subsystems
+#   - Grey arrows   : data coming back / hardware & external services
+# =============================================================================
+
+vars: {
+  d2-config: {
+    pad: 40
+  }
+}
+
+classes: {
+  facade: {style: {stroke: "#0277bd"; stroke-width: 3; font-color: "#01579b"; font-size: 17; bold: true}}
+  direct: {style: {stroke: "#ef6c00"; stroke-width: 3; stroke-dash: 4; font-color: "#e65100"; font-size: 17; bold: true}}
+  internal: {style: {stroke: "#6a1b9a"; stroke-width: 2; font-color: "#4a148c"; font-size: 16}}
+  ret: {style: {stroke: "#78909c"; stroke-width: 2; stroke-dash: 3; font-color: "#455a64"; font-size: 15; italic: true}}
+  self: {style: {stroke: "#5d4037"; stroke-width: 2; font-color: "#3e2723"; font-size: 16}}
+  launch: {style: {stroke: "#2e7d32"; stroke-width: 3; font-color: "#1b5e20"; font-size: 17; bold: true}}
+  hwio: {style: {stroke: "#263238"; stroke-width: 2; font-color: "#263238"; font-size: 16}}
+}
+
+title: "Story Game — from running story_game.py through every file it touches" {
+  near: top-center
+  shape: text
+  style: {font-size: 42; bold: true}
+}
+
+flow: "" {
+  shape: sequence_diagram
+  style: {fill: "#ffffff"; stroke: transparent}
+
+  # ---------------------------------------------------------------------------
+  # Lifelines (left -> right roughly follows the layers of the codebase)
+  # ---------------------------------------------------------------------------
+  child: "Child" {shape: person; style.fill: "#ffe0b2"}
+  launcher: "Terminal  /  core/daemon.py\nExecutionManager" {style: {fill: "#c8e6c9"; font-size: 18; bold: true}}
+  game: "activities/story_game/story_game.py\nplay_story_game()" {style: {fill: "#fff176"; font-size: 18; bold: true}}
+  char: "core/robot.py\nCharacter (GigiRobot)" {style: {fill: "#81d4fa"; font-size: 18; bold: true}}
+  speech: "expression/speech.py + visemes.py\nSpeech · Viseme" {style: {fill: "#f8bbd0"; font-size: 18; bold: true}}
+  face: "expression/face_display.py\nFace" {style: {fill: "#f8bbd0"; font-size: 18; bold: true}}
+  move: "expression/movement.py\nMovement → hardware/motors.py" {style: {fill: "#f8bbd0"; font-size: 18; bold: true}}
+  hear: "perception/hearing.py\nHearing" {style: {fill: "#c5e1a5"; font-size: 18; bold: true}}
+  vision: "perception/vision.py\nVision (+ vision_helper.py)" {style: {fill: "#c5e1a5"; font-size: 18; bold: true}}
+  conv: "core/conversation.py\nConversation" {style: {fill: "#b3e5fc"; font-size: 18; bold: true}}
+  log: "core/logger.py\nInteractionLogger" {style: {fill: "#b3e5fc"; font-size: 18; bold: true}}
+  llm: "LLM server\nrobot: RKLLM Qwen :8080\nPC: Ollama llama3.2 :11434" {style: {fill: "#455a64"; font-color: "#ffffff"; font-size: 17; bold: true}}
+
+  # ---------------------------------------------------------------------------
+  launch: "0 · Launch" {
+    style: {fill: "#e8f5e9"; font-size: 26; bold: true}
+    launcher -> game: "python -m gigi.activities.story_game.story_game\n(app path: 'run story_game' → process_command_line() → find_script() → start_script() → subprocess.Popen)" {class: launch}
+  }
+
+  # ---------------------------------------------------------------------------
+  setup: "1 · Setup — load YOLO, build the Character, start the camera" {
+    style: {fill: "#fffde7"; font-size: 26; bold: true}
+    game -> game: "download_model_if_needed()  →  Resources/yolo11n.onnx\nnet = cv2.dnn.readNetFromONNX(...)" {class: self}
+    game -> char: "Character('fuzzy', wakeup=True, activity='StoryQuest')" {class: facade}
+    char -> face: "Face()  ·  generate_face(basic_sequences['idle'])" {class: internal}
+    char -> speech: "Speech()  loads TTS (Nix-TTS on robot / Silero on Windows)  ·  Viseme(face, speech)" {class: internal}
+    char -> move: "Movement()  →  PCA9685Controller()  ·  home_position()   (robot only: HAS_MOVEMENT = IS_ROBOT)" {class: internal}
+    char -> hear: "Hearing()  loads STT (SenseVoice on NPU / faster-whisper on PC) + webrtcvad" {class: internal}
+    char -> vision: "Vision()  →  FaceDatabase, EmotionDetector, ImprovedFaceCache" {class: internal}
+    char -> conv: "Conversation()  picks LLM URL from config.IS_ROBOT" {class: internal}
+    char -> log: "InteractionLogger()" {class: internal}
+    game -> vision: "gigi.vision.run_vision()" {class: direct}
+    vision -> vision: "threads: _capture_loop() (cv2.VideoCapture)  +  _vision_loop() → _process_frame()" {class: self}
+  }
+
+  # ---------------------------------------------------------------------------
+  say: "2 · Greeting — what EVERY gigi.run_character(...) call does under the hood" {
+    style: {fill: "#fce4ec"; font-size: 26; bold: true}
+    game -> char: "run_character({'text': 'Hi there! ...'}, movement_data='wave_hello')" {class: facade}
+    char -> log: "log_conversation('Gigi', text)" {class: internal}
+    char -> speech: "update_audio_objects(text)  →  TTS → .wav\ngenerate_viseme_sequence(text)  →  mouth shapes from audio envelope" {class: internal}
+    speech -> char: "audio file + viseme sequence" {class: ret}
+    char -> move: "movement_thread('wave_hello').start()" {class: internal}
+    move -> move: "BASIC_GESTURES (gesture_definitions.py) → smooth_sequence() → move_motors() → set_pwm() over I²C" {class: self}
+    char -> speech: "play_audio_thread().start()  →  speaker (pygame.mixer)" {class: internal}
+    char -> face: "combine_seuqences()  ·  generate_face(start_time=audio start)  →  lip-synced face on screen" {class: internal}
+  }
+
+  # ---------------------------------------------------------------------------
+  find: "3 · Find the prop with the camera (loop, up to 30 s)" {
+    style: {fill: "#e8f5e9"; font-size: 26; bold: true}
+    child -> vision: "holds a toy up to the camera" {class: hwio}
+    game -> vision: "gigi.vision.get_latest_frame()" {class: direct}
+    vision -> game: "frame (numpy image)" {class: ret}
+    game -> game: "run_object_detection(net, frame)  →  YOLO11n + NMS  →  PROP_CLASSES[class_id]" {class: self}
+  }
+
+  # ---------------------------------------------------------------------------
+  confirm: "4 · Confirm the prop — listening + LLM fallback" {
+    style: {fill: "#e3f2fd"; font-size: 26; bold: true}
+    game -> char: "run_character('Oh! I see you brought a {prop}! ...')" {class: facade}
+    game -> char: "get_user_input(gigi, 8)  →  gigi.listen_backchannel(timeout=8)" {class: facade}
+    char -> hear: "clear_audio_buffer()  ·  hearing_thread(stop_event).start()" {class: internal}
+    char -> char: "_speaker_recognition_worker() thread: voice encoder → SpeakerDatabase.identify_speaker()" {class: self}
+    child -> hear: "\"yes!\"  (USB microphone)" {class: hwio}
+    hear -> hear: "listen(): audio_callback_optimized() → webrtcvad → transcribe_with_dedup() → texts" {class: self}
+    char -> vision: "get_last_data()  (face offset)" {class: internal}
+    char -> move: "move_motors({torso, neck})  — keep looking at the child" {class: internal}
+    char -> face: "generate_face(basic_sequences['blink'])" {class: internal}
+    char -> log: "log_conversation(user, text)" {class: internal}
+    hear -> game: "gigi.hearing.texts" {class: ret}
+    game -> game: "parse_confirmation(text)" {class: self}
+    game -> conv: "if not confirmed: gigi.conversation.get_response('Extract the toy name…', text)" {class: direct}
+    conv -> llm: "_call_npu()  →  HTTP POST /chat" {class: hwio}
+    llm -> conv: "\"dinosaur\"" {class: ret}
+    conv -> game: "clean_response(raw)  →  prop" {class: ret}
+    game -> char: "log_variable('prop', prop)" {class: facade}
+    char -> log: "log_variable()" {class: internal}
+  }
+
+  # ---------------------------------------------------------------------------
+  story: "5 · Story loop — repeat until the child says \"the end\"" {
+    style: {fill: "#f3e5f5"; font-size: 26; bold: true}
+    game -> char: "lookat_something(what='face')" {class: facade}
+    char -> vision: "look_and_stop('face') → look_for()  →  found['face']" {class: internal}
+    char -> vision: "update_egocentric_locations()  ·  stop_vision()  (listen_backchannel restarts it)" {class: internal}
+    char -> move: "lookat_coordinate() → lookat_behavior() → move_motors()" {class: internal}
+    game -> char: "get_user_input(gigi, 20)  →  listen_backchannel(20)   (same path as step 4)" {class: facade}
+    child -> hear: "\"...and then the dinosaur flew to the moon!\"" {class: hwio}
+    hear -> game: "child_turn" {class: ret}
+    game -> char: "run_character(random filler, e.g. 'Oh! And then?')" {class: facade}
+    game -> conv: "gigi.conversation._call_npu(story_history)" {class: direct}
+    conv -> llm: "HTTP POST  {system prompt + all turns}" {class: hwio}
+    llm -> conv: "next story sentence" {class: ret}
+    conv -> game: "raw text" {class: ret}
+    game -> game: "clean_response()  ·  keep first sentence  ·  append to story_history" {class: self}
+    game -> char: "run_character(sentence, random gesture: open_arms / clap / look_from_side_to_side)" {class: facade}
+    game -> char: "log_variable('story_turns', [...])" {class: facade}
+    char -> log: "log_variable()" {class: internal}
+  }
+
+  # ---------------------------------------------------------------------------
+  wrap: "6 · Wrap-up and shutdown" {
+    style: {fill: "#eceff1"; font-size: 26; bold: true}
+    game -> char: "run_character('The end! You are a great storyteller!', 'clap')  ·  goodbye ('wave_hello')" {class: facade}
+    game -> face: "gigi.face.run_sequence('smile')" {class: direct}
+    game -> move: "gigi.movement.home_position()" {class: direct}
+    game -> vision: "finally: gigi.vision.stop_vision()" {class: direct}
+    game -> char: "gigi.stop_character()" {class: facade}
+    char -> face: "stop_face()  (close pygame / OpenCV window)" {class: internal}
+    game -> launcher: "process exits  →  daemon _monitor_lifecycle() → completion callback to app" {class: launch}
+  }
+}
+
+legend: "How to read this diagram" {
+  near: bottom-center
+  style: {fill: "#fafafa"; stroke: "#b0bec5"; font-size: 20; bold: true}
+  grid-columns: 3
+  grid-gap: 16
+
+  l1: "━━  activity → Character facade (core/robot.py)" {shape: text; style: {font-color: "#0277bd"; bold: true; font-size: 18}}
+  l2: "╍╍  activity uses a subsystem directly (gigi.vision / .face / .conversation)" {shape: text; style: {font-color: "#ef6c00"; bold: true; font-size: 18}}
+  l3: "━━  Character → its subsystems" {shape: text; style: {font-color: "#6a1b9a"; bold: true; font-size: 18}}
+  l4: "╍╍  returned data" {shape: text; style: {font-color: "#78909c"; bold: true; font-size: 18}}
+  l5: "━━  physical world / external service" {shape: text; style: {font-color: "#263238"; bold: true; font-size: 18}}
+  l6: "━━  process launch / exit" {shape: text; style: {font-color: "#2e7d32"; bold: true; font-size: 18}}
+}

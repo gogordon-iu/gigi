@@ -1,0 +1,448 @@
+# =============================================================================
+# Gigi codebase: every file & class in src/gigi/
+#
+# Render:
+#   d2 docs/tutorial/src_structure.d2 docs/tutorial/src_structure.svg
+#
+# How to read it
+#   - Colored container  = Python package (folder)
+#   - Box header         = file name
+#   - Box rows           = classes defined in that file
+#                          (right-hand column = base class, if any)
+#   - Header-only box    = file with functions / constants only
+#   - Grey box           = __init__.py
+# =============================================================================
+
+vars: {
+  d2-config: {
+    layout-engine: dagre
+    pad: 40
+  }
+}
+
+classes: {
+  pkg: {style: {border-radius: 10; stroke-width: 2; font-size: 26; bold: true}}
+  sub: {style: {border-radius: 8; stroke-width: 1; font-size: 20; bold: true}}
+  row: {label: ""; style: {fill: transparent; stroke: transparent}}
+  f: {shape: class; style.font-size: 18}
+  init: {shape: class; style: {fill: "#bdbdbd"; font-size: 14}}
+  asset: {shape: page; style: {fill: "#ffffff"; stroke: "#9575cd"; font-size: 15}}
+}
+
+title: "src/gigi/ — files and classes" {
+  near: top-center
+  shape: text
+  style: {font-size: 40; bold: true}
+}
+subtitle: "Each box is a file. Rows inside a box are the classes defined in it (right-hand column = base class). Header-only boxes contain functions/constants only." {
+  near: bottom-center
+  shape: text
+  style: {font-size: 20; italic: true; font-color: "#546e7a"}
+}
+
+gigi: "src/gigi/" {
+  class: pkg
+  style.fill: "#fafafa"
+  grid-rows: 3
+  vertical-gap: 60
+
+  # ===========================================================================
+  r1: {
+    class: row
+    grid-columns: 2
+    horizontal-gap: 60
+
+    # --------------------------------------------------------------------- core
+    core: "core/  — the robot & its runtime" {
+      class: pkg
+      style.fill: "#e1f5fe"
+      grid-columns: 2
+      "__init__.py": {class: init}
+      "config.py": {class: f; style.fill: "#0277bd"}
+      "robot.py": {
+        class: f
+        style.fill: "#0277bd"
+        "Character": "alias: GigiRobot"
+        "VoiceEncoderRKNN": ""
+      }
+      "daemon.py": {
+        class: f
+        style.fill: "#0277bd"
+        "ConnectionWrapper": ""
+        "ExecutionManager": ""
+      }
+      "conversation.py": {
+        class: f
+        style.fill: "#0277bd"
+        "Conversation": ""
+      }
+      "logger.py": {
+        class: f
+        style.fill: "#0277bd"
+        "InteractionLogger": ""
+      }
+    }
+
+    # -------------------------------------------------------------- interaction
+    interaction: "interaction/  — LLM-driven interaction" {
+      class: pkg
+      style.fill: "#ede7f6"
+      grid-columns: 3
+
+      "__init__.py": {class: init}
+      "runner.py": {class: f; style.fill: "#5e35b1"}
+      "custom_runner.py": {class: f; style.fill: "#5e35b1"}
+      "safety_filter.py": {class: f; style.fill: "#5e35b1"}
+      "manager.py": {
+        class: f
+        style.fill: "#5e35b1"
+        "InteractionManager": ""
+      }
+      "planner.py": {
+        class: f
+        style.fill: "#5e35b1"
+        "ActivityPlanner": ""
+      }
+      "strategies.py": {
+        class: f
+        style.fill: "#5e35b1"
+        "StrategyCatalog": ""
+        "Strategy": ""
+      }
+      "robot_interface.py": {
+        class: f
+        style.fill: "#5e35b1"
+        "RobotInterface": ""
+      }
+      spacer: {class: row}
+
+      llm: "llm/" {
+        class: sub
+        style.fill: "#d1c4e9"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "client.py": "client.py  (LLMClient = OllamaLLMClient)" {
+          class: f
+          style.fill: "#7e57c2"
+          "BaseLLMClient": ""
+          "OllamaLLMClient": "BaseLLMClient"
+          "OpenAILLMClient": "BaseLLMClient"
+        }
+        "azure_client.py": {
+          class: f
+          style.fill: "#7e57c2"
+          "AzureOpenAILLMClient": "BaseLLMClient"
+        }
+      }
+
+      web: "web/  — Flask UI" {
+        class: sub
+        style.fill: "#d1c4e9"
+        grid-columns: 1
+        "app.py": {class: f; style.fill: "#7e57c2"}
+        "templates/index.html": {class: asset}
+        "static/css/style.css": {class: asset}
+        "static/js/script.js": {class: asset}
+      }
+    }
+  }
+
+  # ===========================================================================
+  r2: {
+    class: row
+    grid-columns: 4
+    horizontal-gap: 60
+
+    # ---------------------------------------------------------------- top-level
+    toplevel: "gigi/ (top level)" {
+      class: pkg
+      style.fill: "#f5f5f5"
+      grid-columns: 1
+      "__init__.py": {class: init}
+      "cli.py": "cli.py — 'gigi' command entry point" {class: f; style.fill: "#455a64"}
+    }
+
+    # --------------------------------------------------------------- expression
+    expression: "expression/  — face, voice, motion" {
+      class: pkg
+      style.fill: "#fce4ec"
+      grid-columns: 2
+      "__init__.py": {class: init}
+      "face_definitions.py": {class: f; style.fill: "#c2185b"}
+      "gesture_definitions.py": {class: f; style.fill: "#c2185b"}
+      "face_display.py": {
+        class: f
+        style.fill: "#c2185b"
+        "Face": ""
+      }
+      "speech.py": {
+        class: f
+        style.fill: "#c2185b"
+        "Speech": ""
+      }
+      "visemes.py": {
+        class: f
+        style.fill: "#c2185b"
+        "Viseme": ""
+      }
+      "movement.py": {
+        class: f
+        style.fill: "#c2185b"
+        "Movement": ""
+      }
+    }
+
+    # --------------------------------------------------------------- perception
+    perception: "perception/  — hearing & vision" {
+      class: pkg
+      style.fill: "#e8f5e9"
+      grid-columns: 3
+      "__init__.py": {class: init}
+      "hearing.py": {
+        class: f
+        style.fill: "#2e7d32"
+        "Hearing": ""
+        "SenseVoiceRKNNTranscriber": ""
+      }
+      "whisper_helper.py": {
+        class: f
+        style.fill: "#2e7d32"
+        "WhisperAudioProcessor": ""
+      }
+      "pronunciation.py": {
+        class: f
+        style.fill: "#2e7d32"
+        "CitrinetGOP": ""
+        "MelPreprocessor": ""
+        "SimpleBPETokenizer": ""
+      }
+      "speaker_id.py": {
+        class: f
+        style.fill: "#2e7d32"
+        "SpeakerDatabase": ""
+        "VoiceEncoderRKNN": ""
+      }
+      "vision.py": {
+        class: f
+        style.fill: "#2e7d32"
+        "Vision": ""
+      }
+      "vision_helper.py": {
+        class: f
+        style.fill: "#2e7d32"
+        "FaceDatabase": ""
+        "EmotionDetector": ""
+        "ImprovedFaceCache": ""
+        "GestureRecognizer": ""
+        "GeometryUtils": ""
+        "MediaPipeInitializers": ""
+        "VisionHelpers": ""
+      }
+    }
+
+    # ----------------------------------------------------------------- hardware
+    hardware: "hardware/  — low-level drivers" {
+      class: pkg
+      style.fill: "#fff3e0"
+      grid-columns: 1
+      "__init__.py": {class: init}
+      "calibration.py": {class: f; style.fill: "#ef6c00"}
+      "camera.py": {class: f; style.fill: "#ef6c00"}
+      "motors.py": {
+        class: f
+        style.fill: "#ef6c00"
+        "PCA9685Controller": ""
+      }
+      "npu.py": {
+        class: f
+        style.fill: "#ef6c00"
+        "RKNNModelRunner": ""
+      }
+    }
+  }
+
+  # ===========================================================================
+  r3: {
+    class: row
+    grid-columns: 2
+    horizontal-gap: 60
+
+    # --------------------------------------------------------------- activities
+    activities: "activities/  — runnable demos, games & scripts" {
+      class: pkg
+      style.fill: "#fffde7"
+      grid-columns: 4
+
+      "__init__.py": {class: init}
+      "base.py": {
+        class: f
+        style.fill: "#f9a825"
+        "BaseActivity": "ABC"
+      }
+
+      common: "common/" {
+        class: sub
+        style.fill: "#fff59d"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "utils.py": {class: f; style.fill: "#f9a825"}
+        "tracker.py": {
+          class: f
+          style.fill: "#f9a825"
+          "BackgroundFaceTracker": ""
+        }
+      }
+
+      alive_mode: "alive_mode/" {
+        class: sub
+        style.fill: "#fff59d"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "alive_mode.py": {class: f; style.fill: "#f9a825"}
+      }
+
+      mastermind: "mastermind/" {
+        class: sub
+        style.fill: "#fff59d"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "mastermind.py": {class: f; style.fill: "#f9a825"}
+      }
+
+      math_quest: "math_quest/" {
+        class: sub
+        style.fill: "#fff59d"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "math_quest.py": {class: f; style.fill: "#f9a825"}
+      }
+
+      story_game: "story_game/" {
+        class: sub
+        style.fill: "#fff59d"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "story_game.py": {class: f; style.fill: "#f9a825"}
+      }
+
+      reading_fluency: "reading_fluency/" {
+        class: sub
+        style.fill: "#fff59d"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "reading_fluency.py": {
+          class: f
+          style.fill: "#f9a825"
+          "BackgroundFaceTracker": ""
+        }
+      }
+
+      social: "social/" {
+        class: sub
+        style.fill: "#fff59d"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "face_recognition_demo.py": {class: f; style.fill: "#f9a825"}
+        "make_friends.py": {class: f; style.fill: "#f9a825"}
+        "receptionist.py": {class: f; style.fill: "#f9a825"}
+        "intro_to_gigi.py": {
+          class: f
+          style.fill: "#f9a825"
+          "IntroToGigiActivity": ""
+        }
+      }
+
+      scripted: "scripted/  — graph-based scripts" {
+        class: sub
+        style.fill: "#fff59d"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "script_assets.py": {class: f; style.fill: "#f9a825"}
+        "engine.py": {
+          class: f
+          style.fill: "#f9a825"
+          "Script": ""
+        }
+        "script_graph.py": {
+          class: f
+          style.fill: "#f9a825"
+          "ScriptGraph": ""
+        }
+        "ferris.py": {
+          class: f
+          style.fill: "#f9a825"
+          "Monolingual_Ferris": "ScriptGraph"
+        }
+        "lego.py": {
+          class: f
+          style.fill: "#f9a825"
+          "Bilingual_Lego": "ScriptGraph"
+        }
+        "halloween.py": {
+          class: f
+          style.fill: "#f9a825"
+          "Halloween": "ScriptGraph"
+        }
+      }
+    }
+
+    # ------------------------------------------------------------- verification
+    verification: "verification/  — hardware & AI self-tests (gigi-verify)" {
+      class: pkg
+      style.fill: "#eceff1"
+      grid-columns: 2
+
+      "__init__.py": {class: init}
+      "cli.py": {class: f; style.fill: "#546e7a"}
+
+      ai: "ai/" {
+        class: sub
+        style.fill: "#cfd8dc"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "npu_debug.py": {class: f; style.fill: "#546e7a"}
+        "verify_llm.py": {class: f; style.fill: "#546e7a"}
+        "verify_tts.py": {class: f; style.fill: "#546e7a"}
+        "verify_voice.py": {class: f; style.fill: "#546e7a"}
+        "verify_follow_face.py": {class: f; style.fill: "#546e7a"}
+        "verify_face.py": {
+          class: f
+          style.fill: "#546e7a"
+          "ThreadSafeFaceCache": ""
+        }
+        "verify_stt.py": {
+          class: f
+          style.fill: "#546e7a"
+          "RealTimeSTT": ""
+        }
+      }
+
+      hardware: "hardware/" {
+        class: sub
+        style.fill: "#cfd8dc"
+        grid-columns: 1
+        "__init__.py": {class: init}
+        "verify_camera.py": {class: f; style.fill: "#546e7a"}
+        "verify_mic.py": {class: f; style.fill: "#546e7a"}
+        "verify_speaker.py": {class: f; style.fill: "#546e7a"}
+        "verify_screen.py": {class: f; style.fill: "#546e7a"}
+        "verify_dc_motor.py": {class: f; style.fill: "#546e7a"}
+        "verify_motors.py": {
+          class: f
+          style.fill: "#546e7a"
+          "Motors": "object"
+        }
+        "verify_gestures.py": {
+          class: f
+          style.fill: "#546e7a"
+          "OptimizedHandGestureRecognizer": ""
+        }
+        "calibrate_motors.py": {
+          class: f
+          style.fill: "#546e7a"
+          "MotorCalibration": "ScriptGraph"
+        }
+      }
+    }
+  }
+}

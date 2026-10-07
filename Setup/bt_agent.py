@@ -46,13 +46,12 @@ def read_output(process):
                     process.stdin.flush()
                     buffer = b""
                 
-            # Authorize service or connection
-            elif "authorize service" in buffer_str or "authorize connection" in buffer_str:
-                if "(yes/no):" in buffer_str:
-                    print(f"\n[*] Authorizing service request...")
-                    process.stdin.write(b"yes\n")
-                    process.stdin.flush()
-                    buffer = b""
+            # Auto-authorize any confirmation, passkey, or connection prompt
+            elif "(yes/no):" in buffer_str:
+                print(f"\n[*] Auto-authorizing yes/no request from bluetoothctl...")
+                process.stdin.write(b"yes\n")
+                process.stdin.flush()
+                buffer = b""
             
             # Keep buffer size reasonable
             if len(buffer) > 2000:
@@ -92,6 +91,7 @@ def main():
     
     commands = [
         "power on",
+        "discoverable-timeout 0",
         "discoverable on",
         "pairable on",
         "agent KeyboardOnly",

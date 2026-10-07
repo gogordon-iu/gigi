@@ -515,7 +515,6 @@ class ConnectionWrapper:
                         if handshake_resp:
                             self.conn.sendall(handshake_resp)
                             self.handshake_done = True
-                            return b""
                         else:
                             self.closed = True
                             return b""
@@ -523,23 +522,23 @@ class ConnectionWrapper:
                         self.closed = True
                         return b""
 
-                data = self.conn.recv(limit)
-                if not data:
-                    self.closed = True
-                    return b""
-                self.websocket_buffer += data
+                while not self.closed:
+                    msg_type, payload = decode_websocket_frame(self.websocket_buffer)
+                    if msg_type == "close":
+                        self.closed = True
+                        return b""
+                    elif msg_type is not None:
+                        frame_len = get_websocket_frame_length(self.websocket_buffer)
+                        if frame_len > 0:
+                            self.websocket_buffer = self.websocket_buffer[frame_len:]
+                        return payload
 
-                msg_type, payload = decode_websocket_frame(self.websocket_buffer)
-                if msg_type == "close":
-                    self.closed = True
-                    return b""
-                elif msg_type is None:
-                    return b""
-
-                frame_len = get_websocket_frame_length(self.websocket_buffer)
-                if frame_len > 0:
-                    self.websocket_buffer = self.websocket_buffer[frame_len:]
-                return payload
+                    data = self.conn.recv(limit)
+                    if not data:
+                        self.closed = True
+                        return b""
+                    self.websocket_buffer += data
+                return b""
             else:
                 data = self.conn.recv(limit)
                 return data
@@ -626,7 +625,7 @@ class ExecutionManager:
 
                 if "DISPLAY" not in sub_env:
                     sub_env["DISPLAY"] = ":0"
-                if not os.path.exists(sub_env.get("XAUTHORITY", "")) and os.path.exists("/home/orangepi/.Xauthority"):
+                if os.path.exists("/home/orangepi/.Xauthority"):
                     sub_env["XAUTHORITY"] = "/home/orangepi/.Xauthority"
 
                 self.process = subprocess.Popen(
@@ -646,7 +645,7 @@ class ExecutionManager:
 
             self.monitor_thread = threading.Thread(
                 target=self._monitor_lifecycle,
-                args=(self.process, self.process_name, self.process_type),
+                args=(self.process, self.process_name, self.process_type, None),
                 daemon=True,
             )
             self.monitor_thread.start()
@@ -656,6 +655,7 @@ class ExecutionManager:
         with self.lock:
             if self.process and self.process.poll() is None:
                 print(f"[ExecutionManager] Terminating running script: {self.process_name} (ambient={self.is_ambient})")
+                self.process._preempted = True
                 try:
                     self.process.terminate()
                     for _ in range(20):
@@ -690,7 +690,7 @@ class ExecutionManager:
                 # Ensure X11 display authorization works on robot
                 if "DISPLAY" not in sub_env:
                     sub_env["DISPLAY"] = ":0"
-                if not os.path.exists(sub_env.get("XAUTHORITY", "")) and os.path.exists("/home/orangepi/.Xauthority"):
+                if os.path.exists("/home/orangepi/.Xauthority"):
                     sub_env["XAUTHORITY"] = "/home/orangepi/.Xauthority"
 
                 self.process = subprocess.Popen(
@@ -708,7 +708,7 @@ class ExecutionManager:
 
             self.monitor_thread = threading.Thread(
                 target=self._monitor_lifecycle,
-                args=(self.process, self.process_name, self.process_type),
+                args=(self.process, self.process_name, self.process_type, callback),
                 daemon=True,
             )
             self.monitor_thread.start()
@@ -768,7 +768,7 @@ class ExecutionManager:
                 "pid": None,
             }
 
-    def _monitor_lifecycle(self, proc, name, ptype):
+    def _monitor_lifecycle(self, proc, name, ptype, callback=None):
         def stream_logger(stream, label):
             try:
                 for line in stream:
@@ -787,6 +787,7 @@ class ExecutionManager:
 
         print(f"[ExecutionManager] Script '{name}' (type={ptype}) exited with return code {return_code}")
         was_ambient = (ptype == "ambient")
+        was_preempted = getattr(proc, "_preempted", False)
 
         with self.lock:
             if self.process == proc:
@@ -795,17 +796,28 @@ class ExecutionManager:
                 self.process_type = None
                 self.is_ambient = False
 
-        if not was_ambient and self.on_completion_callback:
+        if not was_ambient and callback:
             try:
-                self.on_completion_callback(name, ptype, return_code)
+                callback(name, ptype, return_code)
             except Exception as e:
                 print(f"[ExecutionManager] Callback error: {e}")
 
-        # If a foreground activity just finished and ambient mode is enabled and not paused,
+        # If a foreground activity just finished (and was not preempted) and ambient mode is enabled and not paused,
         # automatically resume ambient alive mode!
-        if not was_ambient and self.ambient_enabled and not self.paused:
+        if not was_preempted and not was_ambient and self.ambient_enabled and not self.paused:
             time.sleep(1.0)
+            with self.lock:
+                if self.process is not None:
+                    return
             self.start_ambient(greeting=False)
+        elif not was_preempted and was_ambient and return_code != 0 and self.ambient_enabled and not self.paused:
+            print(f"[ExecutionManager] Ambient alive mode exited unexpectedly (code {return_code}). Retrying in 3s...")
+            def retry_ambient():
+                time.sleep(3.0)
+                with self.lock:
+                    if not self.process and self.ambient_enabled and not self.paused:
+                        self.start_ambient(greeting=False)
+            threading.Thread(target=retry_ambient, daemon=True).start()
 
 
 execution_manager = ExecutionManager()
@@ -1274,6 +1286,7 @@ def process_command_line(line):
         with active_client_lock:
             if active_client:
                 active_client.close()
+                active_client = None
 
     else:
         send_to_active_client({"status": "error", "message": f"Unknown command: {command}"})
@@ -1380,7 +1393,10 @@ def bluetooth_rfcomm_listener_loop(channel):
         server_sock.listen(1)
         print(f"[Daemon] Classical Bluetooth RFCOMM listening on channel {channel}")
     except Exception as e:
-        print(f"[Daemon] Failed to bind Bluetooth RFCOMM socket: {e}")
+        if isinstance(e, OSError) and getattr(e, 'errno', None) in (98, 48) and sys.platform.startswith("linux"):
+            print(f"[Daemon] Bluetooth RFCOMM channel {channel} is serviced by kernel rfcomm watcher (/dev/rfcomm0).")
+        else:
+            print(f"[Daemon] Failed to bind Bluetooth RFCOMM socket: {e}")
         server_sock.close()
         return
 
@@ -1468,11 +1484,58 @@ def main():
 
     # Start Ambient Alive Mode bootstrap on robot
     def ambient_bootstrap():
-        time.sleep(4.0)  # Wait for transports, X11, and audio to settle
         from gigi.core.config import IS_ROBOT
-        if IS_ROBOT and execution_manager.ambient_enabled:
-            print("[Daemon] Starting initial wake-up and ambient alive mode...")
-            execution_manager.start_ambient(greeting=True)
+        if not (IS_ROBOT and execution_manager.ambient_enabled):
+            return
+
+        # Dynamically wait for X11 display and window manager to become ready
+        x11_ready = False
+        for attempt in range(1, 91):  # Wait up to 90 seconds on cold boot
+            try:
+                env = os.environ.copy()
+                env["DISPLAY"] = ":0"
+                if os.path.exists("/home/orangepi/.Xauthority"):
+                    env["XAUTHORITY"] = "/home/orangepi/.Xauthority"
+                res = subprocess.run(
+                    ["xset", "q"],
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=2,
+                )
+                if res.returncode == 0:
+                    x11_ready = True
+                    break
+            except Exception:
+                pass
+            time.sleep(1.0)
+
+        if not x11_ready:
+            print("[Daemon] Warning: X11 display :0 not ready after 90s. Continuing background wait...")
+            while not x11_ready:
+                time.sleep(3.0)
+                try:
+                    env = os.environ.copy()
+                    env["DISPLAY"] = ":0"
+                    if os.path.exists("/home/orangepi/.Xauthority"):
+                        env["XAUTHORITY"] = "/home/orangepi/.Xauthority"
+                    res = subprocess.run(
+                        ["xset", "q"],
+                        env=env,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=2,
+                    )
+                    if res.returncode == 0:
+                        x11_ready = True
+                        break
+                except Exception:
+                    pass
+
+        # Allow 2 extra seconds for audio and desktop window manager to settle
+        time.sleep(2.0)
+        print("[Daemon] X11 display is ready. Starting initial wake-up and ambient alive mode...")
+        execution_manager.start_ambient(greeting=True)
 
     threading.Thread(target=ambient_bootstrap, daemon=True).start()
 

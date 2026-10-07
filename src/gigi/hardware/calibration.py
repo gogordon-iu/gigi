@@ -252,15 +252,18 @@ def save_motor_calibration(data: Dict[str, Any], custom_path: Optional[Path] = N
 
 
 def load_lookat_calibration() -> Dict[str, Any]:
-    """Loads lookat gaze calibration interpolation points."""
+    """Loads lookat gaze calibration interpolation points safely."""
     candidate_paths = [
+        PROJECT_ROOT / "Character" / "lookat_calibrated.json",
         PROJECT_ROOT / "lookat_calibrated.json",
     ]
     for path in candidate_paths:
         if path.exists():
             try:
                 with open(path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    if isinstance(data, dict) and data:
+                        return data
             except Exception as e:
                 logger.warning(f"Failed to read {path}: {e}")
     return {}

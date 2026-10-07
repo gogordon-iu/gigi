@@ -381,11 +381,7 @@ class Hearing():
     def load_citrinet_gop(self):
         if self.citrinet_gop is None:
             try:
-                import sys
-                _char_dir = os.path.dirname(os.path.abspath(__file__))
-                if _char_dir not in sys.path:
-                    sys.path.append(_char_dir)
-                from citrinet_gop import CitrinetGOP
+                from gigi.perception.pronunciation import CitrinetGOP
                 self.citrinet_gop = CitrinetGOP()
             except Exception as e:
                 print(f"[Hearing] Failed to load CitrinetGOP: {e}")
