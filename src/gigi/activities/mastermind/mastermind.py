@@ -6,6 +6,7 @@ import random
 
 from gigi.core.robot import GigiRobot as Character
 from gigi.core.config import IS_ROBOT
+from gigi.activities.base import BaseActivity
 
 WORD_TO_DIGIT = {
     "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
@@ -579,6 +580,23 @@ def play_mastermind():
         gigi.face.overlay_text = None
         gigi.stop_character()
         print("[Mastermind] Gigi Mastermind game demo finished cleanly.")
+
+
+class MastermindActivity(BaseActivity):
+    """BaseActivity adapter for Gigi Mastermind game."""
+
+    def __init__(self, robot=None):
+        super().__init__(name="mastermind", robot=robot)
+
+    def start(self) -> None:
+        super().start()
+        play_mastermind(self.robot)
+
+    def stop(self) -> None:
+        super().stop()
+        if self.robot and getattr(self.robot, "vision", None):
+            self.robot.vision.stop_vision()
+
 
 if __name__ == "__main__":
     play_mastermind()

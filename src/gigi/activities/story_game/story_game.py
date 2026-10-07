@@ -9,6 +9,7 @@ import numpy as np
 
 from gigi.core.robot import GigiRobot as Character
 from gigi.core.config import IS_ROBOT, RESOURCES_DIR
+from gigi.activities.base import BaseActivity
 
 # YOLOv11-nano ONNX Model Paths
 YOLO_MODEL_PATH = str(RESOURCES_DIR / "yolo11n.onnx")
@@ -283,7 +284,7 @@ def play_story_game():
             
             # Call NPU/LLM to generate continuation
             try:
-                raw_resp = gigi.conversation._call_npu(story_history)
+                raw_resp = gigi.conversation.chat(story_history)
                 gigi_continuation = clean_response(raw_resp)
                 
                 # Truncate to one sentence
@@ -328,6 +329,23 @@ def play_story_game():
             gigi.vision.stop_vision()
         gigi.stop_character()
         print("[Story Game] Gigi Story Quest finished cleanly.")
+
+
+class StoryGameActivity(BaseActivity):
+    """BaseActivity adapter for Gigi Story Quest game."""
+
+    def __init__(self, robot=None):
+        super().__init__(name="story_game", robot=robot)
+
+    def start(self) -> None:
+        super().start()
+        play_story_game(self.robot)
+
+    def stop(self) -> None:
+        super().stop()
+        if self.robot and getattr(self.robot, "vision", None):
+            self.robot.vision.stop_vision()
+
 
 if __name__ == "__main__":
     play_story_game()

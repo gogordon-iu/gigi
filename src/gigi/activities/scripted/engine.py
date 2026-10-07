@@ -1,5 +1,6 @@
 from os.path import exists
 import sys
+import importlib
 from gigi.core.robot import GigiRobot as Character
 from gigi.core.config import ASSETS_DIR
 
@@ -170,7 +171,11 @@ class Script:
                             break
             elif "script" in current_data['type']:
                 print("Running script: ", current_data['script'], ". Activity name:", current_data['activity'])
-                scriptGraph_package = __import__(current_data['script']['package_name'])
+                pkg_name = current_data['script']['package_name']
+                try:
+                    scriptGraph_package = importlib.import_module(f"gigi.activities.scripted.{pkg_name}")
+                except ModuleNotFoundError:
+                    scriptGraph_package = importlib.import_module(pkg_name)
                 scriptGraph_instance = getattr(scriptGraph_package, current_data['script']['class_name'])()
                 scriptGraph_instance.init_graph()
                 script_instance = Script(graph=scriptGraph_instance, character=self.character, activity=current_data['activity'])

@@ -6,6 +6,7 @@ import random
 
 from gigi.core.robot import GigiRobot as Character
 from gigi.core.config import IS_ROBOT, ASSETS_DIR as BASE_ASSETS_DIR
+from gigi.activities.base import BaseActivity
 
 # Assets Directory
 MATHQUEST_ASSETS_DIR = BASE_ASSETS_DIR / "MathQuest"
@@ -306,6 +307,23 @@ def play_math_quest():
             gigi.vision.stop_vision()
         gigi.stop_character()
         print("[Math Quest] Game finished cleanly.")
+
+
+class MathQuestActivity(BaseActivity):
+    """BaseActivity adapter for Gigi Math Quest game."""
+
+    def __init__(self, robot=None):
+        super().__init__(name="math_quest", robot=robot)
+
+    def start(self) -> None:
+        super().start()
+        play_math_quest(self.robot)
+
+    def stop(self) -> None:
+        super().stop()
+        if self.robot and getattr(self.robot, "vision", None):
+            self.robot.vision.stop_vision()
+
 
 if __name__ == "__main__":
     play_math_quest()

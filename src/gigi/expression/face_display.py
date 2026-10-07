@@ -910,7 +910,7 @@ class Face():
             face_image = self.set_face(idle_face)
             self.display_face(face_image)
 
-    def combine_seuqences(self, sequences=None):
+    def combine_sequences(self, sequences=None):
         def densify_sequence(seq, delay, min_delay):
             """
             Repeats each element in seq (delay seconds apart) so that the time resolution
@@ -930,6 +930,9 @@ class Face():
                 if part not in combined_sequence:
                     combined_sequence[part] = (s[0], densify_sequence(seq=s[1], delay=seq_delay, min_delay=min_delay))
         return combined_sequence, min_delay
+
+    # Backwards-compatibility alias for legacy callers
+    combine_seuqences = combine_sequences
 
 
     def display_video_file(self, filename=None):

@@ -41,58 +41,6 @@ import json
 import time
 import random
 
-class VoiceEncoderRKNN:
-    """
-    RKNN implementation of Resemblyzer VoiceEncoder for the Orange Pi 5 Pro NPU.
-    Loads a compiled 'voice-encoder.rknn' model and runs NPU inference.
-    """
-    def __init__(self, model_path=None):
-        if model_path is None:
-            model_path = CHARACTER_FOLDER + "../Resources/voice-encoder.rknn"
-        
-        import logging
-        _orig_nameToLevel = dict(logging._nameToLevel)
-        _orig_levelToName = dict(logging._levelToName)
-        from rknnlite.api import RKNNLite
-        logging._nameToLevel.update(_orig_nameToLevel)
-        logging._levelToName.update(_orig_levelToName)
-        self.rknn = RKNNLite()
-        print(f"[Speaker Recognition] Loading VoiceEncoder RKNN model from {model_path}...")
-        ret = self.rknn.load_rknn(model_path)
-        if ret != 0:
-            raise RuntimeError(f"Failed to load VoiceEncoder RKNN model (code {ret})")
-        ret = self.rknn.init_runtime()
-        if ret != 0:
-            raise RuntimeError(f"Failed to init RKNN runtime (code {ret})")
-        print("[Speaker Recognition] VoiceEncoder RKNN loaded successfully.")
-
-    def embed_utterance(self, wav: np.ndarray) -> np.ndarray:
-        """Extract speaker embedding from processed wav using RKNN NPU."""
-        try:
-            # Feature extraction on CPU: Wav to Mel Spectrogram using Resemblyzer if installed
-            from resemblyzer.audio import wav_to_mel_spectrogram
-            mel = wav_to_mel_spectrogram(wav)  # Shape (frames, 40)
-            
-            # Most RKNN models require float32 and batch dimension
-            feats = mel[np.newaxis, :, :].astype(np.float32)  # Shape: (1, T, 40)
-            
-            outputs = self.rknn.inference(inputs=[feats])
-            if outputs is None or len(outputs) == 0:
-                return np.zeros(256, dtype=np.float32)
-                
-            embedding = outputs[0].flatten().copy()
-            norm = np.linalg.norm(embedding)
-            if norm > 0:
-                embedding = embedding / norm
-            return embedding
-        except Exception as e:
-            print(f"[Speaker Recognition] NPU inference error: {e}")
-            return np.zeros(256, dtype=np.float32)
-
-    def release(self):
-        if hasattr(self, 'rknn'):
-            self.rknn.release()
-
 
 class Character():
     def __init__(self, character_name="fuzzy", child=False, gender='female',
@@ -337,7 +285,7 @@ class Character():
             if viseme_sequence is not None:
                 face_parts.append([self.speech.sample_rate, viseme_sequence])
             if len(face_parts) > 0:
-                face_sequence, min_delay = self.face.combine_seuqences(sequences=face_parts)
+                face_sequence, min_delay = self.face.combine_sequences(sequences=face_parts)
                 if speech_thread:
                     speech_thread.start()
                     if start_time_container is not None:

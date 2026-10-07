@@ -149,7 +149,8 @@ class Speech():
         self.keep_record    = True
         if os.path.exists(recorded_speech_filename):
             try:
-                self.recorded_audio = json.load(open(recorded_speech_filename, "r"))
+                with open(recorded_speech_filename, "r", encoding="utf-8") as f:
+                    self.recorded_audio = json.load(f)
             except Exception:
                 self.recorded_audio = {}
         else:
@@ -269,7 +270,8 @@ class Speech():
     def save_recorded_audio(self):
         if not os.path.exists(recorded_speech_path):
             os.makedirs(recorded_speech_path)
-        json.dump(self.recorded_audio, open(recorded_speech_filename, "w+"))
+        with open(recorded_speech_filename, "w", encoding="utf-8") as f:
+            json.dump(self.recorded_audio, f)
 
     def save_audio_file(self, file, data):
         sf.write(file, data, self.speaker_sample_rate, subtype='PCM_16')

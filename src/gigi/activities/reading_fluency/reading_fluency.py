@@ -14,38 +14,7 @@ from PIL import Image
 current_dir = os.path.dirname(os.path.abspath(__file__))
 from gigi.core.config import PROJECT_ROOT as gigi_dir, ASSETS_DIR
 from gigi.core.robot import GigiRobot as Character
-from gigi.activities.common import extract_name
-
-class BackgroundFaceTracker:
-    """
-    Manages active face follow tracking in a background thread.
-    Automatically handles the camera feed overlay, visual feedback icons,
-    and torso-based sweep searches when a face is lost for 5+ seconds.
-    """
-    def __init__(self, gigi):
-        self.gigi = gigi
-        self.stop_event = threading.Event()
-        self.thread = None
-
-    def start(self):
-        if not self.gigi.vision:
-            print("[Reading Fluency] Vision is disabled, cannot start face follow tracking.")
-            return
-        self.stop_event.clear()
-        self.thread = threading.Thread(
-            target=self.gigi.follow_face,
-            kwargs={'stop_event': self.stop_event},
-            daemon=True
-        )
-        self.thread.start()
-        print("[Reading Fluency] Background face follow tracker started.")
-
-    def stop(self):
-        if self.thread:
-            self.stop_event.set()
-            self.thread.join(timeout=1.5)
-            self.thread = None
-            print("[Reading Fluency] Background face follow tracker stopped.")
+from gigi.activities.common import extract_name, BackgroundFaceTracker
 
 def levenshtein_distance(s1: str, s2: str) -> int:
     """Compute classic Levenshtein edit distance between two strings."""

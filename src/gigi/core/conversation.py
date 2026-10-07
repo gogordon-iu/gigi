@@ -243,6 +243,12 @@ class Conversation:
         print(f"[Gigi] Gigi: {result}")
         return result
 
+    def chat(self, messages: list, model: str = None, raise_on_error: bool = False) -> str:
+        """
+        Public method to generate a response from a multi-turn messages payload.
+        """
+        return self._call_npu(messages, model=model, raise_on_error=raise_on_error)
+
     # ------------------------------------------------------------------
     # Public: stateful multi-turn  (used by free-form chat)
     # ------------------------------------------------------------------

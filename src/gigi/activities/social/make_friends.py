@@ -16,6 +16,7 @@ import numpy as np
 
 from gigi.core.robot import Character
 from gigi.perception.speaker_id import SpeakerDatabase
+from gigi.activities.base import BaseActivity
 
 
 def pause_vision(gigi):
@@ -322,6 +323,22 @@ def play_make_friends():
             gigi.vision.stop_vision()
         gigi.stop_character()
         print("[MakeFriends] Demo finished.")
+
+
+class MakeFriendsActivity(BaseActivity):
+    """BaseActivity adapter for Gigi Make Friends activity."""
+
+    def __init__(self, robot=None):
+        super().__init__(name="make_friends", robot=robot)
+
+    def start(self) -> None:
+        super().start()
+        play_make_friends(self.robot)
+
+    def stop(self) -> None:
+        super().stop()
+        if self.robot and getattr(self.robot, "vision", None):
+            self.robot.vision.stop_vision()
 
 
 if __name__ == "__main__":

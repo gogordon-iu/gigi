@@ -31,9 +31,14 @@ def get_scripts():
 if __name__ == "__main__":
     list_of_scripts = get_scripts()
 
+    import importlib
     for script_name, script_info in list_of_scripts.items():
         print("Script name:", script_name)
-        scriptGraph_package = __import__(script_info['package_name'])
+        pkg_name = script_info['package_name']
+        try:
+            scriptGraph_package = importlib.import_module(f"gigi.activities.scripted.{pkg_name}")
+        except ModuleNotFoundError:
+            scriptGraph_package = importlib.import_module(pkg_name)
         scriptGraph_instance = getattr(scriptGraph_package, script_info['class_name'])()
         scriptGraph_instance.init_graph()
 

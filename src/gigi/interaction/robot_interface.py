@@ -23,25 +23,31 @@ class RobotInterface:
         robot.stop()                   # clean shutdown
     """
 
-    def __init__(self, pause_vision_during_speech: bool = True, child_voice: bool = True):
+    def __init__(self, pause_vision_during_speech: bool = True, child_voice: bool = True, character=None):
         self.pause_vision_during_speech = pause_vision_during_speech
+        self.character = character
 
-        # --- Vision ---
-        self.vision = Vision(None, auto_start=False)
-        self.vision.is_robot = True
-        self.vision.set_processing_flags({
-            "face_detection":   2.0,
-            "face_recognition": 2.0,
-            "emotion":          2.0,
-            "gesture":          5.0,
-        })
+        if character is not None:
+            self.vision = getattr(character, "vision", None) or Vision(None, auto_start=False)
+            self.speech = getattr(character, "speech", None) or Speech(languages="en", child=child_voice)
+            self.hearing = getattr(character, "hearing", None) or Hearing(verbose=False)
+        else:
+            # --- Vision ---
+            self.vision = Vision(None, auto_start=False)
+            self.vision.is_robot = True
+            self.vision.set_processing_flags({
+                "face_detection":   2.0,
+                "face_recognition": 2.0,
+                "emotion":          2.0,
+                "gesture":          5.0,
+            })
 
-        # --- Speech (TTS) ---
-        self.speech = Speech(languages="en", child=child_voice)
-        self.speech.set_activity("educational_activity")
+            # --- Speech (TTS) ---
+            self.speech = Speech(languages="en", child=child_voice)
+            self.speech.set_activity("educational_activity")
 
-        # --- Hearing (STT) ---
-        self.hearing = Hearing(verbose=False)
+            # --- Hearing (STT) ---
+            self.hearing = Hearing(verbose=False)
 
     # ------------------------------------------------------------------
     # Lifecycle

@@ -50,6 +50,12 @@ perception = [
     "face_recognition>=1.3.0",
     "deepface>=0.0.79",
 ]
+verification = [
+    "pyzbar>=0.1.9",
+]
+speaker_recognition = [
+    "resemblyzer>=0.1.4",
+]
 dev = [
     "pytest>=7.4.0",
     "ruff>=0.1.0",

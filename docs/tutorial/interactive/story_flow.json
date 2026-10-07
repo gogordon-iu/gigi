@@ -119,10 +119,10 @@
         {"from": "char", "to": "speech", "kind": "internal", "label": "play_audio_thread().start() → speaker (pygame.mixer)",
          "detail": "Playback runs in a thread and reports the exact moment audio started, which the face uses to stay in sync.",
          "refs": ["expression/speech.py:Speech.play_audio_thread", "expression/speech.py:Speech.play_audio"]},
-        {"from": "char", "to": "face", "kind": "internal", "label": "combine_seuqences() · generate_face(start_time=audio start)",
+        {"from": "char", "to": "face", "kind": "internal", "label": "combine_sequences() · generate_face(start_time=audio start)",
          "note": "lip-synced face on screen",
-         "detail": "Face sequences (e.g. a requested expression plus the visemes) are merged, then drawn frame by frame, aligned to the audio start time. (The misspelled name combine_seuqences is the real method name.)",
-         "refs": ["expression/face_display.py:Face.combine_seuqences", "expression/face_display.py:Face.generate_face"]}
+         "detail": "Face sequences (e.g. a requested expression plus the visemes) are merged, then drawn frame by frame, aligned to the audio start time.",
+         "refs": ["expression/face_display.py:Face.combine_sequences", "expression/face_display.py:Face.generate_face"]}
       ]
     },
     {

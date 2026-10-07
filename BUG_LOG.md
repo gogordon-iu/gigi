@@ -80,3 +80,39 @@ This file tracks all bugs encountered and resolved within this project. Each ent
 - **Bug**: `ambient_bootstrap()` gave up waiting for display `:0` after 30 seconds and launched `alive_mode.py` prematurely causing OpenCV/Pygame display initialization crashes, while direct RFCOMM socket listening reported an error when channel 1 was already bound by `rfcomm watch`.
 - **Solution**: Extended X11 display polling to wait until the display server is actually active before starting ambient mode, and gracefully recognized kernel RFCOMM ownership of channel 1.
 
+### [BUG-261007-16] 2026-10-07 | `src/gigi/expression/face_display.py` & `src/gigi/core/robot.py`
+- **Bug**: Method `Face.combine_seuqences` contained a spelling typo that caused `AttributeError` when called using the standard spelling `combine_sequences`.
+- **Solution**: Renamed the method to `combine_sequences`, updated calling code, and provided `combine_seuqences` as a backwards-compatibility alias.
+
+### [BUG-261007-17] 2026-10-07 | `src/gigi/core/robot.py`
+- **Bug**: `Character` redefined a duplicate 40-line `VoiceEncoderRKNN` class that shadowed the canonical implementation already imported from `gigi.perception.speaker_id`.
+- **Solution**: Removed the redundant duplicate class definition from `robot.py` in favor of the imported canonical implementation.
+
+### [BUG-261007-18] 2026-10-07 | `src/gigi/activities/reading_fluency/reading_fluency.py`
+- **Bug**: `reading_fluency.py` reimplemented a duplicate 30-line `BackgroundFaceTracker` class rather than importing the shared utility from `gigi.activities.common`.
+- **Solution**: Replaced the duplicate local class with an import of `BackgroundFaceTracker` from `gigi.activities.common`.
+
+### [BUG-261007-19] 2026-10-07 | `src/gigi/verification/cli.py`
+- **Bug**: `gigi-verify` CLI advertised `stt` and `tts` subcommands but failed with an invalid argument error because neither test function was registered in the argument parser choices or verifier dispatch table.
+- **Solution**: Implemented `test_stt()` and `test_tts()` and registered both in `VERIFIERS` and the argument parser choices.
+
+### [BUG-261007-20] 2026-10-07 | `src/gigi/activities/scripted/engine.py` & `script_assets.py`
+- **Bug**: Dynamic loading of scripted story activities used unqualified `__import__()` calls that crashed with `ModuleNotFoundError` when scripts were loaded within the package hierarchy.
+- **Solution**: Replaced `__import__()` with `importlib.import_module()` using package-qualified fallback resolution.
+
+### [BUG-261007-21] 2026-10-07 | `src/gigi/expression/speech.py`
+- **Bug**: Opening `recorded_speech_filename` without context managers left dangling file handles on Windows that risked `PermissionError` file locking during speech recording.
+- **Solution**: Wrapped all file loading and saving in `Speech` with `with open(..., encoding="utf-8") as f:` context managers.
+
+### [BUG-261007-22] 2026-10-07 | `src/gigi/activities/base.py` & `src/gigi/activities/__init__.py`
+- **Bug**: Abstract class `BaseActivity` was completely unused with zero activities implementing its lifecycle contract.
+- **Solution**: Subclassed `BaseActivity` across `MastermindActivity`, `MathQuestActivity`, `StoryGameActivity`, and `MakeFriendsActivity` and exported them in `gigi.activities`.
+
+### [BUG-261007-23] 2026-10-07 | `src/gigi/interaction/robot_interface.py` & `src/gigi/core/conversation.py`
+- **Bug**: Activities directly accessed private `Conversation._call_npu()` and `RobotInterface` re-instantiated perception pipelines rather than reusing existing `Character` instances.
+- **Solution**: Exposed a public `Conversation.chat()` method and added optional `character` injection to `RobotInterface.__init__()`.
+
+### [BUG-261007-24] 2026-10-07 | `pyproject.toml`
+- **Bug**: Optional tool dependencies `pyzbar` and `resemblyzer` were undeclared in the project package configuration.
+- **Solution**: Added `verification` and `speaker_recognition` optional dependency groups to `pyproject.toml`.
+

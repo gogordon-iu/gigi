@@ -131,6 +131,29 @@ def test_llm():
         return False
 
 
+def test_stt():
+    print("\n--- [VERIFY] Speech-to-Text (STT) Subsystem ---")
+    try:
+        from faster_whisper import WhisperModel
+        print("[PASS] faster_whisper module available.")
+        return True
+    except Exception as e:
+        print(f"[FAIL] Speech-to-Text dependency error: {e}")
+        return False
+
+
+def test_tts():
+    print("\n--- [VERIFY] Text-to-Speech (TTS) Subsystem ---")
+    try:
+        from gigi.expression.speech import Speech
+        speech = Speech()
+        print(f"[PASS] Text-to-Speech engine initialized (sample rate: {speech.sample_rate}).")
+        return True
+    except Exception as e:
+        print(f"[FAIL] Text-to-Speech engine error: {e}")
+        return False
+
+
 VERIFIERS = {
     "camera": test_camera,
     "motors": test_motors,
@@ -140,6 +163,8 @@ VERIFIERS = {
     "mic": test_mic,
     "face": test_face,
     "llm": test_llm,
+    "stt": test_stt,
+    "tts": test_tts,
 }
 
 
@@ -176,7 +201,7 @@ def main():
         "subsystem",
         nargs="*",
         default=["all"],
-        choices=["all", "camera", "motors", "gestures", "screen", "speaker", "mic", "face", "llm"],
+        choices=["all", "camera", "motors", "gestures", "screen", "speaker", "mic", "face", "llm", "stt", "tts"],
         help="Subsystem(s) to verify (default: all)",
     )
     args = parser.parse_args()
