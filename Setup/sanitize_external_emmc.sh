@@ -102,6 +102,10 @@ rm -f "$MOUNT_POINT"/home/orangepi/Code/gigi/motorData_calibrated_local.json 2>/
 rm -f "$MOUNT_POINT"/home/orangepi/Code/gigi/Character/motorData_calibrated.json 2>/dev/null || true
 rm -f "$MOUNT_POINT"/home/orangepi/Code/gigi/Character/motorData_calibrated_local.json 2>/dev/null || true
 rm -rf "$MOUNT_POINT"/home/orangepi/repos 2>/dev/null || true
+rm -rf "$MOUNT_POINT"/home/orangepi/Code/gigi_legacy_archive 2>/dev/null || true
+rm -rf "$MOUNT_POINT"/home/orangepi/Code/gigi.git 2>/dev/null || true
+rm -rf "$MOUNT_POINT"/home/orangepi/Code/Assets 2>/dev/null || true
+rm -rf "$MOUNT_POINT"/home/orangepi/.claude.json "$MOUNT_POINT"/home/orangepi/.copilot "$MOUNT_POINT"/home/orangepi/.gemini 2>/dev/null || true
 
 # Machine ID & logs
 truncate -s 0 "$MOUNT_POINT"/etc/machine-id 2>/dev/null || true
