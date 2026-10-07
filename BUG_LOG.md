@@ -72,3 +72,11 @@ This file tracks all bugs encountered and resolved within this project. Each ent
 - **Bug**: Child voice pitch shifting in `Speech.save_audio_file()` relied on a fragile relative path that raised `FileNotFoundError` whenever the application was executed outside `src/gigi/expression/`.
 - **Solution**: Replaced the relative path with an atomic temporary file created in the target directory and added cleanup error handling.
 
+### [BUG-261007-14] 2026-10-07 | `src/gigi/core/robot.py` & `src/gigi/hardware/calibration.py`
+- **Bug**: Ambient alive mode crashed on boot with an unhandled `JSONDecodeError` during `Character.__init__` if `lookat_calibrated.json` was corrupted or empty, halting the entire startup sequence before face or speech initialization.
+- **Solution**: Refactored `load_lookat_calibration()` to safely validate candidate file contents with graceful exception handling and updated `robot.py` to use this safe accessor.
+
+### [BUG-261007-15] 2026-10-07 | `src/gigi/core/daemon.py`
+- **Bug**: `ambient_bootstrap()` gave up waiting for display `:0` after 30 seconds and launched `alive_mode.py` prematurely causing OpenCV/Pygame display initialization crashes, while direct RFCOMM socket listening reported an error when channel 1 was already bound by `rfcomm watch`.
+- **Solution**: Extended X11 display polling to wait until the display server is actually active before starting ambient mode, and gracefully recognized kernel RFCOMM ownership of channel 1.
+
