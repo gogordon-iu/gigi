@@ -94,7 +94,7 @@ def main():
         "discoverable-timeout 0",
         "discoverable on",
         "pairable on",
-        "agent KeyboardOnly",
+        "agent NoInputNoOutput",
         "default-agent"
     ]
     

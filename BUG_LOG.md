@@ -115,4 +115,6 @@ This file tracks all bugs encountered and resolved within this project. Each ent
 ### [BUG-261007-24] 2026-10-07 | `pyproject.toml`
 - **Bug**: Optional tool dependencies `pyzbar` and `resemblyzer` were undeclared in the project package configuration.
 - **Solution**: Added `verification` and `speaker_recognition` optional dependency groups to `pyproject.toml`.
-
+### [BUG-261007-25] 2026-10-07 | `Setup/bt_agent.py`
+- **Bug**: Bluetooth auto-pairing failed with smartphones during Secure Simple Pairing (SSP) because the agent declared capability `KeyboardOnly`, causing phones to generate and display a random 6-digit passkey while `bt_agent.py` blindly submitted the hardcoded PIN `198420`.
+- **Solution**: Changed agent capability to `NoInputNoOutput` so BlueZ negotiates headless "Just Works" pairing without passkey entry mismatches.
