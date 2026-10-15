@@ -89,12 +89,45 @@ sed -i 's/^Prompt=.*/Prompt=never/' "$MOUNT_POINT"/etc/update-manager/release-up
 rm -f "$MOUNT_POINT"/etc/xdg/autostart/update-notifier.desktop 2>/dev/null || true
 chmod -x "$MOUNT_POINT"/usr/bin/check-new-release-gtk 2>/dev/null || true
 
+# Remove crash reports and disable Apport problem-report popups
+rm -rf "$MOUNT_POINT"/var/crash/* 2>/dev/null || true
+if grep -q '^[[:space:]]*enabled[[:space:]]*=' "$MOUNT_POINT"/etc/default/apport 2>/dev/null; then
+    sed -i 's/^[[:space:]]*enabled[[:space:]]*=.*/enabled=0/' "$MOUNT_POINT"/etc/default/apport
+else
+    mkdir -p "$MOUNT_POINT"/etc/default
+    printf '\nenabled=0\n' >> "$MOUNT_POINT"/etc/default/apport
+fi
+
+# Disable unwanted desktop autostarts
+rm -f "$MOUNT_POINT"/etc/xdg/autostart/blueman.desktop \
+      "$MOUNT_POINT"/etc/xdg/autostart/xscreensaver.desktop 2>/dev/null || true
+
+# Clear persisted Bluetooth soft-blocks for first boot
+for RFKILL_FILE in "$MOUNT_POINT"/var/lib/systemd/rfkill/*bluetooth*; do
+    [ -f "$RFKILL_FILE" ] || continue
+    printf '0\n' > "$RFKILL_FILE"
+done
+
 # Motor calibration (force fresh calibration for new robot body)
 rm -f "$MOUNT_POINT"/home/orangepi/Code/gigi/motorData_calibrated.json 2>/dev/null || true
 rm -f "$MOUNT_POINT"/home/orangepi/Code/gigi/motorData_calibrated_local.json 2>/dev/null || true
 rm -f "$MOUNT_POINT"/home/orangepi/Code/gigi/Character/motorData_calibrated.json 2>/dev/null || true
 rm -f "$MOUNT_POINT"/home/orangepi/Code/gigi/Character/motorData_calibrated_local.json 2>/dev/null || true
 rm -rf "$MOUNT_POINT"/home/orangepi/repos 2>/dev/null || true
+
+# Legacy archives, developer tool caches, and temporary files
+rm -rf "$MOUNT_POINT"/home/orangepi/Code/gigi_legacy_archive \
+       "$MOUNT_POINT"/home/orangepi/Code/gigi.git \
+       "$MOUNT_POINT"/home/orangepi/Code/Assets \
+       "$MOUNT_POINT"/home/orangepi/Code/gigi/Assets/face/themostannoyingprojectididinmylife.zip \
+       "$MOUNT_POINT"/home/orangepi/.claude \
+       "$MOUNT_POINT"/home/orangepi/.claude.json \
+       "$MOUNT_POINT"/home/orangepi/.copilot \
+       "$MOUNT_POINT"/home/orangepi/.gemini \
+       "$MOUNT_POINT"/home/orangepi/.antigravity-server \
+       "$MOUNT_POINT"/home/orangepi/.vscode-server \
+       "$MOUNT_POINT"/home/orangepi/clone_output.log \
+       "$MOUNT_POINT"/home/orangepi/clone_and_sanitize_emmc.sh 2>/dev/null || true
 
 # Machine ID & logs
 truncate -s 0 "$MOUNT_POINT"/etc/machine-id 2>/dev/null || true

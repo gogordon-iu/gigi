@@ -68,6 +68,15 @@ rm -f "$MOUNT_POINT"/etc/NetworkManager/system-connections/* 2>/dev/null || true
 echo "[3/8] Clearing Bluetooth pairing records and link keys..."
 rm -rf "$MOUNT_POINT"/var/lib/bluetooth/* 2>/dev/null || true
 
+# Install the latest Bluetooth agent and startup script from the host
+echo "[*] Updating Bluetooth agent and startup script from the host..."
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
+mkdir -p "$MOUNT_POINT/home/orangepi/Code/gigi/Setup"
+cp -- "$SCRIPT_DIR/bt_agent.py" "$SCRIPT_DIR/start_bluetooth_hub.sh" \
+    "$MOUNT_POINT/home/orangepi/Code/gigi/Setup/"
+chmod +x "$MOUNT_POINT/home/orangepi/Code/gigi/Setup/bt_agent.py" \
+    "$MOUNT_POINT/home/orangepi/Code/gigi/Setup/start_bluetooth_hub.sh"
+
 # Verify bt_agent.py has NoInputNoOutput capability
 echo "[*] Ensuring bt_agent.py uses NoInputNoOutput for Just-Works pairing..."
 if [ -f "$MOUNT_POINT/home/orangepi/Code/gigi/Setup/bt_agent.py" ]; then
@@ -89,11 +98,34 @@ ExecStartPre=/usr/bin/ssh-keygen -A
 ExecStartPre=/usr/sbin/sshd -t
 OVR_EOF
 
-# 5. Disable Ubuntu release upgrade popups on kiosk desktop
-echo "[5/8] Disabling desktop update notifier popups..."
+# 5. Disable Ubuntu release upgrade and crash popups on kiosk desktop
+echo "[5/8] Disabling desktop popups and clearing Bluetooth soft-block state..."
 sed -i 's/^Prompt=.*/Prompt=never/' "$MOUNT_POINT"/etc/update-manager/release-upgrades 2>/dev/null || true
 rm -f "$MOUNT_POINT"/etc/xdg/autostart/update-notifier.desktop 2>/dev/null || true
 chmod -x "$MOUNT_POINT"/usr/bin/check-new-release-gtk 2>/dev/null || true
+
+# Remove crash reports and disable Apport's "System program problem detected" popup
+rm -rf "$MOUNT_POINT"/var/crash/* 2>/dev/null || true
+if [ -f "$MOUNT_POINT/etc/default/apport" ]; then
+    sed -i 's/^[[:space:]]*enabled[[:space:]]*=.*/enabled=0/' "$MOUNT_POINT/etc/default/apport"
+    if ! grep -q '^enabled=0$' "$MOUNT_POINT/etc/default/apport"; then
+        printf '\nenabled=0\n' >> "$MOUNT_POINT/etc/default/apport"
+    fi
+else
+    mkdir -p "$MOUNT_POINT/etc/default"
+    printf 'enabled=0\n' > "$MOUNT_POINT/etc/default/apport"
+fi
+
+# Prevent Bluetooth manager and screensaver autostart
+rm -f "$MOUNT_POINT"/etc/xdg/autostart/blueman.desktop \
+      "$MOUNT_POINT"/etc/xdg/autostart/xscreensaver.desktop 2>/dev/null || true
+
+# Reset saved Bluetooth rfkill state so first boot restores Bluetooth unblocked
+for RFKILL_FILE in "$MOUNT_POINT"/var/lib/systemd/rfkill/*bluetooth*; do
+    if [ -f "$RFKILL_FILE" ]; then
+        printf '0\n' > "$RFKILL_FILE"
+    fi
+done
 
 # 6. Scrub Local Motor Calibration & Robot Data
 echo "[6/8] Clearing robot calibration, logs, and session databases..."

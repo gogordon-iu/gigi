@@ -41,6 +41,71 @@ if [ "$EUID" -ne 0 ]; then
   echo "    Some commands like sdptool and rfcomm require root privileges."
 fi
 
+# Disable crash-report popups and remove stale crash reports
+echo "[*] Disabling crash-report popups..."
+rm -f /var/crash/* || true
+if [ -f /etc/default/apport ]; then
+  if grep -qE '^[[:space:]]*enabled[[:space:]]*=' /etc/default/apport; then
+    sed -i 's/^[[:space:]]*enabled[[:space:]]*=.*/enabled=0/' /etc/default/apport || true
+  else
+    printf '\nenabled=0\n' >> /etc/default/apport || true
+  fi
+else
+  printf 'enabled=0\n' > /etc/default/apport || true
+fi
+rm -f /etc/xdg/autostart/update-notifier.desktop || true
+pkill -f '[a]pport' || true
+pkill -f '[u]pdate-notifier' || true
+
+# Prevent X11 DPMS standby and screensaver blanking
+echo "[*] Disabling display blanking..."
+rm -f /etc/xdg/autostart/xscreensaver.desktop || true
+pkill -f '[x]screensaver' || true
+xset dpms force on || true
+xset -dpms || true
+xset s off || true
+xset s noblank || true
+
+# Record the soft-block state before unblocking: a block resets the chip
+# and clears the BCM4345C5 firmware uploaded to RAM.
+BT_WAS_SOFT_BLOCKED=0
+if rfkill --noheadings --output TYPE,SOFT 2>/dev/null |
+    grep -Eq '^[[:space:]]*bluetooth[[:space:]]+blocked([[:space:]]|$)'; then
+  BT_WAS_SOFT_BLOCKED=1
+fi
+
+# Stop Blueman from blocking the adapter and clear persisted Bluetooth blocks
+echo "[*] Disabling conflicting Bluetooth desktop management..."
+rm -f /etc/xdg/autostart/blueman.desktop || true
+pkill -f '[b]lueman' || true
+for RFKILL_STATE in /var/lib/systemd/rfkill/*bluetooth*; do
+  [ -f "$RFKILL_STATE" ] || continue
+  printf '0\n' > "$RFKILL_STATE" || true
+done
+rfkill unblock bluetooth || true
+
+# Reload firmware when a soft block reset the chip or no default controller exists
+if [ "$BT_WAS_SOFT_BLOCKED" -eq 1 ] ||
+    ! bluetoothctl list 2>/dev/null | grep -qE 'Controller[[:space:]].*\[default\]'; then
+  echo "[*] Restoring BCM4345C5 Bluetooth firmware..."
+  killall -9 brcm_patchram_plus || true
+  rfkill block bluetooth || true
+  sleep 1
+  rfkill unblock all || true
+  sleep 1
+  nohup brcm_patchram_plus \
+    --enable_hci \
+    --no2bytes \
+    --use_baudrate_for_download \
+    --tosleep 200000 \
+    --baudrate 1500000 \
+    --patchram /lib/firmware/BCM4345C5.hcd \
+    /dev/ttyS9 > /dev/null 2>&1 < /dev/null &
+  sleep 6
+  systemctl restart bluetooth || true
+  sleep 2
+fi
+
 # Wait up to 15 seconds for a Bluetooth hardware adapter to initialize
 echo "[*] Waiting for Bluetooth hardware adapter to initialize..."
 for i in {1..15}; do
@@ -56,6 +121,7 @@ echo "[*] Ensuring Bluetooth is unblocked and powered on..."
 rfkill unblock bluetooth || true
 bluetoothctl power on || true
 hciconfig hci0 up || true
+hciconfig hci0 name orangepi5pro || true
 hciconfig hci0 class 0x000100 || true
 hciconfig hci0 piscan || true
 sleep 1
@@ -66,7 +132,6 @@ if [ ! -f /etc/ssh/ssh_host_rsa_key ] || [ ! -f /etc/ssh/ssh_host_ed25519_key ];
   ssh-keygen -A || true
   systemctl restart ssh || true
 fi
-
 
 # 2. Clean up any existing instances
 echo "[*] Cleaning up old processes..."

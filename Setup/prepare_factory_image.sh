@@ -81,6 +81,22 @@ apt-get autoremove -y || true
 rm -rf /tmp/* /var/tmp/* || true
 rm -rf /home/orangepi/.cache/* /root/.cache/* || true
 
+# Disable desktop popups and clear persisted Bluetooth rfkill state
+rm -rf /var/crash/* || true
+if grep -q '^[[:space:]]*enabled[[:space:]]*=' /etc/default/apport 2>/dev/null; then
+  sed -i 's/^[[:space:]]*enabled[[:space:]]*=.*/enabled=0/' /etc/default/apport || true
+else
+  printf '\nenabled=0\n' >> /etc/default/apport || true
+fi
+rm -f /etc/xdg/autostart/update-notifier.desktop \
+      /etc/xdg/autostart/blueman.desktop \
+      /etc/xdg/autostart/xscreensaver.desktop || true
+for rfkill_file in /var/lib/systemd/rfkill/*bluetooth*; do
+  [ -f "$rfkill_file" ] || continue
+  printf '0\n' > "$rfkill_file" || true
+done
+truncate -s 0 /etc/machine-id || true
+
 # 8. Discard Unused Blocks (eMMC TRIM for maximum disk image compression)
 echo "[8/8] Zeroing unused filesystem blocks with fstrim..."
 fstrim -av || true
