@@ -41,6 +41,19 @@ if [ "$EUID" -ne 0 ]; then
   echo "    Some commands like sdptool and rfcomm require root privileges."
 fi
 
+# Auto-expand root GPT partition (/dev/mmcblk0p2) and ext4 filesystem on first boot of a shrunk image
+ROOT_PART="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+if [ "$ROOT_PART" = "/dev/mmcblk0p2" ]; then
+  sgdisk -e /dev/mmcblk0 >/dev/null 2>&1 || true
+  FREE_SECTORS="$(sgdisk -p /dev/mmcblk0 2>/dev/null | awk '/Total free space is/ {print $5}')"
+  if [ -n "$FREE_SECTORS" ] && [ "$FREE_SECTORS" -gt 2097152 ] 2>/dev/null; then
+    echo "[*] Expanding /dev/mmcblk0p2 to fill physical eMMC..."
+    echo ", +" | sfdisk -N 2 --no-reread /dev/mmcblk0 >/dev/null 2>&1 || parted -s /dev/mmcblk0 resizepart 2 100% >/dev/null 2>&1 || true
+    partprobe /dev/mmcblk0 >/dev/null 2>&1 || partx -u /dev/mmcblk0 >/dev/null 2>&1 || true
+    resize2fs /dev/mmcblk0p2 >/dev/null 2>&1 || true
+  fi
+fi
+
 # Disable crash-report popups and remove stale crash reports
 echo "[*] Disabling crash-report popups..."
 rm -f /var/crash/* || true
